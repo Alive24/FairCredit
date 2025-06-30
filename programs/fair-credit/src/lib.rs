@@ -5,7 +5,7 @@ pub mod state;
 pub mod handlers;
 
 // Use specific imports instead of wildcards
-use handlers::provider_handlers::*;
+use handlers::provider::*;
 use state::provider::*;
 use types::provider::*;
 
@@ -25,14 +25,14 @@ pub mod fair_credit {
         name: String,
         description: String,
     ) -> Result<()> {
-        handlers::provider_handlers::initialize_provider(ctx, name, description)
+        handlers::provider::initialize_provider(ctx, name, description)
     }
 
     pub fn update_provider_status(
         ctx: Context<UpdateProviderStatus>,
         new_status: ProviderStatus,
     ) -> Result<()> {
-        handlers::provider_handlers::update_provider_status(ctx, new_status)
+        handlers::provider::update_provider_status(ctx, new_status)
     }
 }
 
