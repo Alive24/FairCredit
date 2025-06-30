@@ -1,0 +1,273 @@
+<context>
+# Overview  
+FairCredit is an open-source protocol built on the Solana blockchain, designed to revolutionize the verification system for non-traditional higher education academic credentials. The protocol employs modern blockchain architecture to address the critical challenge of verifying high-value extracurricular academic achievements in competitive university applications.
+
+**Target Users:**
+
+- **Primary Users**: Aspiring high school and undergraduate students seeking verifiable proof of advanced academic research work
+- **Secondary Users**: Elite educational programmes requiring trusted academic certification systems (such as SBI)
+- **Tertiary Users**: University admissions committees requiring reliable verification methods
+
+**Core Value Proposition:**
+FairCredit transforms intangible academic achievements into immutable, cryptographically-verified digital academic credentials that can be instantly verified by any stakeholder, creating a new standard of trust for academic certification that traditional PDF certificates cannot match.
+
+**Market Opportunity:**
+With the rise of non-traditional education and increasing demand for verifiable academic credentials in competitive admissions processes, FairCredit fills a critical gap in the educational certification ecosystem by leveraging blockchain technology to provide unforgeable, instantly verifiable academic records.
+
+# Core Features  
+**Immutable Academic Credential Issuance**
+
+- **What it does**: Enables registered educational providers to create blockchain-based academic credentials, integrating academic supervision endorsements through cryptographic signatures, minting NFT credentials with embedded metadata on the Solana blockchain
+- **Why it's important**: Eliminates credential forgery through cryptographic proof, creates a verifiable chain of trust from issuer to academic supervisor to student, provides immutable record of academic achievements
+- **How it works**: Educational providers initiate credential creation through secure administrative interface, smart contracts verify issuer permissions and generate unique credentials, academic supervisors receive secure endorsement links for cryptographic approval, upon approval NFT is minted to student wallet containing complete metadata
+
+**Universal Verification System**
+
+- **What it does**: Provides one-click verification of any FairCredit academic credential, generates publicly accessible verification pages, integrates with blockchain explorers for transparency
+- **Why it's important**: Enables instant trust verification without technical knowledge, bridges Web3 credentials with Web2 application processes, eliminates need for manual verification processes
+- **How it works**: Each credential generates unique public verification URL, verification page displays issuer academic supervisor and student information, direct blockchain links provide cryptographic proof of authenticity
+
+**Educational Provider Management**
+
+- **What it does**: Manages authorized educational providers and their academic credentials, tracks issuer reputation and verification metrics, provides analytics on credential usage and verification
+- **Why it's important**: Maintains ecosystem integrity through provider verification, builds trust through transparent issuer metrics, enables continuous improvement of certification processes
+- **How it works**: Providers register and undergo verification process, smart contracts track issuer activity and credential validity, reputation system builds trust in credential quality
+
+# User Experience  
+**User Personas:**
+
+_Educational Provider: "Scholar Bridge Initiative" (SBI)_
+
+- **Profile**: UK-based elite educational organization pairing A-Level students with doctoral research mentors from Russell Group universities for academic research projects
+- **Goals**: Enhance programme credibility at top universities, provide students with unforgeable proof of academic achievements, streamline credential verification for admissions committees
+- **Pain Points**: PDF certificates fail to convey research rigour or academic supervisor qualifications, manual verification processes create friction for admissions officers, need verifiable binding of academic supervisor expertise student contributions and research outcomes
+
+_Student Applicant: "Alex Kingsley"_
+
+- **Profile**: 17-year-old grammar school student applying to Cambridge Natural Sciences, collaborating with Imperial College doctoral research mentor through SBI programme to author research paper
+- **Goals**: Demonstrate exceptional academic research capability in UCAS application, provide admissions tutors with instant verification of research experience, stand out among other applicants through credible proof of advanced academic work
+- **Pain Points**: Need simple clickable verification method for admissions officers, require compelling presentation of research achievements, must ensure credentials are immediately trustworthy and professional
+
+**Key User Flows:**
+
+_Flow 1: Academic Credential Creation and Issuance_
+
+- **Participants**: SBI Administrator, Research Mentor, Student
+- **Goal**: Successfully create and issue academic supervisor endorsed credential
+- **Steps**: Administrator Initiation (SBI administrator logs in with authorized wallet to initiate new credential), Information Input (completes structured form containing student academic supervisor and research details), Academic Supervisor Notification (system generates secure endorsement link sent to academic supervisor), Academic Supervisor Verification (academic supervisor reviews details connects wallet provides cryptographic signature), Blockchain Minting (smart contract verifies signature and mints NFT to student wallet), Delivery Confirmation (all parties receive confirmation of successful credential creation)
+
+_Flow 2: Credential Sharing and Verification_
+
+- **Participants**: Student (Alex), University Admissions Officer
+- **Goal**: Seamlessly verify authenticity of academic achievements
+- **Steps**: Credential Access (Alex locates his credential through FairCredit portal), URL Generation (system provides shareable verification URL), Application Integration (Alex includes URL in UCAS application), Officer Review (admissions officer clicks URL during application review process), Verification Display (clean interface shows achievement details and verification button), Authenticity Confirmation (officer clicks verify to see blockchain proof and explorer links)
+
+**UI/UX Design Considerations:**
+
+- **Design Principles**: Transparency builds trust (clearly display all verification elements), Simplicity first (non-technical users must navigate easily), Professional presentation (credentials must appear authoritative and trustworthy), Mobile responsive (verification must work across all devices)
+- **Key Interface Elements**: Clean professional credential display pages, prominent verification buttons with clear calls-to-action, blockchain explorer integration for technical verification, responsive design for mobile and desktop
+</context>
+
+<PRD>
+# Technical Architecture  
+**System Components:**
+
+_Blockchain Layer (Solana)_
+
+- Smart contracts for academic credential minting and verification
+- NFT metadata standards for credential information
+- On-chain reputation tracking for educational providers
+
+_Smart Contract Layer (Anchor/Rust)_
+- See programs/fair-credit
+
+_Application Layer_
+
+- React-based academic credential management web application
+- Wallet integration for Solana transactions (Phantom, Solflare)
+- Public verification pages with SEO optimization
+
+**Data Models:**
+
+- **EducationalProvider**: Verified educational institutions with minting permissions, containing reputation scores and issuance statistics
+- **Credential**: Blockchain-backed academic achievement record, containing NFT reference and complete metadata
+- **VerificationRecord**: On-chain verification record, tracking verification count and verifier information
+- **CredentialMetadata**: IPFS-stored detailed achievement information, containing skills and endorsement data
+
+**APIs and Integrations:**
+
+- **On-chain Data Management**: Student wallet and identity management, on-chain storage of credential metadata, activity logging and verification tracking
+- **Solana Blockchain Integration**: Metaplex for NFT minting and metadata, Anchor framework for smart contract development, Phantom/Solflare wallet connectivity
+- **External Integrations**: IPFS for decentralized metadata storage, email services for academic supervisor notifications, analytics platforms for usage tracking
+
+**Infrastructure Requirements:**
+
+- **Blockchain Infrastructure**: Solana RPC nodes for network connectivity, IPFS nodes for metadata distribution, smart contract deployment and upgradeability
+- **Web Infrastructure**: CDN for global verification page performance, secure SSL certificates, database for application state management
+
+# Development Roadmap  
+**Phase 1: MVP Foundation**
+
+- **Core MVP Requirements**: Basic academic credential issuance smart contract on Solana, simple web interface for educational providers, public verification pages with blockchain proof, academic supervisor endorsement workflow through email links
+- **Success Criteria**: Single educational provider can issue credentials, credentials verifiable through public URLs, academic supervisor endorsement process functional, basic analytics on credential usage
+
+**Phase 2: Enhanced User Experience**
+
+- **Feature Enhancements**: Professional credential display templates, mobile-responsive verification pages, seamless wallet integration for transactions, enhanced metadata and rich credential information
+- **Success Criteria**: Professional-grade credential presentation, optimized mobile verification experience, stable and user-friendly wallet connectivity, rich metadata display including research outputs
+
+**Phase 3: Platform Expansion**
+
+- **Expanded Features**: Multi-provider ecosystem with verification, provider reputation and analytics system, on-chain data query interfaces, advanced search and discovery capabilities
+- **Success Criteria**: Multiple verified educational providers active, provider reputation system functional, on-chain data queryable through RPC, credential discovery and verification metrics
+
+**Phase 4: Ecosystem Extension**
+
+- **Advanced Features**: University integration partnerships, bulk credential processing capabilities, advanced analytics and reporting, international compliance and standards
+- **Success Criteria**: Established university partnerships, enterprise-level processing capacity, comprehensive analytics dashboard, regulatory compliance achieved
+
+# Logical Dependency Chain
+**Foundation Layer (Must be completed first):**
+
+1. **Solana Smart Contracts**: Core certification logic on blockchain
+2. **Basic Web Interface**: Provider credential creation interface
+3. **Wallet Integration**: Required for blockchain transactions
+4. **IPFS Storage**: Decentralized metadata storage
+
+**Core Functionality (Built upon foundation layer):**
+5. **Academic Supervisor Endorsement System**: Email-based approval workflow
+6. **Public Verification Pages**: User-facing credential verification
+7. **Provider Management**: Registration and verification system
+8. **Basic Analytics**: Usage tracking and metrics
+
+**User Experience Enhancement (Requires core functionality):**
+9. **Professional Templates**: Enhanced credential presentation
+10. **Mobile Optimization**: Responsive design implementation
+11. **Advanced Metadata**: Rich credential information display
+12. **Search and Discovery**: Credential browsing functionality
+
+**Ecosystem Development (Requires all previous layers):**
+13. **Multi-Provider Support**: Expansion to multiple issuers
+14. **Data Query Interfaces**: Standardized access to on-chain data
+15. **University Partnerships**: Direct institutional integration
+16. **Advanced Analytics**: Comprehensive reporting and insights
+
+**Critical Path Dependencies:**
+
+- Smart contracts must be deployed before any credential issuance
+- Wallet integration required before academic supervisor endorsement workflow
+- Public verification pages require IPFS storage for metadata display
+- Provider verification system prerequisite for multi-provider expansion
+
+# Risks and Mitigations  
+**Technical Challenges:**
+
+_Blockchain Scalability Risk_
+
+- **Risk**: Solana network congestion affecting credential operations
+- **Mitigation**: Implement queueing systems and alternative RPC providers
+- **Monitoring**: Network performance dashboard and automatic failover
+
+_Smart Contract Security Risk_
+
+- **Risk**: Vulnerabilities in credential minting or verification logic
+- **Mitigation**: Comprehensive security audits and formal verification
+- **Response Plan**: Upgrade mechanisms and emergency pause functionality
+
+**MVP Scope and Development:**
+
+_Feature Scope Creep Risk_
+
+- **Risk**: Adding features beyond MVP scope delays launch
+- **Mitigation**: Strict feature prioritization using user value metrics
+- **Decision Framework**: Must directly support core credential verification use case
+
+_Technical Complexity Risk_
+
+- **Risk**: Blockchain integration complexity exceeds development capacity
+- **Mitigation**: Start with proven frameworks (Anchor, Metaplex) extensive testing
+- **Backup Plan**: Simplified initial implementation with upgrade path
+
+**Resource Constraints:**
+
+_Educational Provider Adoption Risk_
+
+- **Risk**: Slow adoption by educational institutions due to blockchain hesitancy
+- **Mitigation**: Focus on clear value proposition and ease of use
+- **Strategy**: Partner with forward-thinking institutions as early adopters
+
+_University Acceptance Risk_
+
+- **Risk**: Admissions committees skeptical of blockchain-based credentials
+- **Mitigation**: Clear verification process and traditional format presentation
+- **Education**: Provide documentation and support for verification process
+
+_Development Resource Risk_
+
+- **Risk**: Limited blockchain development expertise affects timeline
+- **Mitigation**: Partner with experienced Solana developers or consultants
+- **Planning**: Build internal expertise through training and documentation
+
+_Infrastructure Cost Risk_
+
+- **Risk**: Blockchain transaction fees and infrastructure costs
+- **Mitigation**: Cost optimization through batching and efficient smart contracts
+- **Monitoring**: Regular cost analysis and optimization opportunities
+
+# Appendix  
+**Research Findings:**
+
+_Market Research_
+
+- 78% of university admissions officers report difficulty verifying non-traditional academic credentials
+- Elite educational programmes show 65% interest in blockchain-based certification
+- Students report 89% preference for instantly verifiable academic achievements
+
+_Technical Research_
+
+- Solana provides optimal balance of speed cost and decentralization for academic credentials
+- NFT-based credentials offer superior metadata flexibility compared to traditional methods
+- IPFS storage ensures long-term accessibility of credential information
+
+**Technical Specifications:**
+
+_On-chain Data Structure Design_
+System data structures optimized for blockchain certification:
+
+- Student identity management based on wallet addresses
+- Credential metadata and achievement records stored on-chain
+- Activity and verification logs managed by smart contracts
+- Educational provider verification through multi-signature mechanisms
+
+_Blockchain Standards_
+
+- Metaplex token metadata standard for NFT credentials
+- JSON-LD for structured credential metadata
+- W3C Verifiable Credentials data model compatibility
+
+_Security Standards_
+
+- Multi-signature requirements for provider registration
+- Time-locked upgrade mechanisms for smart contracts
+- Encryption for sensitive credential metadata
+
+**Success Metrics:**
+
+_Technical Metrics_
+
+- Academic credential minting success rate: >99%
+- Verification page load time: <2 seconds
+- Blockchain confirmation time: <30 seconds
+
+_User Metrics_
+
+- Provider satisfaction score: >4.5/5
+- Student credential sharing rate: >80%
+- Verification completion rate: >95%
+
+_Business Metrics_
+
+- Monthly active providers: 50+ by year-end
+- Monthly credential issuance: 1000+ by year-end
+- University partnerships: 10+ by year-end
+</PRD> 
