@@ -4,8 +4,8 @@ use crate::types::{ActivityKind, ActivityStatus, ResourceKind, ActivityError};
 #[account]
 pub struct Activity {
     pub id: String,
-    pub created: u64,
-    pub updated: u64,
+    pub created: i64,
+    pub updated: i64,
     pub user_id: String,
     pub college_id: String,
     pub degree_id: Option<String>,

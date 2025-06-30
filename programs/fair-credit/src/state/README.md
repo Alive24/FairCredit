@@ -7,7 +7,7 @@ This document describes the core data structures in the FairCredit smart contrac
 FairCredit is an educational credential system built on the Solana blockchain using the Anchor framework. The system contains three main data structures:
 
 - **Credential**: Stores core information of academic credentials
-- **EducationalProvider**: Manages educational provider information and reputation
+- **Provider**: Manages educational provider information and reputation
 - **VerificationRecord**: Tracks credential verification history
 
 ## Data Structure Details
@@ -51,11 +51,11 @@ pub struct CredentialMetadata {
 }
 ```
 
-### 2. EducationalProvider
+### 2. Provider
 
 ```rust
 #[account]
-pub struct EducationalProvider {
+pub struct Provider {
     pub wallet: Pubkey,                   // Provider wallet address (serves as unique identifier)
     pub name: String,                     // Institution name
     pub description: String,              // Institution description
@@ -109,7 +109,7 @@ Automatically categorized based on verification count:
 ### Creating Educational Provider
 
 ```rust
-let provider = EducationalProvider {
+let provider = Provider {
     wallet: provider_pubkey,
     name: "Scholars' Bridge Initiative".to_string(),
     description: "Research projects connecting A-Level students with PhD mentors".to_string(),
@@ -157,7 +157,7 @@ let verification = VerificationRecord::new(
 ## Account Space Calculation
 
 - `Credential::SPACE`: ~768 bytes (base structure + 512 bytes for strings)
-- `EducationalProvider::SPACE`: ~344 bytes (base structure + 256 bytes for strings)
+- `Provider::SPACE`: ~344 bytes (base structure + 256 bytes for strings)
 - `VerificationRecord::SPACE`: ~88 bytes (base structure + 64 bytes extra space)
 
 ## Helper Functions

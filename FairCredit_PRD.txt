@@ -89,7 +89,7 @@ _Application Layer_
 
 **Data Models:**
 
-- **EducationalProvider**: Verified educational institutions with minting permissions, containing reputation scores and issuance statistics
+- **Provider**: Verified educational institutions with minting permissions, containing reputation scores and issuance statistics
 - **Credential**: Blockchain-backed academic achievement record, containing NFT reference and complete metadata
 - **VerificationRecord**: On-chain verification record, tracking verification count and verifier information
 - **CredentialMetadata**: IPFS-stored detailed achievement information, containing skills and endorsement data

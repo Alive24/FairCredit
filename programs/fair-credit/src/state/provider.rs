@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 use crate::types::{ProviderStatus, TrustLevel};
 
-/// Educational provider data structure
+/// Credit provider data structure
 /// Stores verified educational institution information including reputation and statistics
 #[account]
-pub struct EducationalProvider {
+pub struct Provider {
     /// Provider wallet address (serves as unique identifier)
     pub wallet: Pubkey,
     /// Institution name
@@ -21,9 +21,9 @@ pub struct EducationalProvider {
     pub registered_at: i64,
 }
 
-impl EducationalProvider {
+impl Provider {
     /// Calculate space required for educational provider account
-    pub const SPACE: usize = std::mem::size_of::<EducationalProvider>() + 256; // Extra space for strings
+    pub const SPACE: usize = std::mem::size_of::<Provider>() + 256; // Extra space for strings
     
     /// Seed prefix for PDA generation
     pub const SEED_PREFIX: &'static str = "provider";
@@ -65,5 +65,3 @@ impl EducationalProvider {
         }
     }
 }
-
- 

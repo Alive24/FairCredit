@@ -121,7 +121,7 @@ pub enum CredentialStatus {
 }
 
 #[account]
-pub struct EducationalProvider {
+pub struct Provider {
     pub wallet: Pubkey,
     pub name: String,
     pub description: String,
@@ -155,7 +155,7 @@ _应用层_
 
 **数据模型：**
 
-- **EducationalProvider**：具有铸造权限的已验证教育机构，包含声誉评分和发行统计
+- **Provider**：具有铸造权限的已验证教育机构，包含声誉评分和发行统计
 - **Credential**：区块链支持的学术成就记录，包含NFT引用和完整元数据
 - **VerificationRecord**：链上验证记录，追踪验证次数和验证者信息
 - **CredentialMetadata**：IPFS存储的详细成就信息，包含技能和endorsement数据

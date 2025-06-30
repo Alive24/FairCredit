@@ -15,6 +15,7 @@ pub mod course_handlers;
 pub mod resource_handlers;
 pub mod activity_handlers;
 pub mod credential_handlers;
+pub mod provider_handlers;
 
 pub use college_handlers::*;
 pub use student_handlers::*;
@@ -22,3 +23,4 @@ pub use course_handlers::*;
 pub use resource_handlers::*;
 pub use activity_handlers::*;
 pub use credential_handlers::*; 
+pub use provider_handlers::*; 
