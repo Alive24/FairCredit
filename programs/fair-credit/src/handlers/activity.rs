@@ -26,12 +26,6 @@ pub struct AddFeedback<'info> {
         bump
     )]
     pub activity: Account<'info, Activity>,
-    #[account(
-        seeds = [Student::SEED_PREFIX.as_bytes(), student.id.as_bytes()],
-        bump,
-        constraint = student.wallet == student_authority.key()
-    )]
-    pub student: Account<'info, Student>,
     #[account(mut)]
     pub student_authority: Signer<'info>,
 }
@@ -56,12 +50,6 @@ pub struct AddAttendance<'info> {
         bump
     )]
     pub activity: Account<'info, Activity>,
-    #[account(
-        seeds = [Student::SEED_PREFIX.as_bytes(), student.id.as_bytes()],
-        bump,
-        constraint = student.wallet == student_authority.key()
-    )]
-    pub student: Account<'info, Student>,
     #[account(mut)]
     pub student_authority: Signer<'info>,
 }
@@ -70,7 +58,7 @@ pub fn create_activity(
     ctx: Context<CreateActivity>,
     activity_id: String,
     user_id: String,
-    college_id: String,
+    provider_id: String,
     kind: ActivityKind,
     data: String,
     degree_id: Option<String>,
@@ -86,7 +74,7 @@ pub fn create_activity(
     activity.created = clock.unix_timestamp;
     activity.updated = clock.unix_timestamp;
     activity.user_id = user_id;
-    activity.college_id = college_id;
+    activity.college_id = provider_id;
     activity.degree_id = degree_id;
     activity.weight_id = weight_id;
     activity.course_id = course_id;

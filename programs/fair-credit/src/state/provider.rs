@@ -1,67 +1,48 @@
 use anchor_lang::prelude::*;
-use crate::types::{ProviderStatus, TrustLevel};
 
-/// Credit provider data structure
-/// Stores verified educational institution information including reputation and statistics
+/// Educational provider state
 #[account]
 pub struct Provider {
-    /// Provider wallet address (serves as unique identifier)
+    /// Provider wallet address
     pub wallet: Pubkey,
-    /// Institution name
+    /// Organization name
     pub name: String,
-    /// Institution description
+    /// Organization description
     pub description: String,
-    /// Verification status
-    pub verification_status: ProviderStatus,
-    /// Total number of credentials issued
-    pub credentials_issued: u64,
-    /// Reputation score (0-100)
-    pub reputation_score: u64,
+    /// Website URL
+    pub website: String,
+    /// Contact email
+    pub email: String,
+    /// Provider type (University, College, Institution, etc.)
+    pub provider_type: String,
     /// Registration timestamp
     pub registered_at: i64,
 }
 
 impl Provider {
-    /// Calculate space required for educational provider account
-    pub const SPACE: usize = std::mem::size_of::<Provider>() + 256; // Extra space for strings
+    /// Calculate space required for provider account (adjusted for realistic string lengths)
+    pub const SPACE: usize = 8 + // discriminator
+        32 + // wallet
+        4 + 50 + // name (max 50 chars)
+        4 + 200 + // description (max 200 chars)
+        4 + 100 + // website (max 100 chars)
+        4 + 50 + // email (max 50 chars)
+        4 + 30 + // provider_type (max 30 chars)
+        8; // registered_at
     
     /// Seed prefix for PDA generation
     pub const SEED_PREFIX: &'static str = "provider";
+    
+    /// Check if provider can issue credentials
+    /// In decentralized system, all providers can issue credentials
+    pub fn can_issue_credentials(&self) -> bool {
+        true
+    }
     
     /// Space calculation function for Anchor compatibility
     pub fn space() -> usize {
         Self::SPACE
     }
-    
-    /// Update verification status
-    pub fn update_verification_status(&mut self, new_status: ProviderStatus) {
-        self.verification_status = new_status;
-    }
-    
-    /// Increment credentials issued count
-    pub fn increment_credentials_issued(&mut self) {
-        self.credentials_issued += 1;
-    }
-    
-    /// Update reputation score
-    pub fn update_reputation_score(&mut self, new_score: u64) {
-        // Ensure score is within valid range
-        self.reputation_score = new_score.min(100);
-    }
-    
-    /// Check if provider can issue credentials
-    pub fn can_issue_credentials(&self) -> bool {
-        self.verification_status == ProviderStatus::Verified
-    }
-    
-    /// Calculate trust level based on statistics
-    pub fn trust_level(&self) -> TrustLevel {
-        match (self.credentials_issued, self.reputation_score) {
-            (issued, score) if issued >= 100 && score >= 90 => TrustLevel::Excellent,
-            (issued, score) if issued >= 50 && score >= 80 => TrustLevel::High,
-            (issued, score) if issued >= 10 && score >= 70 => TrustLevel::Good,
-            (issued, score) if issued >= 1 && score >= 60 => TrustLevel::Fair,
-            _ => TrustLevel::New,
-        }
-    }
 }
+
+

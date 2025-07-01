@@ -6,8 +6,7 @@ pub mod handlers;
 
 // Use specific imports instead of wildcards
 use handlers::provider::*;
-use state::provider::*;
-use types::provider::*;
+use state::{provider::*, verifier::*};
 
 declare_id!("BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk");
 
@@ -24,15 +23,37 @@ pub mod fair_credit {
         ctx: Context<InitializeProvider>,
         name: String,
         description: String,
+        website: String,
+        email: String,
+        provider_type: String,
     ) -> Result<()> {
-        handlers::provider::initialize_provider(ctx, name, description)
+        handlers::provider::initialize_provider(ctx, name, description, website, email, provider_type)
     }
 
-    pub fn update_provider_status(
-        ctx: Context<UpdateProviderStatus>,
-        new_status: ProviderStatus,
+    pub fn initialize_verifier(
+        ctx: Context<InitializeVerifier>,
     ) -> Result<()> {
-        handlers::provider::update_provider_status(ctx, new_status)
+        handlers::provider::initialize_verifier(ctx)
+    }
+
+    pub fn suspend_provider(
+        ctx: Context<SuspendProvider>,
+    ) -> Result<()> {
+        handlers::provider::suspend_provider(ctx)
+    }
+
+    pub fn unsuspend_provider(
+        ctx: Context<UnsuspendProvider>,
+    ) -> Result<()> {
+        handlers::provider::unsuspend_provider(ctx)
+    }
+
+    pub fn set_provider_reputation(
+        ctx: Context<SetProviderReputation>,
+        reputation_score: u64,
+        note: Option<String>,
+    ) -> Result<()> {
+        handlers::provider::set_provider_reputation(ctx, reputation_score, note)
     }
 }
 

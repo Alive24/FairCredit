@@ -17,9 +17,9 @@ With the rise of non-traditional education and increasing demand for verifiable 
 # Core Features  
 **Immutable Academic Credential Issuance**
 
-- **What it does**: Enables registered educational providers to create blockchain-based academic credentials, integrating academic supervision endorsements through cryptographic signatures, minting NFT credentials with embedded metadata on the Solana blockchain
-- **Why it's important**: Eliminates credential forgery through cryptographic proof, creates a verifiable chain of trust from issuer to academic supervisor to student, provides immutable record of academic achievements
-- **How it works**: Educational providers initiate credential creation through secure administrative interface, smart contracts verify issuer permissions and generate unique credentials, academic supervisors receive secure endorsement links for cryptographic approval, upon approval NFT is minted to student wallet containing complete metadata
+- **What it does**: Enables any educational provider to create blockchain-based academic credentials without pre-verification, integrating academic supervision endorsements through cryptographic signatures, minting NFT credentials with embedded metadata on the Solana blockchain
+- **Why it's important**: Eliminates credential forgery through cryptographic proof, creates a verifiable chain of trust from issuer to academic supervisor to student, provides immutable record of academic achievements while ensuring open access to the credentialing system
+- **How it works**: Educational providers immediately begin issuing credentials upon registration, smart contracts generate unique credentials without permission gates, academic supervisors receive secure endorsement links for cryptographic approval, upon approval NFT is minted to student wallet containing complete metadata, community oversight ensures quality through suspension mechanism
 
 **Universal Verification System**
 
@@ -27,11 +27,11 @@ With the rise of non-traditional education and increasing demand for verifiable 
 - **Why it's important**: Enables instant trust verification without technical knowledge, bridges Web3 credentials with Web2 application processes, eliminates need for manual verification processes
 - **How it works**: Each credential generates unique public verification URL, verification page displays issuer academic supervisor and student information, direct blockchain links provide cryptographic proof of authenticity
 
-**Educational Provider Management**
+**Decentralized Provider Ecosystem**
 
-- **What it does**: Manages authorized educational providers and their academic credentials, tracks issuer reputation and verification metrics, provides analytics on credential usage and verification
-- **Why it's important**: Maintains ecosystem integrity through provider verification, builds trust through transparent issuer metrics, enables continuous improvement of certification processes
-- **How it works**: Providers register and undergo verification process, smart contracts track issuer activity and credential validity, reputation system builds trust in credential quality
+- **What it does**: Enables completely open provider ecosystem where anyone can register and immediately issue credentials, implements verifier-centric trust mechanism where each verifier maintains their own assessments of providers, provides analytics on credential usage through individual verifier evaluations
+- **Why it's important**: Eliminates all barriers to entry by removing provider verification requirements, enables true decentralization through verifier-specific assessments rather than global reputation, preserves quality through individual verifier due diligence rather than centralized oversight
+- **How it works**: Anyone can register as provider with basic information and immediately issue credentials without approval, verifiers register independently and maintain their own lists of provider assessments including suspension status and reputation scores, each verifier makes independent decisions about provider trustworthiness, contract authors maintain ultimate governance authority over the system
 
 # User Experience  
 **User Personas:**
@@ -54,7 +54,7 @@ _Flow 1: Academic Credential Creation and Issuance_
 
 - **Participants**: SBI Administrator, Research Mentor, Student
 - **Goal**: Successfully create and issue academic supervisor endorsed credential
-- **Steps**: Administrator Initiation (SBI administrator logs in with authorized wallet to initiate new credential), Information Input (completes structured form containing student academic supervisor and research details), Academic Supervisor Notification (system generates secure endorsement link sent to academic supervisor), Academic Supervisor Verification (academic supervisor reviews details connects wallet provides cryptographic signature), Blockchain Minting (smart contract verifies signature and mints NFT to student wallet), Delivery Confirmation (all parties receive confirmation of successful credential creation)
+- **Steps**: Provider Registration (SBI administrator registers as provider with immediate activation, no verification required), Credential Initiation (administrator logs in with wallet to initiate new credential), Information Input (completes structured form containing student academic supervisor and research details), Academic Supervisor Notification (system generates secure endorsement link sent to academic supervisor), Academic Supervisor Verification (academic supervisor reviews details connects wallet provides cryptographic signature), Blockchain Minting (smart contract automatically mints NFT to student wallet upon supervisor approval), Delivery Confirmation (all parties receive confirmation of successful credential creation)
 
 _Flow 2: Credential Sharing and Verification_
 
@@ -76,7 +76,7 @@ _Blockchain Layer (Solana)_
 
 - Smart contracts for academic credential minting and verification
 - NFT metadata standards for credential information
-- On-chain reputation tracking for educational providers
+- Verifier-specific provider assessment tracking
 
 _Smart Contract Layer (Anchor/Rust)_
 - See programs/fair-credit
@@ -89,7 +89,9 @@ _Application Layer_
 
 **Data Models:**
 
-- **Provider**: Verified educational institutions with minting permissions, containing reputation scores and issuance statistics
+- **Provider**: Simple registration entity containing basic information (name, description, website, email, provider_type) with no status verification, reputation tracking, or approval requirements
+- **Verifier**: Independent assessor entity maintaining ProviderAssessment arrays for tracking provider suspension status and reputation scores from their individual perspective
+- **ProviderAssessment**: Verifier-specific evaluation record containing provider wallet address, suspension status (boolean), reputation score (optional), assessment timestamp, and notes
 - **Credential**: Blockchain-backed academic achievement record, containing NFT reference and complete metadata
 - **VerificationRecord**: On-chain verification record, tracking verification count and verifier information
 - **CredentialMetadata**: IPFS-stored detailed achievement information, containing skills and endorsement data
@@ -118,8 +120,8 @@ _Application Layer_
 
 **Phase 3: Platform Expansion**
 
-- **Expanded Features**: Multi-provider ecosystem with verification, provider reputation and analytics system, on-chain data query interfaces, advanced search and discovery capabilities
-- **Success Criteria**: Multiple verified educational providers active, provider reputation system functional, on-chain data queryable through RPC, credential discovery and verification metrics
+- **Expanded Features**: Verifier-centric provider assessment system, individual verifier suspension and reputation tracking, on-chain data query interfaces, advanced search and discovery capabilities
+- **Success Criteria**: Multiple active educational providers participating, verifier-specific assessment system functional, individual verifier provider evaluation capabilities, on-chain data queryable through RPC, credential discovery and verification metrics
 
 **Phase 4: Ecosystem Extension**
 
@@ -137,7 +139,7 @@ _Application Layer_
 **Core Functionality (Built upon foundation layer):**
 5. **Academic Supervisor Endorsement System**: Email-based approval workflow
 6. **Public Verification Pages**: User-facing credential verification
-7. **Provider Management**: Registration and verification system
+7. **Verifier Assessment System**: Open provider registration with verifier-specific evaluation mechanism
 8. **Basic Analytics**: Usage tracking and metrics
 
 **User Experience Enhancement (Requires core functionality):**
@@ -157,7 +159,7 @@ _Application Layer_
 - Smart contracts must be deployed before any credential issuance
 - Wallet integration required before academic supervisor endorsement workflow
 - Public verification pages require IPFS storage for metadata display
-- Provider verification system prerequisite for multi-provider expansion
+- Verifier assessment system enables immediate multi-provider expansion with individual trust evaluation
 
 # Risks and Mitigations  
 **Technical Challenges:**
@@ -193,8 +195,14 @@ _Technical Complexity Risk_
 _Educational Provider Adoption Risk_
 
 - **Risk**: Slow adoption by educational institutions due to blockchain hesitancy
-- **Mitigation**: Focus on clear value proposition and ease of use
-- **Strategy**: Partner with forward-thinking institutions as early adopters
+- **Mitigation**: Focus on clear value proposition and ease of use, eliminate barriers through instant provider registration
+- **Strategy**: Partner with forward-thinking institutions as early adopters, leverage open access model to encourage participation
+
+_Verifier Assessment Risk_
+
+- **Risk**: Individual verifier assessments may create inconsistent provider trust evaluations across the ecosystem
+- **Mitigation**: Encourage verifier transparency in assessment criteria, maintain contract author override authority for extreme cases, allow providers to appeal verifier assessments through community discussion
+- **Monitoring**: Track assessment patterns across verifiers and provider appeal processes, adjust system based on community feedback and usage data
 
 _University Acceptance Risk_
 
@@ -232,12 +240,14 @@ _Technical Research_
 **Technical Specifications:**
 
 _On-chain Data Structure Design_
-System data structures optimized for blockchain certification:
+System data structures optimized for verifier-centric decentralized certification:
 
 - Student identity management based on wallet addresses
+- Provider entities containing only basic registration information without status verification
+- Verifier entities maintaining independent ProviderAssessment arrays for suspension and reputation tracking
 - Credential metadata and achievement records stored on-chain
 - Activity and verification logs managed by smart contracts
-- Educational provider verification through multi-signature mechanisms
+- Decentralized trust assessment through individual verifier evaluations rather than global reputation systems
 
 _Blockchain Standards_
 
@@ -247,9 +257,10 @@ _Blockchain Standards_
 
 _Security Standards_
 
-- Multi-signature requirements for provider registration
+- Individual verifier authority for provider assessment decisions
 - Time-locked upgrade mechanisms for smart contracts
 - Encryption for sensitive credential metadata
+- Contract author authority for ultimate governance and system integrity
 
 **Success Metrics:**
 

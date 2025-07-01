@@ -88,4 +88,18 @@ pub enum CollegeError {
     FacultyCourseAlreadyExists,
     #[msg("Too many qualifications")]
     TooManyQualifications,
+}
+
+#[error_code]
+pub enum ProviderError {
+    #[msg("Provider already suspended by this verifier")]
+    AlreadySuspended,
+    #[msg("Provider not suspended by this verifier")]
+    NotSuspended,
+    #[msg("Cannot suspend yourself")]
+    CannotSuspendSelf,
+    #[msg("Suspension note too long")]
+    NoteTooLong,
+    #[msg("Invalid reputation score (must be 0-100)")]
+    InvalidReputationScore,
 } 

@@ -7,7 +7,7 @@ use crate::types::{ResourceKind, ResourceStatus, SubmissionStatus, ResourceError
 pub struct AddResource<'info> {
     #[account(
         init,
-        payer = teacher,
+        payer = provider_authority,
         space = Resource::space(),
         seeds = [Resource::SEED_PREFIX.as_bytes(), resource_id.as_bytes()],
         bump
@@ -20,29 +20,25 @@ pub struct AddResource<'info> {
     )]
     pub course: Account<'info, Course>,
     #[account(
-        seeds = [College::SEED_PREFIX.as_bytes(), course.college_id.as_bytes()],
+        seeds = [Provider::SEED_PREFIX.as_bytes(), provider_authority.key().as_ref()],
         bump
     )]
-    pub college: Account<'info, College>,
+    pub provider: Account<'info, Provider>,
     #[account(mut)]
-    pub teacher: Signer<'info>,
+    pub provider_authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-#[instruction(asset_id: String)]
-pub struct CreateAsset<'info> {
+pub struct UpdateResourceData<'info> {
     #[account(
-        init,
-        payer = uploader,
-        space = Asset::space(),
-        seeds = [Asset::SEED_PREFIX.as_bytes(), asset_id.as_bytes()],
+        mut,
+        seeds = [Resource::SEED_PREFIX.as_bytes(), resource.id.as_bytes()],
         bump
     )]
-    pub asset: Account<'info, Asset>,
+    pub resource: Account<'info, Resource>,
     #[account(mut)]
-    pub uploader: Signer<'info>,
-    pub system_program: Program<'info, System>,
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -61,12 +57,6 @@ pub struct CreateSubmission<'info> {
         bump
     )]
     pub resource: Account<'info, Resource>,
-    #[account(
-        seeds = [Student::SEED_PREFIX.as_bytes(), student.id.as_bytes()],
-        bump,
-        constraint = student.wallet == student_authority.key()
-    )]
-    pub student: Account<'info, Student>,
     #[account(mut)]
     pub student_authority: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -75,8 +65,8 @@ pub struct CreateSubmission<'info> {
 pub fn add_resource(
     ctx: Context<AddResource>,
     resource_id: String,
-    name: String,
     kind: ResourceKind,
+    name: String,
     is_grade_required: bool,
     external_id: Option<String>,
     content: Option<String>,
@@ -108,7 +98,7 @@ pub fn add_resource(
     resource.teacher_ids = teacher_ids;
     resource.created = clock.unix_timestamp;
     resource.updated = clock.unix_timestamp;
-    resource.created_by = ctx.accounts.teacher.key();
+    resource.created_by = ctx.accounts.provider_authority.key();
 
     // Add resource to course
     course.add_resource(resource_id)?;
@@ -116,83 +106,38 @@ pub fn add_resource(
     Ok(())
 }
 
-pub fn modify_resource(
-    ctx: Context<ModifyResource>,
+pub fn update_resource_data(
+    ctx: Context<UpdateResourceData>,
     name: Option<String>,
-    kind: Option<ResourceKind>,
-    is_grade_required: Option<bool>,
-    external_id: Option<String>,
     content: Option<String>,
     workload: Option<u32>,
-    weight_ids: Option<Vec<String>>,
     tags: Option<Vec<String>>,
-    teacher_ids: Option<Vec<String>>,
 ) -> Result<()> {
     let resource = &mut ctx.accounts.resource;
     
-    if let Some(name) = name {
-        resource.name = name;
+    if let Some(new_name) = name {
+        resource.name = new_name;
     }
-    if let Some(kind) = kind {
-        resource.kind = kind;
+    if let Some(new_content) = content {
+        resource.update_content(new_content)?;
     }
-    if let Some(is_grade_required) = is_grade_required {
-        resource.is_grade_required = is_grade_required;
+    if let Some(new_workload) = workload {
+        resource.workload = Some(new_workload);
     }
-    if let Some(external_id) = external_id {
-        resource.external_id = Some(external_id);
+    if let Some(new_tags) = tags {
+        require!(new_tags.len() <= 10, ResourceError::TooManyTags);
+        resource.tags = new_tags;
     }
-    if let Some(content) = content {
-        resource.update_content(content)?;
-    }
-    if let Some(workload) = workload {
-        resource.workload = Some(workload);
-    }
-    if let Some(weight_ids) = weight_ids {
-        require!(weight_ids.len() <= 10, ResourceError::TooManyAssets);
-        resource.weight_ids = weight_ids;
-    }
-    if let Some(tags) = tags {
-        require!(tags.len() <= 10, ResourceError::TooManyTags);
-        resource.tags = tags;
-    }
-    if let Some(teacher_ids) = teacher_ids {
-        require!(teacher_ids.len() <= 5, ResourceError::TooManyTeachers);
-        resource.teacher_ids = teacher_ids;
-    }
-
-    resource.updated = Clock::get()?.unix_timestamp;
-    Ok(())
-}
-
-pub fn create_asset(
-    ctx: Context<CreateAsset>,
-    asset_id: String,
-    content_type: Option<String>,
-    file_name: Option<String>,
-    import_url: Option<String>,
-    file_size: Option<u64>,
-    resource_id: Option<String>,
-) -> Result<()> {
-    let asset = &mut ctx.accounts.asset;
-    let clock = Clock::get()?;
     
-    asset.id = asset_id;
-    asset.content_type = content_type;
-    asset.file_name = file_name;
-    asset.import_url = import_url;
-    asset.ipfs_hash = None;
-    asset.file_size = file_size;
-    asset.created = clock.unix_timestamp;
-    asset.uploaded_by = ctx.accounts.uploader.key();
-    asset.resource_id = resource_id;
+    resource.updated = Clock::get()?.unix_timestamp;
 
     Ok(())
 }
 
-pub fn add_submission(
+pub fn create_submission(
     ctx: Context<CreateSubmission>,
     submission_id: String,
+    student_id: String,
     content: Option<String>,
     asset_ids: Vec<String>,
     evidence_asset_ids: Vec<String>,
@@ -201,13 +146,11 @@ pub fn add_submission(
     require!(evidence_asset_ids.len() <= 10, ResourceError::TooManyAssets);
     
     let submission = &mut ctx.accounts.submission;
-    let resource = &ctx.accounts.resource;
-    let student = &ctx.accounts.student;
     let clock = Clock::get()?;
     
     submission.id = submission_id;
-    submission.resource_id = resource.id.clone();
-    submission.student_id = student.id.clone();
+    submission.resource_id = ctx.accounts.resource.id.clone();
+    submission.student_id = student_id;
     submission.content = content;
     submission.asset_ids = asset_ids;
     submission.evidence_asset_ids = evidence_asset_ids;
@@ -227,30 +170,8 @@ pub fn grade_submission(
     feedback: Option<String>,
 ) -> Result<()> {
     let submission = &mut ctx.accounts.submission;
-    submission.grade_submission(grade, feedback, ctx.accounts.teacher.key())?;
+    submission.grade_submission(grade, feedback, ctx.accounts.grader.key())?;
     Ok(())
-}
-
-pub fn update_asset_ipfs_hash(
-    ctx: Context<UpdateAssetIPFS>,
-    ipfs_hash: String,
-) -> Result<()> {
-    let asset = &mut ctx.accounts.asset;
-    asset.set_ipfs_hash(ipfs_hash)?;
-    Ok(())
-}
-
-#[derive(Accounts)]
-pub struct ModifyResource<'info> {
-    #[account(
-        mut,
-        seeds = [Resource::SEED_PREFIX.as_bytes(), resource.id.as_bytes()],
-        bump,
-        constraint = resource.created_by == teacher.key()
-    )]
-    pub resource: Account<'info, Resource>,
-    #[account(mut)]
-    pub teacher: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -261,25 +182,6 @@ pub struct GradeSubmission<'info> {
         bump
     )]
     pub submission: Account<'info, ResourceSubmission>,
-    #[account(
-        seeds = [Resource::SEED_PREFIX.as_bytes(), submission.resource_id.as_bytes()],
-        bump,
-        constraint = resource.teacher_ids.contains(&teacher.key().to_string())
-    )]
-    pub resource: Account<'info, Resource>,
     #[account(mut)]
-    pub teacher: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateAssetIPFS<'info> {
-    #[account(
-        mut,
-        seeds = [Asset::SEED_PREFIX.as_bytes(), asset.id.as_bytes()],
-        bump,
-        constraint = asset.uploaded_by == uploader.key()
-    )]
-    pub asset: Account<'info, Asset>,
-    #[account(mut)]
-    pub uploader: Signer<'info>,
+    pub grader: Signer<'info>,
 } 

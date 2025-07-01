@@ -9,18 +9,14 @@
 // - verify_credential 
 
 // Handler modules for FairCredit program instructions
-pub mod college;
-pub mod student;
-pub mod course;
-pub mod resource;
 pub mod activity;
+pub mod course;
 pub mod credential;
 pub mod provider;
+pub mod resource;
 
-pub use college::*;
-pub use student::*;
-pub use course::*;
-pub use resource::*;
 pub use activity::*;
-pub use credential::*; 
-pub use provider::*; 
+pub use course::*;
+pub use credential::*;
+pub use provider::*;
+pub use resource::*; 
