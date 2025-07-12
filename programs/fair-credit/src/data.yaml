@@ -1,0 +1,294 @@
+# === Queries ===
+
+# Retrieves a list of activities based on filters
+type Query {
+  activities(
+    courseId: String, 
+    kinds: [ActivityKind!], 
+    pagination: Pagination = {skip: 0, take: 100}, 
+    resourceId: String, 
+    resourceKinds: [ResourceKind!], 
+    statuses: [ActivityStatus!], 
+    studentId: String
+  ): ActivityPaginationResult!
+
+  # Retrieve a specific activity by ID
+  activity(id: ID!): Activity!
+
+  # Retrieve details of the authenticated college
+  college: College!
+
+  # Retrieve details of a specific course by ID
+  course(id: ID!): Course!
+
+  # Retrieve multiple courses with optional filters
+  courses(
+    degreeId: ID, 
+    pagination: Pagination = {skip: 0, take: 200}, 
+    statuses: [CourseStatus!]
+  ): CoursePaginationResult!
+
+  # Retrieve a specific resource by ID
+  resource(id: String!): Resource!
+
+  # Retrieve multiple resources
+  resources(
+    courseId: ID, 
+    kinds: [ResourceKind!], 
+    pagination: Pagination = {skip: 0, take: 200}, 
+    statuses: [ResourceStatus!]
+  ): ResourcePaginationResult!
+
+  # Retrieve a student by ID
+  student(id: String!): Student!
+
+  # Retrieve a list of students with optional filters
+  students(
+    courseId: ID, 
+    degreeId: ID, 
+    pagination: Pagination = {skip: 0, take: 200}
+  ): StudentPaginationResult!
+}
+
+# === Mutations ===
+
+# API operations that modify data
+type Mutation {
+  addAttendance(attendance: AttendanceInput!): ActivityOutput!
+  addFeedback(feedback: FeedbackInput!): ActivityOutput!
+  addGrade(grade: GradeInput!): ActivityOutput!
+  addResource(courseId: ID!, resource: ResourceCreateInput!): ResourceOutput!
+  addStudentToCollege(email: String!, student: StudentInput): Student!
+  addStudentToDegree(
+    currency: Currency, 
+    degreeId: ID!, 
+    email: String!, 
+    student: StudentInput, 
+    tuitionCost: Int
+  ): Student!
+  addSubmission(submission: SubmissionInput!): ActivityOutput!
+  archiveActivity(activityId: ID!): Boolean
+  archiveCourseProgress(courseId: ID!, studentId: ID!): Boolean
+  changeEmail(email: String!, id: ID!): Boolean!
+  generateUserToken(id: String!): String!
+  modifyResource(id: ID!, resource: ResourceModifyInput!): ResourceOutput!
+}
+
+# === Input Types ===
+
+# Defines input for uploading assets (e.g., files, images)
+input AssetInput {
+  contentType: String
+  fileName: String
+  importUrl: String
+}
+
+# Used for recording student attendance in an activity
+input AttendanceInput {
+  studentId: String!     # ID of the student
+  resourceId: String!    # ID of the resource
+  timestamp: String      # Optional timestamp of attendance
+}
+
+# Used to submit feedback on an activity
+input FeedbackInput {
+  activityId: ID          # ID of the activity
+  resourceId: String      # ID of the resource
+  studentId: String!      # ID of the student submitting feedback
+  teacherId: String       # ID of the teacher
+  content: String         # Feedback content
+  assets: [AssetInput!]   # Optional attached assets
+  evidenceAssets: [AssetInput!]
+}
+
+# Used to assign a grade to an activity
+input GradeInput {
+  activityId: ID
+  resourceId: String
+  studentId: String!
+  teacherId: String
+  weightId: ID
+  value: Float!            # Grade value
+  assets: [AssetInput!]    # Attached supporting assets
+  evidenceAssets: [AssetInput!]
+}
+
+# Defines the input format for creating a new resource
+input ResourceCreateInput {
+  name: String!           # Resource name
+  kind: ResourceKind!     # Type of resource
+  isGradeRequired: Boolean = true
+  externalId: String
+  content: String
+  workload: Int
+  weightIds: [ID!]
+  assets: [AssetInput!]
+  tags: [String!]
+  teacherIds: [ID!]
+}
+
+# Defines input structure for modifying an existing resource
+input ResourceModifyInput {
+  name: String
+  kind: ResourceKind
+  isGradeRequired: Boolean
+  externalId: String
+  content: String
+  workload: Int
+  weightIds: [ID!]
+  assets: [AssetInput!]
+  tags: [String!]
+  teacherIds: [ID!]
+}
+
+# Defines student input fields for API operations
+input StudentInput {
+  externalId: String
+  nameFirst: String
+  nameLast: String
+}
+
+# Used for submitting an assignment
+input SubmissionInput {
+  activityId: ID
+  resourceId: String
+  studentId: String
+  content: String
+  assets: [AssetInput!]
+  evidenceAssets: [AssetInput!]
+}
+
+# === Enums ===
+
+# Represents different types of activities
+enum ActivityKind {
+  addFeedback
+  addGrade
+  submitAssignment
+  consumeResource
+  attendMeeting
+}
+
+# Represents possible statuses of an activity
+enum ActivityStatus {
+  ACTIVE
+  ARCHIVED
+  PENDING
+}
+
+# Represents verification and operational statuses of a college
+enum CollegeStatus {
+  DRAFT
+  VERIFIED
+  REJECTED
+  ARCHIVED
+}
+
+# Represents student status within a course
+enum CourseStudentStatus {
+  ACTIVE
+  SUBMITTED
+  PASSED
+  FAILED
+}
+
+# Represents possible states of a course
+enum CourseStatus {
+  DRAFT
+  REJECTED
+  VERIFIED
+  ARCHIVED
+}
+
+# Represents different types of resources
+enum ResourceKind {
+  ASSIGNMENT
+  ASSIGNMENT_SUMMATIVE
+  MEETING
+  GENERAL
+  PUBLICATION
+  PUBLICATION_REVIEWED
+}
+
+# Represents the status of a resource
+enum ResourceStatus {
+  DRAFT
+  REJECTED
+  SUBMITTED
+  VERIFIED
+  ARCHIVED
+}
+
+# === Objects ===
+
+# Represents an academic activity linked to a student and resource
+type Activity {
+  id: ID!
+  created: DateTime!
+  updated: DateTime!
+  userId: ID!
+  collegeId: ID!
+  degreeId: ID
+  weightId: ID
+  courseId: ID
+  resourceId: ID
+  data: Json!
+  kind: ActivityKind!
+  status: ActivityStatus!
+  resourceKind: ResourceKind
+  grade: Float
+  assets: [Asset!]!
+  evidenceAssets: [Asset!]!
+}
+
+# Represents a course within a degree program
+type Course {
+  id: ID!
+  updated: DateTime!
+  created: DateTime!
+  status: CourseStatus!
+  rejectionReason: String
+  name: String!
+  descr: String!
+  weights: [Weight!]!
+  workloadRequired: Int!
+  workload: Int!
+}
+
+# Represents a student enrolled in a college
+type Student {
+  id: ID!
+  externalId: String
+  name: String!
+  email: String!
+  updated: DateTime!
+  created: DateTime!
+  degrees: [DegreeStudent!]!
+  courses: [CourseStudent!]!
+}
+
+# === Pagination Types ===
+
+# Pagination result for retrieving activities
+type ActivityPaginationResult {
+  count: Int!
+  list: [Activity]!
+}
+
+# Pagination result for retrieving courses
+type CoursePaginationResult {
+  count: Int!
+  list: [Course]!
+}
+
+# Pagination result for retrieving resources
+type ResourcePaginationResult {
+  count: Int!
+  list: [Resource]!
+}
+
+# Pagination result for retrieving students
+type StudentPaginationResult {
+  count: Int!
+  list: [Student]!
+}
