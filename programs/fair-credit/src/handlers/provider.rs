@@ -1,13 +1,14 @@
 use anchor_lang::prelude::*;
 use crate::state::{Provider, Verifier};
 use crate::types::ProviderError;
+use crate::events::*;
 
 #[derive(Accounts)]
 pub struct InitializeProvider<'info> {
     #[account(
         init,
         payer = provider_authority,
-        space = Provider::space(),
+        space = 8 + Provider::INIT_SPACE,
         seeds = [Provider::SEED_PREFIX.as_bytes(), provider_authority.key().as_ref()],
         bump
     )]
@@ -22,7 +23,7 @@ pub struct InitializeVerifier<'info> {
     #[account(
         init,
         payer = verifier_authority,
-        space = Verifier::space(),
+        space = 8 + Verifier::INIT_SPACE,
         seeds = [Verifier::SEED_PREFIX.as_bytes(), verifier_authority.key().as_ref()],
         bump
     )]
@@ -86,12 +87,20 @@ pub fn initialize_provider(
     let clock = Clock::get()?;
 
     provider.wallet = ctx.accounts.provider_authority.key();
-    provider.name = name;
+    provider.name = name.clone();
     provider.description = description;
     provider.website = website;
     provider.email = email;
-    provider.provider_type = provider_type;
+    provider.provider_type = provider_type.clone();
     provider.registered_at = clock.unix_timestamp;
+
+    // Emit provider registered event
+    emit!(ProviderRegistered {
+        provider: provider.wallet,
+        name,
+        provider_type,
+        timestamp: clock.unix_timestamp,
+    });
 
     Ok(())
 }
@@ -106,6 +115,12 @@ pub fn initialize_verifier(
     verifier.provider_assessments = Vec::new();
     verifier.registered_at = clock.unix_timestamp;
 
+    // Emit verifier registered event
+    emit!(VerifierRegistered {
+        verifier: verifier.wallet,
+        timestamp: clock.unix_timestamp,
+    });
+
     Ok(())
 }
 
@@ -113,12 +128,24 @@ pub fn suspend_provider(
     ctx: Context<SuspendProvider>,
 ) -> Result<()> {
     // Prevent self-suspension
-    if ctx.accounts.verifier.key() == ctx.accounts.provider_to_suspend.key() {
-        return Err(ProviderError::CannotSuspendSelf.into());
-    }
+    require_keys_neq!(
+        ctx.accounts.verifier.key(), 
+        ctx.accounts.provider_to_suspend.key(),
+        ProviderError::CannotSuspendSelf
+    );
 
     let verifier_account = &mut ctx.accounts.verifier_account;
-    verifier_account.suspend_provider(ctx.accounts.provider_to_suspend.key())?;
+    let provider_key = ctx.accounts.provider_to_suspend.key();
+    let clock = Clock::get()?;
+    
+    verifier_account.suspend_provider(provider_key)?;
+
+    // Emit provider suspended event
+    emit!(ProviderSuspended {
+        verifier: verifier_account.wallet,
+        provider: provider_key,
+        timestamp: clock.unix_timestamp,
+    });
 
     Ok(())
 }
@@ -127,7 +154,17 @@ pub fn unsuspend_provider(
     ctx: Context<UnsuspendProvider>,
 ) -> Result<()> {
     let verifier_account = &mut ctx.accounts.verifier_account;
-    verifier_account.unsuspend_provider(&ctx.accounts.provider_to_unsuspend.key())?;
+    let provider_key = ctx.accounts.provider_to_unsuspend.key();
+    let clock = Clock::get()?;
+    
+    verifier_account.unsuspend_provider(&provider_key)?;
+
+    // Emit provider unsuspended event
+    emit!(ProviderUnsuspended {
+        verifier: verifier_account.wallet,
+        provider: provider_key,
+        timestamp: clock.unix_timestamp,
+    });
 
     Ok(())
 }
@@ -138,23 +175,31 @@ pub fn set_provider_reputation(
     note: Option<String>,
 ) -> Result<()> {
     // Validate reputation score
-    if reputation_score > 100 {
-        return Err(ProviderError::InvalidReputationScore.into());
-    }
+    require!(reputation_score <= 100, ProviderError::InvalidReputationScore);
 
     // Check note length if provided
     if let Some(ref note_text) = note {
-        if note_text.len() > 200 {
-            return Err(ProviderError::NoteTooLong.into());
-        }
+        require!(note_text.len() <= 200, ProviderError::NoteTooLong);
     }
 
     let verifier_account = &mut ctx.accounts.verifier_account;
+    let provider_key = ctx.accounts.provider.key();
+    let clock = Clock::get()?;
+    
     verifier_account.set_provider_reputation(
-        ctx.accounts.provider.key(),
+        provider_key,
         reputation_score,
-        note
+        note.clone()
     )?;
+
+    // Emit provider reputation updated event
+    emit!(ProviderReputationUpdated {
+        verifier: verifier_account.wallet,
+        provider: provider_key,
+        reputation_score,
+        note,
+        timestamp: clock.unix_timestamp,
+    });
 
     Ok(())
 } 

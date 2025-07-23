@@ -2,25 +2,37 @@ use anchor_lang::prelude::*;
 use crate::types::{CourseStatus, CourseStudentStatus, CourseError};
 
 #[account]
+#[derive(InitSpace)]
 pub struct Course {
+    #[max_len(32)]
     pub id: String,
     pub created: i64,
     pub updated: i64,
     pub status: CourseStatus,
+    #[max_len(200)]
     pub rejection_reason: Option<String>,
+    #[max_len(64)]
     pub name: String,
+    #[max_len(256)]
     pub description: String,
+    #[max_len(20, 32)]
     pub weight_ids: Vec<String>, // Weight IDs
     pub workload_required: u32,
     pub workload: u32,
+    #[max_len(32)]
     pub college_id: String,
+    #[max_len(32)]
     pub degree_id: Option<String>,
+    #[max_len(50, 32)]
     pub resource_ids: Vec<String>, // Associated resource IDs
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct CourseStudent {
+    #[max_len(32)]
     pub course_id: String,
+    #[max_len(32)]
     pub student_id: String,
     pub status: CourseStudentStatus,
     pub enrolled_at: i64,
@@ -30,33 +42,21 @@ pub struct CourseStudent {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct Weight {
+    #[max_len(32)]
     pub id: String,
+    #[max_len(32)]
     pub course_id: String,
+    #[max_len(64)]
     pub name: String,
     pub percentage: u8, // 0-100
+    #[max_len(100)]
     pub description: Option<String>,
 }
 
 impl Course {
     pub const SEED_PREFIX: &'static str = "course";
-    
-    pub fn space() -> usize {
-        8 + // discriminator
-        32 + // id
-        8 + // created
-        8 + // updated
-        1 + // status enum
-        33 + // rejection_reason (Option<String>)
-        64 + // name
-        256 + // description
-        4 + 20 * 32 + // weight_ids (Vec<String>, up to 20 weights)
-        4 + // workload_required
-        4 + // workload
-        32 + // college_id
-        33 + // degree_id (Option<String>)
-        4 + 50 * 32   // resource_ids (Vec<String>, up to 50 resources)
-    }
 
     pub fn add_weight(&mut self, weight_id: String) -> Result<()> {
         require!(self.weight_ids.len() < 20, CourseError::TooManyWeights);
@@ -82,17 +82,6 @@ impl Course {
 
 impl CourseStudent {
     pub const SEED_PREFIX: &'static str = "course_student";
-    
-    pub fn space() -> usize {
-        8 + // discriminator
-        32 + // course_id
-        32 + // student_id
-        1 + // status enum
-        8 + // enrolled_at
-        8 + // updated
-        1 + // progress
-        9     // final_grade (Option<f64>)
-    }
 
     pub fn update_progress(&mut self, progress: u8) -> Result<()> {
         require!(progress <= 100, CourseError::InvalidProgress);
@@ -111,15 +100,6 @@ impl CourseStudent {
 
 impl Weight {
     pub const SEED_PREFIX: &'static str = "weight";
-    
-    pub fn space() -> usize {
-        8 + // discriminator
-        32 + // id
-        32 + // course_id
-        64 + // name
-        1 + // percentage
-        33    // description (Option<String>)
-    }
 }
 
  

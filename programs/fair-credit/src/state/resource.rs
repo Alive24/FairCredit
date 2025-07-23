@@ -2,19 +2,29 @@ use anchor_lang::prelude::*;
 use crate::types::{ResourceKind, ResourceStatus, SubmissionStatus, ResourceError};
 
 #[account]
+#[derive(InitSpace)]
 pub struct Resource {
+    #[max_len(32)]
     pub id: String,
+    #[max_len(128)]
     pub name: String,
     pub kind: ResourceKind,
     pub status: ResourceStatus,
     pub is_grade_required: bool,
+    #[max_len(32)]
     pub external_id: Option<String>,
+    #[max_len(512)]
     pub content: Option<String>,
     pub workload: Option<u32>, // in minutes
+    #[max_len(32)]
     pub course_id: String,
+    #[max_len(10, 32)]
     pub weight_ids: Vec<String>,
+    #[max_len(20, 32)]
     pub asset_ids: Vec<String>,
+    #[max_len(10, 32)]
     pub tags: Vec<String>,
+    #[max_len(5, 32)]
     pub teacher_ids: Vec<String>,
     pub created: i64,
     pub updated: i64,
@@ -22,29 +32,44 @@ pub struct Resource {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct Asset {
+    #[max_len(32)]
     pub id: String,
+    #[max_len(64)]
     pub content_type: Option<String>,
+    #[max_len(256)]
     pub file_name: Option<String>,
+    #[max_len(256)]
     pub import_url: Option<String>,
+    #[max_len(64)]
     pub ipfs_hash: Option<String>, // For decentralized storage
     pub file_size: Option<u64>,
     pub created: i64,
     pub uploaded_by: Pubkey,
+    #[max_len(32)]
     pub resource_id: Option<String>, // Associated resource if any
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct ResourceSubmission {
+    #[max_len(32)]
     pub id: String,
+    #[max_len(32)]
     pub resource_id: String,
+    #[max_len(32)]
     pub student_id: String,
+    #[max_len(512)]
     pub content: Option<String>,
+    #[max_len(10, 32)]
     pub asset_ids: Vec<String>,
+    #[max_len(10, 32)]
     pub evidence_asset_ids: Vec<String>,
     pub submitted_at: i64,
     pub status: SubmissionStatus,
     pub grade: Option<f64>,
+    #[max_len(512)]
     pub feedback: Option<String>,
     pub graded_by: Option<Pubkey>,
     pub graded_at: Option<i64>,
@@ -54,26 +79,6 @@ pub struct ResourceSubmission {
 
 impl Resource {
     pub const SEED_PREFIX: &'static str = "resource";
-    
-    pub fn space() -> usize {
-        8 + // discriminator
-        32 + // id
-        128 + // name
-        1 + // kind enum
-        1 + // status enum
-        1 + // is_grade_required
-        33 + // external_id (Option<String>)
-        513 + // content (Option<String>)
-        5 + // workload (Option<u32>)
-        32 + // course_id
-        4 + 10 * 32 + // weight_ids (Vec<String>, up to 10)
-        4 + 20 * 32 + // asset_ids (Vec<String>, up to 20)
-        4 + 10 * 32 + // tags (Vec<String>, up to 10)
-        4 + 5 * 32 + // teacher_ids (Vec<String>, up to 5)
-        8 + // created
-        8 + // updated
-        32    // created_by
-    }
 
     pub fn add_asset(&mut self, asset_id: String) -> Result<()> {
         require!(self.asset_ids.len() < 20, ResourceError::TooManyAssets);
@@ -114,19 +119,6 @@ impl Resource {
 
 impl Asset {
     pub const SEED_PREFIX: &'static str = "asset";
-    
-    pub fn space() -> usize {
-        8 + // discriminator
-        32 + // id
-        65 + // content_type (Option<String>)
-        257 + // file_name (Option<String>)
-        257 + // import_url (Option<String>)
-        65 + // ipfs_hash (Option<String>)
-        9 + // file_size (Option<u64>)
-        8 + // created
-        32 + // uploaded_by
-        33    // resource_id (Option<String>)
-    }
 
     pub fn set_ipfs_hash(&mut self, hash: String) -> Result<()> {
         require!(hash.len() <= 64, ResourceError::InvalidIPFSHash);
@@ -153,25 +145,10 @@ impl Asset {
 
 impl ResourceSubmission {
     pub const SEED_PREFIX: &'static str = "submission";
-    
-    pub fn space() -> usize {
-        8 + // discriminator
-        32 + // id
-        32 + // resource_id
-        32 + // student_id
-        513 + // content (Option<String>)
-        4 + 10 * 32 + // asset_ids (Vec<String>, up to 10)
-        4 + 10 * 32 + // evidence_asset_ids (Vec<String>, up to 10)
-        8 + // submitted_at
-        1 + // status enum
-        9 + // grade (Option<f64>)
-        513 + // feedback (Option<String>)
-        33 + // graded_by (Option<Pubkey>)
-        9     // graded_at (Option<i64>)
-    }
 
     pub fn grade_submission(&mut self, grade: f64, feedback: Option<String>, graded_by: Pubkey) -> Result<()> {
-        require!(grade >= 0.0 && grade <= 100.0, ResourceError::InvalidGrade);
+        require_gte!(grade, 0.0, ResourceError::InvalidGrade);
+        require!(grade <= 100.0, ResourceError::InvalidGrade);
         self.grade = Some(grade);
         self.feedback = feedback;
         self.graded_by = Some(graded_by);

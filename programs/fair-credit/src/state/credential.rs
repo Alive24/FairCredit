@@ -4,6 +4,7 @@ use crate::types::{CredentialMetadata, CredentialStatus};
 /// Main credential data structure
 /// Stores core information of academic credentials including participants, metadata and status
 #[account]
+#[derive(InitSpace)]
 pub struct Credential {
     /// Unique credential identifier
     pub id: u64,
@@ -28,16 +29,8 @@ pub struct Credential {
 }
 
 impl Credential {
-    /// Calculate space required for credential account
-    pub const SPACE: usize = std::mem::size_of::<Credential>() + 512; // Extra space for strings and vectors
-    
     /// Seed prefix for PDA generation
     pub const SEED_PREFIX: &'static str = "credential";
-    
-    /// Space calculation function for Anchor compatibility
-    pub fn space() -> usize {
-        Self::SPACE
-    }
     
     /// Update credential status
     pub fn update_status(&mut self, new_status: CredentialStatus) {

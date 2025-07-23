@@ -1,12 +1,19 @@
+// Suppress deprecation warning from Anchor's internal code generation
+// This warning comes from Anchor 0.31.1's #[program] macro using the deprecated
+// AccountInfo::realloc instead of AccountInfo::resize. This will be fixed in a
+// future Anchor release.
+#![allow(deprecated)]
+
 use anchor_lang::prelude::*;
 
 pub mod types;
 pub mod state;
 pub mod handlers;
+pub mod events;
 
 // Use specific imports instead of wildcards
 use handlers::provider::*;
-use state::{provider::*, verifier::*};
+use handlers::verifier_update::*;
 
 declare_id!("BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk");
 
@@ -54,6 +61,12 @@ pub mod fair_credit {
         note: Option<String>,
     ) -> Result<()> {
         handlers::provider::set_provider_reputation(ctx, reputation_score, note)
+    }
+
+    pub fn expand_verifier_capacity(
+        ctx: Context<ExpandVerifierCapacity>,
+    ) -> Result<()> {
+        handlers::verifier_update::expand_verifier_capacity(ctx)
     }
 }
 

@@ -8,7 +8,7 @@ pub struct CreateActivity<'info> {
     #[account(
         init,
         payer = user,
-        space = Activity::space(),
+        space = 8 + Activity::INIT_SPACE,
         seeds = [Activity::SEED_PREFIX.as_bytes(), activity_id.as_bytes()],
         bump
     )]

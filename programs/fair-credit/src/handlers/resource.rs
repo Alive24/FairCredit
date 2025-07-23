@@ -8,7 +8,7 @@ pub struct AddResource<'info> {
     #[account(
         init,
         payer = provider_authority,
-        space = Resource::space(),
+        space = 8 + Resource::INIT_SPACE,
         seeds = [Resource::SEED_PREFIX.as_bytes(), resource_id.as_bytes()],
         bump
     )]
@@ -47,7 +47,7 @@ pub struct CreateSubmission<'info> {
     #[account(
         init,
         payer = student_authority,
-        space = ResourceSubmission::space(),
+        space = 8 + ResourceSubmission::INIT_SPACE,
         seeds = [ResourceSubmission::SEED_PREFIX.as_bytes(), submission_id.as_bytes()],
         bump
     )]

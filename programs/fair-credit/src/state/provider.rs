@@ -2,34 +2,30 @@ use anchor_lang::prelude::*;
 
 /// Educational provider state
 #[account]
+#[derive(InitSpace)]
 pub struct Provider {
     /// Provider wallet address
     pub wallet: Pubkey,
     /// Organization name
+    #[max_len(50)]
     pub name: String,
     /// Organization description
+    #[max_len(200)]
     pub description: String,
     /// Website URL
+    #[max_len(100)]
     pub website: String,
     /// Contact email
+    #[max_len(50)]
     pub email: String,
     /// Provider type (University, College, Institution, etc.)
+    #[max_len(30)]
     pub provider_type: String,
     /// Registration timestamp
     pub registered_at: i64,
 }
 
 impl Provider {
-    /// Calculate space required for provider account (adjusted for realistic string lengths)
-    pub const SPACE: usize = 8 + // discriminator
-        32 + // wallet
-        4 + 50 + // name (max 50 chars)
-        4 + 200 + // description (max 200 chars)
-        4 + 100 + // website (max 100 chars)
-        4 + 50 + // email (max 50 chars)
-        4 + 30 + // provider_type (max 30 chars)
-        8; // registered_at
-    
     /// Seed prefix for PDA generation
     pub const SEED_PREFIX: &'static str = "provider";
     
@@ -37,11 +33,6 @@ impl Provider {
     /// In decentralized system, all providers can issue credentials
     pub fn can_issue_credentials(&self) -> bool {
         true
-    }
-    
-    /// Space calculation function for Anchor compatibility
-    pub fn space() -> usize {
-        Self::SPACE
     }
 }
 

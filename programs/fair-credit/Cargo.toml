@@ -16,7 +16,9 @@ no-idl = []
 no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build"]
 
-
 [dependencies]
 anchor-lang = "0.31.1"
+
+[lints]
+workspace = true
 

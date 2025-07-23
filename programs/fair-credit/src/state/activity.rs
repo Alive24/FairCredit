@@ -2,22 +2,33 @@ use anchor_lang::prelude::*;
 use crate::types::{ActivityKind, ActivityStatus, ResourceKind, ActivityError};
 
 #[account]
+#[derive(InitSpace)]
 pub struct Activity {
+    #[max_len(32)]
     pub id: String,
     pub created: i64,
     pub updated: i64,
+    #[max_len(32)]
     pub user_id: String,
+    #[max_len(32)]
     pub college_id: String,
+    #[max_len(32)]
     pub degree_id: Option<String>,
+    #[max_len(32)]
     pub weight_id: Option<String>,
+    #[max_len(32)]
     pub course_id: Option<String>,
+    #[max_len(32)]
     pub resource_id: Option<String>,
+    #[max_len(512)]
     pub data: String, // JSON string representation
     pub kind: ActivityKind,
     pub status: ActivityStatus,
     pub resource_kind: Option<ResourceKind>,
     pub grade: Option<f64>,
+    #[max_len(10, 32)]
     pub assets: Vec<String>, // Asset IDs
+    #[max_len(10, 32)]
     pub evidence_assets: Vec<String>, // Evidence asset IDs
 }
 
@@ -25,26 +36,6 @@ pub struct Activity {
 
 impl Activity {
     pub const SEED_PREFIX: &'static str = "activity";
-    
-    pub fn space() -> usize {
-        8 + // discriminator
-        32 + // id (String)
-        8 + // created
-        8 + // updated
-        32 + // user_id (String)
-        32 + // college_id (String)
-        33 + // degree_id (Option<String>)
-        33 + // weight_id (Option<String>)
-        33 + // course_id (Option<String>)
-        33 + // resource_id (Option<String>)
-        512 + // data (JSON string, generous allocation)
-        1 + // kind enum
-        1 + // status enum
-        2 + // resource_kind (Option<enum>)
-        9 + // grade (Option<f64>)
-        4 + 10 * 32 + // assets (Vec<String>, up to 10 assets)
-        4 + 10 * 32   // evidence_assets (Vec<String>, up to 10 assets)
-    }
 
     pub fn add_asset(&mut self, asset_id: String) -> Result<()> {
         require!(self.assets.len() < 10, ActivityError::TooManyAssets);

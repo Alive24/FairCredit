@@ -1,9 +1,10 @@
 use anchor_lang::prelude::*;
-use crate::types::{VerificationFrequency, VerificationStats};
+use crate::types::VerificationFrequency;
 
 /// Verification record data structure
 /// Tracks verification history and statistics for credentials
 #[account]
+#[derive(InitSpace)]
 pub struct VerificationRecord {
     /// Associated credential ID
     pub credential_id: u64,
@@ -16,16 +17,8 @@ pub struct VerificationRecord {
 }
 
 impl VerificationRecord {
-    /// Calculate space required for verification record account
-    pub const SPACE: usize = std::mem::size_of::<VerificationRecord>() + 64; // Extra space
-    
     /// Seed prefix for PDA generation
     pub const SEED_PREFIX: &'static str = "verification";
-    
-    /// Space calculation function for Anchor compatibility
-    pub fn space() -> usize {
-        Self::SPACE
-    }
     
     /// Create new verification record
     pub fn new(credential_id: u64, verifier_wallet: Option<Pubkey>) -> Self {

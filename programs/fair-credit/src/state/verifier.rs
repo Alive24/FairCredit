@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 /// Provider assessment by a verifier
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct ProviderAssessment {
     /// Provider wallet address
     pub provider: Pubkey,
@@ -12,32 +12,27 @@ pub struct ProviderAssessment {
     /// Last updated timestamp
     pub updated_at: i64,
     /// Optional note from verifier
+    #[max_len(200)]
     pub note: Option<String>,
 }
 
 /// Verifier state
 /// Each verifier maintains their own assessment of providers
 #[account]
+#[derive(InitSpace)]
 pub struct Verifier {
     /// Verifier wallet address
     pub wallet: Pubkey,
     /// List of provider assessments by this verifier
+    #[max_len(10)]
     pub provider_assessments: Vec<ProviderAssessment>,
     /// Registration timestamp
     pub registered_at: i64,
 }
 
 impl Verifier {
-    /// Calculate space required for verifier account
-    pub const SPACE: usize = std::mem::size_of::<Verifier>() + 1024; // Extra space for provider assessments
-    
     /// Seed prefix for PDA generation
     pub const SEED_PREFIX: &'static str = "verifier";
-    
-    /// Space calculation function for Anchor compatibility
-    pub fn space() -> usize {
-        Self::SPACE
-    }
     
     /// Find provider assessment by provider key
     fn find_assessment(&self, provider: &Pubkey) -> Option<usize> {

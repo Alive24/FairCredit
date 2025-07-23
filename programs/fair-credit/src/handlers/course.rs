@@ -8,7 +8,7 @@ pub struct CreateCourse<'info> {
     #[account(
         init,
         payer = provider_authority,
-        space = Course::space(),
+        space = 8 + Course::INIT_SPACE,
         seeds = [Course::SEED_PREFIX.as_bytes(), course_id.as_bytes()],
         bump
     )]
@@ -30,7 +30,7 @@ pub struct CreateWeight<'info> {
     #[account(
         init,
         payer = provider_authority,
-        space = Weight::space(),
+        space = 8 + Weight::INIT_SPACE,
         seeds = [Weight::SEED_PREFIX.as_bytes(), weight_id.as_bytes()],
         bump
     )]

@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use crate::state::*;
 use crate::types::{CredentialStatus, CredentialMetadata};
+use crate::events::*;
 
 // Simplified credential handlers that work with existing credential system
 
@@ -10,7 +11,7 @@ pub struct CreateCredential<'info> {
     #[account(
         init,
         payer = provider_authority,
-        space = Credential::space(),
+        space = 8 + Credential::INIT_SPACE,
         seeds = [Credential::SEED_PREFIX.as_bytes(), &credential_id.to_le_bytes()],
         bump
     )]
@@ -56,7 +57,7 @@ pub struct VerifyCredential<'info> {
     #[account(
         init,
         payer = verifier,
-        space = VerificationRecord::space(),
+        space = 8 + VerificationRecord::INIT_SPACE,
         seeds = [VerificationRecord::SEED_PREFIX.as_bytes(), &credential.id.to_le_bytes(), verifier.key().as_ref()],
         bump
     )]
@@ -91,7 +92,7 @@ pub fn create_credential(
     credential.status = CredentialStatus::Pending;
     
     credential.metadata = CredentialMetadata {
-        title,
+        title: title.clone(),
         description,
         skills_acquired,
         research_output,
@@ -99,6 +100,16 @@ pub fn create_credential(
         completion_date,
         ipfs_hash,
     };
+
+    // Emit credential created event
+    emit!(CredentialCreated {
+        credential_id,
+        provider: credential.provider_wallet,
+        student: credential.student_wallet,
+        mentor: credential.mentor_wallet,
+        title,
+        timestamp: clock.unix_timestamp,
+    });
 
     Ok(())
 }
