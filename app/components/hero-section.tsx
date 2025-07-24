@@ -104,14 +104,14 @@ export function HeroSection() {
                 </div>
                 <CardTitle className="text-xl text-blue-800 dark:text-blue-200">I'm a Provider</CardTitle>
                 <CardDescription className="text-blue-700 dark:text-blue-300">
-                  Educational organization designing programs and issuing credentials
+                  Educational organization designing courses and issuing credentials
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="text-sm space-y-2">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    <span>Design credential programs</span>
+                    <span>Design credential courses</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
@@ -123,9 +123,9 @@ export function HeroSection() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Link href="/programs" className="block">
+                  <Link href="/courses" className="block">
                     <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                      Manage Programs
+                      Manage Courses
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>

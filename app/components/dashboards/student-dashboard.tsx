@@ -19,7 +19,7 @@ export function StudentDashboard() {
   const applications = [
     {
       id: "1",
-      program: "Advanced Quantum Computing Research",
+      course: "Advanced Quantum Computing Research",
       provider: "Scholar Bridge Initiative (SBI)",
       status: "under-review",
       submittedDate: "2024-01-20",
@@ -28,7 +28,7 @@ export function StudentDashboard() {
     },
     {
       id: "2",
-      program: "Machine Learning in Healthcare",
+      course: "Machine Learning in Healthcare",
       provider: "MedTech Research Institute",
       status: "supervisor-review",
       submittedDate: "2024-01-15",
@@ -37,7 +37,7 @@ export function StudentDashboard() {
     },
     {
       id: "3",
-      program: "Digital Innovation Workshop",
+      course: "Digital Innovation Workshop",
       provider: "Tech Skills Academy",
       status: "completed",
       submittedDate: "2023-12-10",
@@ -94,7 +94,7 @@ export function StudentDashboard() {
           <Link href="/apply">
             <Button size="lg">
               <Plus className="h-5 w-5 mr-2" />
-              Apply to Program
+              Apply to Course
             </Button>
           </Link>
         </div>
@@ -127,7 +127,7 @@ export function StudentDashboard() {
                   <div key={application.id} className="border rounded-lg p-4">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
-                        <h3 className="font-semibold">{application.program}</h3>
+                        <h3 className="font-semibold">{application.course}</h3>
                         <p className="text-sm text-muted-foreground">{application.provider}</p>
                         <p className="text-xs text-muted-foreground">Submitted: {application.submittedDate}</p>
                       </div>
@@ -202,13 +202,13 @@ export function StudentDashboard() {
               <Link href="/apply">
                 <Button className="w-full h-20 flex flex-col gap-2">
                   <Plus className="h-6 w-6" />
-                  Apply to New Program
+                  Apply to New Course
                 </Button>
               </Link>
-              <Link href="/programs">
+              <Link href="/courses">
                 <Button variant="outline" className="w-full h-20 flex flex-col gap-2 bg-transparent">
                   <Search className="h-6 w-6" />
-                  Browse Programs
+                  Browse Courses
                 </Button>
               </Link>
               <Link href="/credentials">

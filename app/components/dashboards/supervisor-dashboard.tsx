@@ -12,7 +12,7 @@ export function SupervisorDashboard() {
     { title: "Pending Endorsements", value: "4", icon: Clock, color: "text-yellow-600" },
     { title: "Endorsed This Month", value: "12", icon: CheckCircle, color: "text-green-600" },
     { title: "Total Endorsements", value: "89", icon: Award, color: "text-purple-600" },
-    { title: "Active Programs", value: "6", icon: FileText, color: "text-blue-600" },
+    { title: "Active Courses", value: "6", icon: FileText, color: "text-blue-600" },
   ]
 
   const pendingEndorsements = [

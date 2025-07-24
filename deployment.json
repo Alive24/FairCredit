@@ -1,0 +1,19 @@
+{
+  "network": "localnet",
+  "programId": "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk",
+  "hub": {
+    "address": "GPftMStJZ5h7uvM5FwZXHwxm7DBv6YdPtDDWRYcnpqKf",
+    "authority": "F7xXsyVCTieJssPccJTt2x8nr5A81YM7cMizS5SL16bs"
+  },
+  "provider": {
+    "address": "7xRZhV7pcQtE96nU8ookpEfxkw957t3NofGe87nCkr1M",
+    "wallet": "8NY4S4qwomeR791SRvFrj51vEayN3V4TLq37uBzEj5pn",
+    "privateKey": "tsft7lX/bzAz5ce6BuCnp0rGUq8GEGIoiE3npMP8+spthh/LWu8laFLr6KxMHyKWDeDr1cTIJTfAMdwh9ooW4w=="
+  },
+  "course": {
+    "address": "GZ7y1s7mw3xNpyDS9qXqKKgz372YYnU67D2d66JmURvb",
+    "id": "SOLANA101",
+    "name": "Introduction to Solana Development"
+  },
+  "timestamp": "2025-07-24T07:44:37.634Z"
+}

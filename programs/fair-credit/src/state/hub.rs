@@ -8,13 +8,13 @@ pub struct Hub {
     /// Hub authority (can be multisig or DAO in future)
     pub authority: Pubkey,
     /// List of accepted provider wallets
-    #[max_len(1000)]
+    #[max_len(50)]
     pub accepted_providers: Vec<Pubkey>,
     /// List of accepted endorser/mentor wallets
-    #[max_len(1000)]
+    #[max_len(50)]
     pub accepted_endorsers: Vec<Pubkey>,
     /// List of accepted course IDs (courses from accepted providers)
-    #[max_len(2000, 32)]
+    #[max_len(100, 32)]
     pub accepted_courses: Vec<String>,
     /// Hub creation timestamp
     pub created_at: i64,

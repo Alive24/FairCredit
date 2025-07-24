@@ -8,6 +8,9 @@ skip-lint = false
 [programs.localnet]
 fair_credit = "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk"
 
+[programs.devnet]
+fair_credit = "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk"
+
 [registry]
 url = "https://api.apr.dev"
 

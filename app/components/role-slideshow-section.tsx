@@ -62,29 +62,29 @@ export function RoleSlideshowSection() {
     },
     {
       title: "Educational Providers",
-      subtitle: "Design Programs & Review Applications",
-      shortDesc: "Design programs & review",
+      subtitle: "Design Courses & Review Applications",
+      shortDesc: "Design courses & review",
       icon: Users,
       description:
-        "Educational providers first design credential programs, then review student applications for those programs, verify academic work quality, and forward approved applications to supervisors for endorsement.",
+        "Educational providers first design credential courses, then review student applications for those courses, verify academic work quality, and forward approved applications to supervisors for endorsement.",
       color:
         "bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800",
       iconColor: "text-blue-600 dark:text-blue-400",
       workflow: [
         {
           icon: FileText,
-          title: "Design Programs",
-          description: "Create credential programs with requirements and learning outcomes for students to apply to",
+          title: "Design Courses",
+          description: "Create credential courses with requirements and learning outcomes for students to apply to",
         },
         {
           icon: Send,
           title: "Receive Applications",
-          description: "Students discover and apply to your published credential programs",
+          description: "Students discover and apply to your published credential courses",
         },
         {
           icon: ClipboardCheck,
           title: "Review & Verify Work",
-          description: "Evaluate student submissions against program requirements and verify academic achievements",
+          description: "Evaluate student submissions against course requirements and verify academic achievements",
         },
         {
           icon: UserCheck,
@@ -92,9 +92,9 @@ export function RoleSlideshowSection() {
           description: "Forward approved applications to academic supervisors for final validation",
         },
       ],
-      link: "/programs",
-      linkText: "Manage Programs",
-      stats: { programs: "150+", applications: "500+", providers: "50+" },
+      link: "/courses",
+      linkText: "Manage Courses",
+      stats: { courses: "150+", applications: "500+", providers: "50+" },
     },
     {
       title: "Academic Supervisors",

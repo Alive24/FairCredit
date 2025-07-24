@@ -2,28 +2,32 @@
 
 import { ModeToggle } from "@/components/mode-toggle"
 import { Button } from "@/components/ui/button"
-import { GraduationCap, Wallet, User, LogOut, Users, UserCheck, Search } from "lucide-react"
+import { GraduationCap, User, Users, UserCheck, Search, Shield } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useWallet } from "@solana/wallet-adapter-react"
+import { WalletButton } from "@/components/wallet-button"
 
 export function Header() {
-  const [isConnected, setIsConnected] = useState(false)
-  const [walletAddress, setWalletAddress] = useState("")
+  const { connected, publicKey } = useWallet()
   const [userType, setUserType] = useState<"provider" | "student" | "supervisor" | "verifier" | null>(null)
 
-  // Update the connectWallet function to allow role selection
-  const connectWallet = () => {
-    setIsConnected(true)
-    setWalletAddress("7xKX...9mNp")
-    // Don't set userType here - let user choose their role
-  }
+  const walletAddress = publicKey ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}` : ""
 
-  const disconnectWallet = () => {
-    setIsConnected(false)
-    setWalletAddress("")
-    setUserType(null)
+  // Load user type from localStorage on component mount
+  useEffect(() => {
+    const savedUserType = localStorage.getItem('userType') as "provider" | "student" | "supervisor" | "verifier" | null
+    if (savedUserType) {
+      setUserType(savedUserType)
+    }
+  }, [])
+
+  // Save user type to localStorage when it changes
+  const handleUserTypeSelection = (type: "provider" | "student" | "supervisor" | "verifier") => {
+    setUserType(type)
+    localStorage.setItem('userType', type)
   }
 
   return (
@@ -44,7 +48,11 @@ export function Header() {
           <Link href="/verify" className="text-sm font-medium hover:text-primary transition-colors">
             Verify
           </Link>
-          {isConnected && userType && (
+          <Link href="/hub" className="text-sm font-medium hover:text-primary transition-colors flex items-center gap-1">
+            <Shield className="h-4 w-4" />
+            Hub
+          </Link>
+          {connected && userType && (
             <>
               <Link href="/dashboard" className="text-sm font-medium hover:text-primary transition-colors">
                 {userType === "student"
@@ -61,8 +69,8 @@ export function Header() {
                 </Link>
               )}
               {userType === "provider" && (
-                <Link href="/programs" className="text-sm font-medium hover:text-primary transition-colors">
-                  Programs
+                <Link href="/courses" className="text-sm font-medium hover:text-primary transition-colors">
+                  Courses
                 </Link>
               )}
             </>
@@ -71,7 +79,8 @@ export function Header() {
 
         <div className="flex items-center gap-4">
           <ModeToggle />
-          {isConnected ? (
+          <WalletButton />
+          {connected && userType && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2 bg-transparent">
@@ -98,49 +107,83 @@ export function Header() {
                 )}
                 {userType === "provider" && (
                   <DropdownMenuItem asChild>
-                    <Link href="/programs">Programs</Link>
+                    <Link href="/courses">Courses</Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
-                  <Link href="/profile">Profile</Link>
+                  <Link href="/hub" className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Hub Administration
+                  </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={disconnectWallet}>
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Disconnect
+                <DropdownMenuItem 
+                  onClick={() => {
+                    localStorage.removeItem('userType')
+                    setUserType(null)
+                  }}
+                  className="cursor-pointer"
+                >
+                  Change Role
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/profile">Profile</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
-            <Button onClick={connectWallet} className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              Connect Wallet
-            </Button>
           )}
         </div>
       </div>
-      {isConnected && !userType && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-96">
-            <CardHeader>
-              <CardTitle>Select Your Role</CardTitle>
-              <CardDescription>Choose how you'll be using FairCredit</CardDescription>
+      {connected && !userType && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 min-h-screen">
+          <Card className="w-full max-w-md mx-auto my-auto shadow-2xl border-2 max-h-[90vh] overflow-y-auto">
+            <CardHeader className="text-center pb-4">
+              <CardTitle className="text-xl font-bold">Select Your Role</CardTitle>
+              <CardDescription className="text-sm">Choose how you'll be using FairCredit</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Button onClick={() => setUserType("student")} className="w-full justify-start" variant="outline">
-                <GraduationCap className="h-4 w-4 mr-2" />
-                Student - Apply for credentials
+            <CardContent className="space-y-3 pb-6">
+              <Button 
+                onClick={() => handleUserTypeSelection("student")} 
+                className="w-full justify-start h-12 text-left bg-transparent hover:bg-secondary/80 border-2 hover:border-primary/20 transition-all"
+                variant="outline"
+              >
+                <GraduationCap className="h-5 w-5 mr-3 text-green-600" />
+                <div>
+                  <div className="font-medium">Student</div>
+                  <div className="text-xs text-muted-foreground">Apply for credentials</div>
+                </div>
               </Button>
-              <Button onClick={() => setUserType("provider")} className="w-full justify-start" variant="outline">
-                <Users className="h-4 w-4 mr-2" />
-                Provider - Manage programs & review applications
+              <Button 
+                onClick={() => handleUserTypeSelection("provider")} 
+                className="w-full justify-start h-12 text-left bg-transparent hover:bg-secondary/80 border-2 hover:border-primary/20 transition-all"
+                variant="outline"
+              >
+                <Users className="h-5 w-5 mr-3 text-blue-600" />
+                <div>
+                  <div className="font-medium">Provider</div>
+                  <div className="text-xs text-muted-foreground">Manage courses & review applications</div>
+                </div>
               </Button>
-              <Button onClick={() => setUserType("supervisor")} className="w-full justify-start" variant="outline">
-                <UserCheck className="h-4 w-4 mr-2" />
-                Supervisor - Endorse student work
+              <Button 
+                onClick={() => handleUserTypeSelection("supervisor")} 
+                className="w-full justify-start h-12 text-left bg-transparent hover:bg-secondary/80 border-2 hover:border-primary/20 transition-all"
+                variant="outline"
+              >
+                <UserCheck className="h-5 w-5 mr-3 text-purple-600" />
+                <div>
+                  <div className="font-medium">Supervisor</div>
+                  <div className="text-xs text-muted-foreground">Endorse student work</div>
+                </div>
               </Button>
-              <Button onClick={() => setUserType("verifier")} className="w-full justify-start" variant="outline">
-                <Search className="h-4 w-4 mr-2" />
-                Verifier - Verify credentials
+              <Button 
+                onClick={() => handleUserTypeSelection("verifier")} 
+                className="w-full justify-start h-12 text-left bg-transparent hover:bg-secondary/80 border-2 hover:border-primary/20 transition-all"
+                variant="outline"
+              >
+                <Search className="h-5 w-5 mr-3 text-orange-600" />
+                <div>
+                  <div className="font-medium">Verifier</div>
+                  <div className="text-xs text-muted-foreground">Verify credentials</div>
+                </div>
               </Button>
             </CardContent>
           </Card>

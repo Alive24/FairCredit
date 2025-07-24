@@ -13,7 +13,7 @@ import { ArrowLeft, Plus, X, Save, Eye, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 
-export default function CreateProgram() {
+export default function CreateCourse() {
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [skills, setSkills] = useState<string[]>([])
@@ -69,23 +69,23 @@ export default function CreateProgram() {
   const handleSubmit = async (isDraft = false) => {
     setIsSubmitting(true)
 
-    // Simulate program creation
+    // Simulate course creation
     setTimeout(() => {
       setIsSubmitting(false)
       setProgramCreated(true)
       toast({
-        title: `Program ${isDraft ? "Saved as Draft" : "Published"} Successfully!`,
+        title: `Course ${isDraft ? "Saved as Draft" : "Published"} Successfully!`,
         description: isDraft
           ? "You can continue editing and publish when ready."
-          : "Students can now discover and apply to your program.",
+          : "Students can now discover and apply to your course.",
       })
     }, 2000)
   }
 
   const steps = [
-    { number: 1, title: "Basic Information", description: "Program details and overview" },
+    { number: 1, title: "Basic Information", description: "Course details and overview" },
     { number: 2, title: "Academic Supervisor", description: "Supervisor information" },
-    { number: 3, title: "Program Structure", description: "Learning objectives and methodology" },
+    { number: 3, title: "Course Structure", description: "Learning objectives and methodology" },
     { number: 4, title: "Requirements & Skills", description: "Prerequisites and outcomes" },
     { number: 5, title: "Review & Publish", description: "Final review and publication" },
   ]
@@ -99,26 +99,26 @@ export default function CreateProgram() {
             <Card>
               <CardContent className="pt-8">
                 <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
-                <h1 className="text-2xl font-bold mb-4">Program Created Successfully!</h1>
+                <h1 className="text-2xl font-bold mb-4">Course Created Successfully!</h1>
                 <p className="text-muted-foreground mb-6">
-                  Your credential program "<strong>{formData.title}</strong>" has been created and is now available for
+                  Your credential course "<strong>{formData.title}</strong>" has been created and is now available for
                   student applications.
                 </p>
                 <div className="space-y-4">
                   <div className="p-4 bg-muted rounded-lg">
                     <h3 className="font-semibold mb-2">What happens next:</h3>
                     <ul className="text-sm text-left space-y-1">
-                      <li>• Students can discover and apply to your program</li>
+                      <li>• Students can discover and apply to your course</li>
                       <li>• You'll receive notifications when applications are submitted</li>
                       <li>• Review applications through your provider dashboard</li>
                       <li>• Send approved applications to supervisors for endorsement</li>
                     </ul>
                   </div>
                   <div className="flex gap-4 justify-center">
-                    <Link href="/programs">
-                      <Button>View All Programs</Button>
+                    <Link href="/courses">
+                      <Button>View All Courses</Button>
                     </Link>
-                    <Link href="/programs/create">
+                    <Link href="/courses/create">
                       <Button variant="outline">Create Another</Button>
                     </Link>
                   </div>
@@ -137,13 +137,13 @@ export default function CreateProgram() {
       <main className="container py-8">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-4 mb-8">
-            <Link href="/programs">
+            <Link href="/courses">
               <Button variant="outline" size="icon">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold">Create Credential Program</h1>
+              <h1 className="text-3xl font-bold">Create Credential Course</h1>
               <p className="text-muted-foreground">
                 Step {currentStep} of {steps.length}: {steps[currentStep - 1].description}
               </p>
@@ -177,7 +177,7 @@ export default function CreateProgram() {
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="title">Program Title *</Label>
+                      <Label htmlFor="title">Course Title *</Label>
                       <Input
                         id="title"
                         value={formData.title}
@@ -204,12 +204,12 @@ export default function CreateProgram() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="description">Program Description *</Label>
+                    <Label htmlFor="description">Course Description *</Label>
                     <Textarea
                       id="description"
                       value={formData.description}
                       onChange={(e) => handleInputChange("description", e.target.value)}
-                      placeholder="Comprehensive description of the credential program, its goals, and what students will achieve..."
+                      placeholder="Comprehensive description of the credential course, its goals, and what students will achieve..."
                       rows={4}
                     />
                   </div>
@@ -280,7 +280,7 @@ export default function CreateProgram() {
                 </div>
               )}
 
-              {/* Step 3: Program Structure */}
+              {/* Step 3: Course Structure */}
               {currentStep === 3 && (
                 <div className="space-y-6">
                   <div className="space-y-2">
@@ -289,7 +289,7 @@ export default function CreateProgram() {
                       id="learningObjectives"
                       value={formData.learningObjectives}
                       onChange={(e) => handleInputChange("learningObjectives", e.target.value)}
-                      placeholder="What will students learn and achieve in this program..."
+                      placeholder="What will students learn and achieve in this course..."
                       rows={3}
                     />
                   </div>
@@ -299,7 +299,7 @@ export default function CreateProgram() {
                       id="methodology"
                       value={formData.methodology}
                       onChange={(e) => handleInputChange("methodology", e.target.value)}
-                      placeholder="How will the program be delivered and what methods will be used..."
+                      placeholder="How will the course be delivered and what methods will be used..."
                       rows={3}
                     />
                   </div>
@@ -393,7 +393,7 @@ export default function CreateProgram() {
                 <div className="space-y-6">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Program Overview</CardTitle>
+                      <CardTitle className="text-lg">Course Overview</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -475,7 +475,7 @@ export default function CreateProgram() {
                       ) : (
                         <>
                           <Eye className="h-4 w-4 mr-2" />
-                          Publish Program
+                          Publish Course
                         </>
                       )}
                     </Button>
