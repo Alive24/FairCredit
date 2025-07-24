@@ -110,3 +110,74 @@ pub struct ActivityGraded {
     pub teacher: Pubkey,
     pub timestamp: i64,
 }
+
+/// Event emitted when hub is initialized
+#[event]
+pub struct HubInitialized {
+    pub authority: Pubkey,
+    pub timestamp: i64,
+}
+
+/// Event emitted when hub config is updated
+#[event]
+pub struct HubConfigUpdated {
+    pub authority: Pubkey,
+    pub timestamp: i64,
+}
+
+/// Event emitted when a provider is accepted by hub
+#[event]
+pub struct ProviderAccepted {
+    pub hub_authority: Pubkey,
+    pub provider: Pubkey,
+    pub timestamp: i64,
+}
+
+/// Event emitted when a provider is removed from hub
+#[event]
+pub struct ProviderRemovedFromHub {
+    pub hub_authority: Pubkey,
+    pub provider: Pubkey,
+    pub timestamp: i64,
+}
+
+/// Event emitted when an endorser is accepted by hub
+#[event]
+pub struct EndorserAccepted {
+    pub hub_authority: Pubkey,
+    pub endorser: Pubkey,
+    pub timestamp: i64,
+}
+
+/// Event emitted when an endorser is removed from hub
+#[event]
+pub struct EndorserRemovedFromHub {
+    pub hub_authority: Pubkey,
+    pub endorser: Pubkey,
+    pub timestamp: i64,
+}
+
+/// Event emitted when hub authority is transferred
+#[event]
+pub struct HubAuthorityTransferred {
+    pub old_authority: Pubkey,
+    pub new_authority: Pubkey,
+    pub timestamp: i64,
+}
+
+/// Event emitted when a course is accepted by hub
+#[event]
+pub struct CourseAccepted {
+    pub hub_authority: Pubkey,
+    pub course_id: String,
+    pub provider: Pubkey,
+    pub timestamp: i64,
+}
+
+/// Event emitted when a course is removed from hub
+#[event]
+pub struct CourseRemovedFromHub {
+    pub hub_authority: Pubkey,
+    pub course_id: String,
+    pub timestamp: i64,
+}

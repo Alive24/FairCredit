@@ -15,10 +15,12 @@ pub mod credential;
 pub mod provider;
 pub mod resource;
 pub mod verifier_update;
+pub mod hub;
 
 pub use activity::*;
 pub use course::*;
 pub use credential::*;
 pub use provider::*;
 pub use resource::*;
-pub use verifier_update::*; 
+pub use verifier_update::*;
+pub use hub::*; 

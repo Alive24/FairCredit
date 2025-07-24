@@ -87,6 +87,7 @@ pub fn create_course(
     course.id = course_id.clone();
     course.created = clock.unix_timestamp;
     course.updated = clock.unix_timestamp;
+    course.provider = ctx.accounts.provider_authority.key();
     course.status = CourseStatus::Draft;
     course.rejection_reason = None;
     course.name = name;

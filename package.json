@@ -3,10 +3,12 @@
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
-    "test": "npm run test:full",
+    "test": "npm run test:anchor",
+    "test:anchor": "anchor test --skip-local-validator",
     "test:fast": "SKIP_STANDARD=true ts-mocha -p ./tsconfig.json -t 60000 tests/provider.test.ts",
     "test:security": "ts-mocha -p ./tsconfig.json -t 120000 tests/provider.test.ts --grep 'Security Tests'",
     "test:full": "ts-mocha -p ./tsconfig.json -t 120000 tests/provider.test.ts",
+    "test:new": "ts-mocha -p ./tsconfig.json -t 120000 tests/fair-credit.test.ts",
     "dev": "npm run test:fast",
     "validator": "solana-test-validator --reset --quiet"
   },

@@ -8,6 +8,7 @@ pub struct Course {
     pub id: String,
     pub created: i64,
     pub updated: i64,
+    pub provider: Pubkey,
     pub status: CourseStatus,
     #[max_len(200)]
     pub rejection_reason: Option<String>,

@@ -102,4 +102,24 @@ pub enum ProviderError {
     NoteTooLong,
     #[msg("Invalid reputation score (must be 0-100)")]
     InvalidReputationScore,
+}
+
+#[error_code]
+pub enum HubError {
+    #[msg("Unauthorized hub action")]
+    UnauthorizedHubAction,
+    #[msg("Provider already accepted")]
+    ProviderAlreadyAccepted,
+    #[msg("Provider not in accepted list")]
+    ProviderNotAccepted,
+    #[msg("Endorser already accepted")]
+    EndorserAlreadyAccepted,
+    #[msg("Endorser not in accepted list")]
+    EndorserNotAccepted,
+    #[msg("Hub list capacity reached")]
+    HubListCapacityReached,
+    #[msg("Course already accepted")]
+    CourseAlreadyAccepted,
+    #[msg("Course not in accepted list")]
+    CourseNotAccepted,
 } 

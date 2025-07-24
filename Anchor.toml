@@ -16,4 +16,4 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "npm run test"
+test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.test.ts"
