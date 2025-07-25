@@ -1,5 +1,6 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { PROGRAM_ID, getHubPDA, getCoursePDA, getProviderPDA } from "./config";
+import { decodeHubAccount, HubAccount } from "./hub-decoder";
 
 export class SimpleFairCreditClient {
   private connection: Connection;
@@ -11,7 +12,7 @@ export class SimpleFairCreditClient {
   /**
    * Fetch and decode Hub account data
    */
-  async getHub() {
+  async getHub(): Promise<HubAccount | null> {
     try {
       const [hubPDA] = getHubPDA();
       const accountInfo = await this.connection.getAccountInfo(hubPDA);
@@ -21,14 +22,8 @@ export class SimpleFairCreditClient {
         return null;
       }
 
-      // For now, return a mock hub data based on our deployment
-      // In production, you would decode the account data properly
-      return {
-        authority: new PublicKey("F7xXsyVCTieJssPccJTt2x8nr5A81YM7cMizS5SL16bs"),
-        acceptedProviders: [new PublicKey("8NY4S4qwomeR791SRvFrj51vEayN3V4TLq37uBzEj5pn")],
-        acceptedEndorsers: [],
-        acceptedCourses: ["SOLANA101"],
-      };
+      // Decode the actual hub data from the blockchain
+      return decodeHubAccount(accountInfo.data);
     } catch (error) {
       console.error("Error fetching hub:", error);
       return null;

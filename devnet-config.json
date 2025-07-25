@@ -1,0 +1,9 @@
+{
+  "network": "devnet",
+  "programId": "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk",
+  "hub": {
+    "pda": "GPftMStJZ5h7uvM5FwZXHwxm7DBv6YdPtDDWRYcnpqKf",
+    "authority": "F7xXsyVCTieJssPccJTt2x8nr5A81YM7cMizS5SL16bs"
+  },
+  "timestamp": "2025-07-25T09:50:21.869Z"
+}

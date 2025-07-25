@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { WalletButton } from "@/components/wallet-button"
+import { DevWalletImport } from "@/components/dev-wallet-import"
 
 export function Header() {
   const { connected, publicKey } = useWallet()
@@ -78,6 +79,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-4">
+          <DevWalletImport />
           <ModeToggle />
           <WalletButton />
           {connected && userType && (

@@ -18,29 +18,56 @@ import {
   XCircle,
   Clock,
   Settings,
-  Loader2
+  Loader2,
+  AlertCircle,
+  RefreshCw
 } from "lucide-react"
 import { useFairCredit } from "@/lib/solana/context"
 import { useToast } from "@/hooks/use-toast"
+import { HubSettingsDialog } from "@/components/hub/hub-settings-dialog"
+import { AddEntityDialog } from "@/components/hub/add-entity-dialog"
+import { BatchOperationsPanel } from "@/components/hub/batch-operations-panel"
+import { useWallet } from "@solana/wallet-adapter-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { PublicKey } from "@solana/web3.js"
+import { useBatchRegistry } from "@/hooks/use-batch-registry"
+import { HubAccount } from "@/lib/solana/hub-decoder"
 
 export function HubDashboard() {
-  const { client } = useFairCredit()
+  const { client, hubClient } = useFairCredit()
   const { toast } = useToast()
-  const [hubData, setHubData] = useState<any>(null)
+  const { publicKey } = useWallet()
+  const [hubData, setHubData] = useState<HubAccount | null>(null)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("providers")
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [addEntityOpen, setAddEntityOpen] = useState(false)
+  const [isHubAuthority, setIsHubAuthority] = useState(false)
+  const batchRegistry = useBatchRegistry()
 
   useEffect(() => {
     async function fetchHubData() {
-      if (!client) {
+      if (!client && !hubClient) {
         setLoading(false)
         return
       }
 
       try {
-        const hub = await client.getHub()
+        // Try to use hubClient first for real data, fallback to simple client
+        let hub;
+        if (hubClient) {
+          hub = await hubClient.getHub()
+        } else if (client) {
+          hub = await client.getHub()
+        }
+        
         setHubData(hub)
+        
+        // Check if current wallet is hub authority
+        if (publicKey && hub?.authority) {
+          setIsHubAuthority(publicKey.toBase58() === hub.authority.toBase58())
+        }
       } catch (error) {
         console.error("Failed to fetch hub data:", error)
         toast({
@@ -54,7 +81,72 @@ export function HubDashboard() {
     }
 
     fetchHubData()
-  }, [client, toast])
+  }, [client, hubClient, publicKey, toast])
+
+  const refreshHubData = async () => {
+    if (!client && !hubClient) return
+    setLoading(true)
+    try {
+      let hub;
+      if (hubClient) {
+        hub = await hubClient.getHub()
+      } else if (client) {
+        hub = await client.getHub()
+      }
+      setHubData(hub)
+      
+      // Check authority again
+      if (publicKey && hub?.authority) {
+        setIsHubAuthority(publicKey.toBase58() === hub.authority.toBase58())
+      }
+      
+      toast({
+        title: "Success",
+        description: "Hub data refreshed successfully",
+      })
+    } catch (error) {
+      console.error("Failed to refresh hub data:", error)
+      toast({
+        title: "Error",
+        description: "Failed to refresh hub data. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRemoveEntity = (entityType: string, entityKey: string, entityName?: string) => {
+    if (!isHubAuthority) return
+
+    batchRegistry.addOperation(
+      "remove",
+      entityType as "provider" | "course" | "endorser",
+      entityKey,
+      entityName
+    )
+
+    toast({
+      title: "Operation Queued",
+      description: `${entityType} removal added to batch operations.`,
+    })
+  }
+
+  const handleAddEntityToBatch = (entityType: string, entityKey: string, entityName?: string) => {
+    if (!isHubAuthority) return
+
+    batchRegistry.addOperation(
+      "add",
+      entityType as "provider" | "course" | "endorser", 
+      entityKey,
+      entityName
+    )
+
+    toast({
+      title: "Operation Queued",
+      description: `${entityType} addition added to batch operations.`,
+    })
+  }
 
   const stats = [
     { 
@@ -87,10 +179,10 @@ export function HubDashboard() {
     },
   ]
 
-  const filterData = (data: any[], term: string) => {
+  const filterData = (data: (PublicKey | string)[], term: string) => {
     if (!term) return data
     return data.filter(item => 
-      item.toLowerCase().includes(term.toLowerCase())
+      item.toString().toLowerCase().includes(term.toLowerCase())
     )
   }
 
@@ -104,6 +196,14 @@ export function HubDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Batch Operations Panel */}
+      {batchRegistry.hasPendingOperations && (
+        <BatchOperationsPanel 
+          batchRegistry={batchRegistry}
+          onBatchComplete={refreshHubData}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -112,11 +212,34 @@ export function HubDashboard() {
             Central control for FairCredit platform curation
           </p>
         </div>
-        <Button>
-          <Settings className="h-4 w-4 mr-2" />
-          Hub Settings
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline"
+            onClick={refreshHubData}
+            disabled={loading}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button 
+            onClick={() => setSettingsOpen(true)}
+            disabled={!isHubAuthority}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Hub Settings
+          </Button>
+        </div>
       </div>
+
+      {/* Authority Alert */}
+      {!isHubAuthority && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            You are viewing the hub in read-only mode. To manage hub settings and entities, connect with the hub authority wallet.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -192,7 +315,11 @@ export function HubDashboard() {
                   className="pl-8 w-[200px]"
                 />
               </div>
-              <Button size="sm">
+              <Button 
+                size="sm"
+                onClick={() => setAddEntityOpen(true)}
+                disabled={!isHubAuthority}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Add New
               </Button>
@@ -228,9 +355,15 @@ export function HubDashboard() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary">Active</Badge>
-                      <Button variant="ghost" size="sm">
-                        <XCircle className="h-4 w-4" />
-                      </Button>
+                      {isHubAuthority && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleRemoveEntity("provider", provider.toString(), `Provider #${index + 1}`)}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -257,9 +390,15 @@ export function HubDashboard() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary">Active</Badge>
-                      <Button variant="ghost" size="sm">
-                        <XCircle className="h-4 w-4" />
-                      </Button>
+                      {isHubAuthority && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleRemoveEntity("course", course.toString(), course.toString())}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -286,9 +425,15 @@ export function HubDashboard() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary">Verified</Badge>
-                      <Button variant="ghost" size="sm">
-                        <XCircle className="h-4 w-4" />
-                      </Button>
+                      {isHubAuthority && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleRemoveEntity("endorser", endorser.toString(), `Endorser #${index + 1}`)}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -341,6 +486,21 @@ export function HubDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialogs */}
+      <HubSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        hubData={hubData}
+        onUpdate={refreshHubData}
+      />
+      
+      <AddEntityDialog
+        open={addEntityOpen}
+        onOpenChange={setAddEntityOpen}
+        onSuccess={refreshHubData}
+        onAddToBatch={handleAddEntityToBatch}
+      />
     </div>
   )
 }

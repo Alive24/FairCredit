@@ -20,6 +20,10 @@ dev-debug.log
 node_modules/
 # Environment variables
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 # Editor directories and files
 .idea
 .vscode
@@ -37,3 +41,12 @@ node_modules/
 
 # YoYo AI version control directory
 .yoyo/
+
+# Playwright testing
+app/test-results/
+app/playwright-report/
+app/playwright/.cache/
+app/tests/screenshots/
+app/tests/.auth/
+app/tests/extensions/phantom/
+test-ledger/
