@@ -1,19 +1,22 @@
 "use client"
 
-import { useWalletModal } from "@solana/wallet-adapter-react-ui"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { Button } from "@/components/ui/button"
 import { Wallet } from "lucide-react"
+import { useState } from "react"
+import { CustomWalletModal } from "@/components/custom-wallet-modal"
 
 export function WalletButton() {
-  const { setVisible } = useWalletModal()
-  const { wallet, disconnect, connecting, connected, publicKey } = useWallet()
+  const { wallet, disconnect, connecting, connected, publicKey, wallets } = useWallet()
+  const [showModal, setShowModal] = useState(false)
 
   const handleClick = () => {
     if (connected) {
       disconnect()
     } else {
-      setVisible(true)
+      console.log('🔧 Opening wallet modal...')
+      console.log('Available wallets:', wallets.map(w => ({ name: w.adapter.name, readyState: w.readyState })))
+      setShowModal(true)
     }
   }
 
@@ -27,14 +30,21 @@ export function WalletButton() {
   }
 
   return (
-    <Button
-      onClick={handleClick}
-      variant={connected ? "outline" : "default"}
-      className="flex items-center gap-2"
-      disabled={connecting}
-    >
-      <Wallet className="h-4 w-4" />
-      {getButtonText()}
-    </Button>
+    <>
+      <Button
+        onClick={handleClick}
+        variant={connected ? "outline" : "default"}
+        className="flex items-center gap-2"
+        disabled={connecting}
+      >
+        <Wallet className="h-4 w-4" />
+        {getButtonText()}
+      </Button>
+      
+      <CustomWalletModal 
+        visible={showModal} 
+        onClose={() => setShowModal(false)} 
+      />
+    </>
   )
 }

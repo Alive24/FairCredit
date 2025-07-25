@@ -13,18 +13,28 @@ export class FairCreditClient {
     connection: Connection,
     wallet: any // Wallet adapter
   ) {
-    this.connection = connection;
-    
-    // Create provider
-    this.provider = new AnchorProvider(
-      connection,
-      wallet,
-      { commitment: "confirmed" }
-    );
-    setProvider(this.provider);
+    try {
+      console.log("🔧 FairCreditClient constructor - setting connection");
+      this.connection = connection;
+      
+      console.log("🔧 FairCreditClient constructor - creating provider");
+      // Create provider
+      this.provider = new AnchorProvider(
+        connection,
+        wallet,
+        { commitment: "confirmed" }
+      );
+      console.log("🔧 FairCreditClient constructor - setting provider");
+      setProvider(this.provider);
 
-    // Initialize program
-    this.program = new Program(idl as Idl, PROGRAM_ID, this.provider) as Program<FairCredit>;
+      console.log("🔧 FairCreditClient constructor - creating program");
+      // Initialize program
+      this.program = new Program(idl as Idl, PROGRAM_ID, this.provider) as Program<FairCredit>;
+      console.log("✅ FairCreditClient constructor - completed successfully");
+    } catch (error) {
+      console.error("❌ Error in FairCreditClient constructor:", error);
+      throw error;
+    }
   }
 
   /**

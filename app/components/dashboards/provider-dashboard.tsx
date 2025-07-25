@@ -10,10 +10,16 @@ import Link from "next/link"
 import { useFairCredit } from "@/lib/solana/context"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { useToast } from "@/hooks/use-toast"
+import { ProviderRegistrationCard } from "@/components/provider/provider-registration-card"
+import { WalletDebug } from "@/components/wallet-debug"
 
 export function ProviderDashboard() {
-  const { client } = useFairCredit()
-  const { publicKey, connected } = useWallet()
+  const { client, fullClient, hubClient, providerClient } = useFairCredit()
+  const wallet = useWallet()
+  const { publicKey, connected } = wallet
+  
+  // More flexible connection check
+  const isWalletConnected = connected || wallet.wallet?.adapter?.connected
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [providerData, setProviderData] = useState<any>(null)
@@ -22,7 +28,7 @@ export function ProviderDashboard() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!client || !connected || !publicKey) {
+      if (!client || !isWalletConnected || !publicKey) {
         setLoading(false)
         return
       }
@@ -30,19 +36,32 @@ export function ProviderDashboard() {
       try {
         // Fetch hub data to check if provider is accepted
         const hub = await client.getHub()
+        console.log("Hub data:", hub)
+        console.log("Accepted providers:", hub?.acceptedProviders)
+        console.log("Current wallet:", publicKey.toBase58())
         setHubData(hub)
 
-        // Check if current wallet is an accepted provider
-        const isAcceptedProvider = hub.acceptedProviders.includes(publicKey.toBase58())
-        
-        if (isAcceptedProvider) {
-          // Fetch provider-specific data
-          const providerInfo = await client.getProvider(publicKey.toBase58())
-          setProviderData(providerInfo)
-
-          // Fetch courses by this provider
-          const providerCourses = await client.getCoursesByProvider(publicKey.toBase58())
-          setCourses(providerCourses)
+        // First check if provider exists (not necessarily accepted)
+        try {
+          const providerInfo = await client.getProvider(publicKey)
+          if (providerInfo) {
+            console.log("Provider exists:", providerInfo)
+            setProviderData(providerInfo)
+            
+            // Check if current wallet is an accepted provider
+            const isAcceptedProvider = hub.acceptedProviders.some(p => 
+              p.toBase58() === publicKey.toBase58()
+            )
+            console.log("Is accepted provider:", isAcceptedProvider)
+            
+            if (isAcceptedProvider) {
+              // Fetch courses by this provider
+              const providerCourses = await client.getCoursesByProvider(publicKey.toBase58())
+              setCourses(providerCourses)
+            }
+          }
+        } catch (error) {
+          console.log("Provider not found, showing registration")
         }
       } catch (error) {
         console.error("Failed to fetch provider data:", error)
@@ -57,9 +76,12 @@ export function ProviderDashboard() {
     }
 
     fetchData()
-  }, [client, connected, publicKey, toast])
+  }, [client, isWalletConnected, publicKey, toast])
 
-  const isAcceptedProvider = hubData?.acceptedProviders?.includes(publicKey?.toBase58())
+  const hasProviderAccount = !!providerData
+  const isAcceptedProvider = hubData?.acceptedProviders?.some(p => 
+    p.toBase58() === publicKey?.toBase58()
+  ) || false
 
   // Calculate stats based on real data
   const stats = [
@@ -165,6 +187,9 @@ export function ProviderDashboard() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container py-8">
+        {/* Debug info - remove in production */}
+        {process.env.NODE_ENV === 'development' && <WalletDebug />}
+        
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Provider Dashboard</h1>
@@ -188,7 +213,7 @@ export function ProviderDashboard() {
           <div className="flex items-center justify-center min-h-[400px]">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
-        ) : !connected ? (
+        ) : !isWalletConnected ? (
           <Card className="p-8">
             <CardContent className="text-center">
               <h2 className="text-2xl font-semibold mb-4">Connect Your Wallet</h2>
@@ -197,21 +222,44 @@ export function ProviderDashboard() {
               </p>
             </CardContent>
           </Card>
+        ) : !hasProviderAccount ? (
+          <ProviderRegistrationCard 
+            publicKey={publicKey} 
+            client={providerClient || fullClient || client}
+            onRegistrationComplete={() => {
+              // Refresh the data after registration
+              window.location.reload()
+            }}
+          />
         ) : !isAcceptedProvider ? (
           <Card className="p-8">
             <CardContent className="text-center">
               <div className="h-16 w-16 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center mx-auto mb-4">
                 <Clock className="h-8 w-8 text-yellow-600" />
               </div>
-              <h2 className="text-2xl font-semibold mb-4">Provider Registration Required</h2>
+              <h2 className="text-2xl font-semibold mb-4">Pending Approval</h2>
               <p className="text-muted-foreground mb-6">
-                Your wallet is not registered as an accepted provider. Please contact the Hub administrator 
-                to get your provider status approved.
+                Your provider account has been created and is pending approval from the Hub administrator.
               </p>
-              <div className="p-4 bg-muted rounded-lg text-sm">
-                <p className="font-medium mb-1">Your Wallet Address:</p>
-                <p className="font-mono text-xs">{publicKey?.toBase58()}</p>
+              <div className="p-4 bg-muted rounded-lg text-left space-y-2">
+                <p className="font-medium">Provider Details:</p>
+                <p className="text-sm"><strong>Name:</strong> {providerData?.name || "Unknown"}</p>
+                <p className="text-sm"><strong>Email:</strong> {providerData?.email || "Unknown"}</p>
+                <p className="text-sm"><strong>Type:</strong> {providerData?.providerType || "Unknown"}</p>
+                <p className="text-sm"><strong>Wallet:</strong> {publicKey?.toBase58()}</p>
               </div>
+              <p className="text-xs text-muted-foreground mt-4">
+                Once approved, you'll be able to create and manage courses.
+              </p>
+              {process.env.NODE_ENV === 'development' && (
+                <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded text-xs">
+                  <p className="font-mono">Debug Info:</p>
+                  <p className="font-mono">Hub accepted providers: {hubData?.acceptedProviders?.length || 0}</p>
+                  {hubData?.acceptedProviders?.map((p, i) => (
+                    <p key={i} className="font-mono text-xs">{i}: {p.toBase58()}</p>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         ) : (

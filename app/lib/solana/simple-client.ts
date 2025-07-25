@@ -65,7 +65,7 @@ export class SimpleFairCreditClient {
   }
 
   /**
-   * Fetch provider data (mocked for now)
+   * Fetch provider data
    */
   async getProvider(providerWallet: PublicKey) {
     try {
@@ -77,19 +77,68 @@ export class SimpleFairCreditClient {
         return null;
       }
 
-      // Return mock data for our deployed provider
-      if (providerWallet.toString() === "8NY4S4qwomeR791SRvFrj51vEayN3V4TLq37uBzEj5pn") {
+      // Try to decode the provider data
+      try {
+        // Skip discriminator (8 bytes)
+        let offset = 8;
+        const data = accountInfo.data;
+        
+        // Read wallet pubkey (32 bytes)
+        const wallet = new PublicKey(data.slice(offset, offset + 32));
+        offset += 32;
+        
+        // Read name string
+        const nameLength = data.readUInt32LE(offset);
+        offset += 4;
+        const name = data.slice(offset, offset + nameLength).toString('utf8');
+        offset += nameLength;
+        
+        // Read description string
+        const descLength = data.readUInt32LE(offset);
+        offset += 4;
+        const description = data.slice(offset, offset + descLength).toString('utf8');
+        offset += descLength;
+        
+        // Read website string
+        const websiteLength = data.readUInt32LE(offset);
+        offset += 4;
+        const website = data.slice(offset, offset + websiteLength).toString('utf8');
+        offset += websiteLength;
+        
+        // Read email string
+        const emailLength = data.readUInt32LE(offset);
+        offset += 4;
+        const email = data.slice(offset, offset + emailLength).toString('utf8');
+        offset += emailLength;
+        
+        // Read provider type string
+        const typeLength = data.readUInt32LE(offset);
+        offset += 4;
+        const providerType = data.slice(offset, offset + typeLength).toString('utf8');
+        
         return {
-          wallet: providerWallet,
-          name: "Solana Academy",
-          description: "Premier Solana education provider",
-          website: "https://solana-academy.com",
-          email: "contact@solana-academy.com",
-          providerType: "education",
+          wallet,
+          name,
+          description,
+          website,
+          email,
+          providerType,
         };
+      } catch (decodeError) {
+        console.error("Error decoding provider data:", decodeError);
+        // Return mock data as fallback
+        if (providerWallet.toString() === "8NY4S4qwomeR791SRvFrj51vEayN3V4TLq37uBzEj5pn") {
+          return {
+            wallet: providerWallet,
+            name: "Solana Academy",
+            description: "Premier Solana education provider",
+            website: "https://solana-academy.com",
+            email: "contact@solana-academy.com",
+            providerType: "education",
+          };
+        }
+        return null;
       }
-
-      return null;
     } catch (error) {
       console.error("Error fetching provider:", error);
       return null;
