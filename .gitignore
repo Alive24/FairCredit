@@ -34,10 +34,7 @@ node_modules/
 *.sw?
 # OS specific
 
-# Task files
-# tasks.json
 .venv
-# tasks/ 
 
 # YoYo AI version control directory
 .yoyo/
@@ -50,3 +47,7 @@ app/tests/screenshots/
 app/tests/.auth/
 app/tests/extensions/phantom/
 test-ledger/
+
+# Task files
+# tasks.json
+# tasks/ 

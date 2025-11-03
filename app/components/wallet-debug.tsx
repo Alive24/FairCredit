@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { useFairCredit } from "@/lib/solana/context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -7,6 +8,32 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 export function WalletDebug() {
   const wallet = useWallet()
   const { client, hubClient, fullClient, providerClient, isLoading, error } = useFairCredit()
+  const [hasMounted, setHasMounted] = useState(false)
+  const [availableWalletNames, setAvailableWalletNames] = useState<string[]>([])
+  const [extensionStatus, setExtensionStatus] = useState<{
+    solana: boolean
+    phantom: boolean
+    solflare: boolean
+  } | null>(null)
+
+  useEffect(() => {
+    setHasMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!hasMounted) return
+    setAvailableWalletNames(wallet.wallets.map((w) => w.adapter.name))
+  }, [hasMounted, wallet.wallets])
+
+  useEffect(() => {
+    if (!hasMounted) return
+    const win = window as any
+    setExtensionStatus({
+      solana: !!win.solana,
+      phantom: !!win.phantom,
+      solflare: !!win.solflare,
+    })
+  }, [hasMounted])
 
   const testDirectConnection = async () => {
     try {
@@ -44,6 +71,11 @@ export function WalletDebug() {
       ethereum: !!win.ethereum,
     }
     console.log('Browser extensions detected:', extensions)
+    setExtensionStatus({
+      solana: extensions.solana,
+      phantom: extensions.phantom,
+      solflare: extensions.solflare,
+    })
     
     // Check for specific polkadot extensions
     if (win.injectedWeb3) {
@@ -60,41 +92,65 @@ export function WalletDebug() {
       </CardHeader>
       <CardContent className="space-y-2 text-sm">
         <div>
-          <strong>Wallet Connected:</strong> {wallet.connected ? "Yes" : "No"}
+          <strong>Wallet Connected:</strong> {hasMounted ? (wallet.connected ? "Yes" : "No") : "Detecting..."}
         </div>
         <div>
-          <strong>Public Key:</strong> {wallet.publicKey?.toBase58() || "None"}
+          <strong>Public Key:</strong> {hasMounted ? wallet.publicKey?.toBase58() || "None" : "Detecting..."}
         </div>
         <div>
-          <strong>Wallet Name:</strong> {wallet.wallet?.adapter?.name || "None"}
+          <strong>Wallet Name:</strong> {hasMounted ? wallet.wallet?.adapter?.name || "None" : "Detecting..."}
         </div>
         <div>
-          <strong>Connecting:</strong> {wallet.connecting ? "Yes" : "No"}
+          <strong>Connecting:</strong> {hasMounted ? (wallet.connecting ? "Yes" : "No") : "Detecting..."}
         </div>
         <div>
-          <strong>Clients Loading:</strong> {isLoading ? "Yes" : "No"}
+          <strong>Clients Loading:</strong> {hasMounted ? (isLoading ? "Yes" : "No") : "Detecting..."}
         </div>
         <div>
-          <strong>Simple Client:</strong> {client ? "Ready" : "Not Ready"}
+          <strong>Simple Client:</strong> {hasMounted ? (client ? "Ready" : "Not Ready") : "Detecting..."}
         </div>
         <div>
-          <strong>Hub Client:</strong> {hubClient ? "Ready" : "Not Ready"}
+          <strong>Hub Client:</strong> {hasMounted ? (hubClient ? "Ready" : "Not Ready") : "Detecting..."}
         </div>
         <div>
-          <strong>Full Client:</strong> {fullClient ? "Ready" : "Not Ready"}
+          <strong>Full Client:</strong> {hasMounted ? (fullClient ? "Ready" : "Not Ready") : "Detecting..."}
         </div>
         <div>
-          <strong>Provider Client:</strong> {providerClient ? "Ready" : "Not Ready"}
+          <strong>Provider Client:</strong> {hasMounted ? (providerClient ? "Ready" : "Not Ready") : "Detecting..."}
         </div>
         <div>
-          <strong>Available Wallets:</strong> {wallet.wallets.map(w => w.adapter.name).join(", ")}
+          <strong>Available Wallets:</strong>{" "}
+          {hasMounted
+            ? (availableWalletNames.length ? availableWalletNames.join(", ") : "None")
+            : "Detecting..."}
         </div>
         <div>
           <strong>Window Extensions:</strong>
           <ul className="ml-4 text-xs">
-            <li>window.solana: {typeof window !== 'undefined' && (window as any).solana ? 'Present' : 'Not found'}</li>
-            <li>window.phantom: {typeof window !== 'undefined' && (window as any).phantom ? 'Present' : 'Not found'}</li>
-            <li>window.solflare: {typeof window !== 'undefined' && (window as any).solflare ? 'Present' : 'Not found'}</li>
+            <li>
+              window.solana:{" "}
+              {hasMounted
+                ? extensionStatus?.solana
+                  ? "Present"
+                  : "Not found"
+                : "Detecting..."}
+            </li>
+            <li>
+              window.phantom:{" "}
+              {hasMounted
+                ? extensionStatus?.phantom
+                  ? "Present"
+                  : "Not found"
+                : "Detecting..."}
+            </li>
+            <li>
+              window.solflare:{" "}
+              {hasMounted
+                ? extensionStatus?.solflare
+                  ? "Present"
+                  : "Not found"
+                : "Detecting..."}
+            </li>
           </ul>
         </div>
         {error && (

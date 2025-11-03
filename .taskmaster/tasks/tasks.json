@@ -1,0 +1,210 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Align credential PDA seeds across program, client, and tests",
+        "description": "Fix and unify credential PDA derivation (8-byte little‑endian) to eliminate mismatches between Anchor program, JS clients, and tests.",
+        "details": "- Current program seeds: `seeds = [b\"credential\", &credential_id.to_le_bytes()]` (Anchor). Clients/tests derive with string bytes. Unify to 8‑byte LE.\n- Update `app/lib/solana/config.ts`:\n  - Replace `getCredentialPDA(credentialId: number)` with LE derivation: `const buf = Buffer.alloc(8); buf.writeBigUInt64LE(BigInt(credentialId)); PublicKey.findProgramAddressSync([Buffer.from(\"credential\"), buf], PROGRAM_ID)`.\n- Update any callers/tests using `Buffer.from(credentialId.toString())` to use the LE buffer (see `app/tests/fair-credit.test.ts`).\n- Add util: `toLE8(credentialId: number|BN): Buffer` and export.\n- Document PDA conventions in `DEPLOYMENT.md`.\n- Pseudo-code:\n  - function getCredentialPDA_LE(id) { let b=Buffer.alloc(8); b.writeBigUInt64LE(BigInt(id)); return findPDA([\"credential\", b]); }\n",
+        "testStrategy": "- Unit test for PDA parity: compute PDA in JS and via on-chain (derive in instruction) and assert equality for several IDs.\n- Run existing Anchor tests after changes; ensure `createCredential` accounts resolve.\n- Smoke test dApp flows that reference credentials to ensure no 404/AccountNotFound.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Audit PDA derivations and confirm on-chain seed format",
+            "description": "Locate all credential and verification PDA derivations and verify the program already uses 8-byte little-endian seeds.",
+            "dependencies": [],
+            "details": "Search program, client, and tests for PDA seeds (credential and verification). Confirm on-chain uses `to_le_bytes()` and list every client/test call site using string-based bytes (e.g., `Buffer.from(id.toString())`) to prepare refactors.",
+            "status": "pending",
+            "testStrategy": "Use ripgrep to list occurrences of PDA derivations and seed arrays; record files and lines for refactor scope."
+          },
+          {
+            "id": 2,
+            "title": "Add `toLE8(id)` helper and refactor `getCredentialPDA`/`getVerificationPDA`",
+            "description": "Implement a shared 8-byte LE buffer helper and update PDA helpers to use it.",
+            "dependencies": [
+              1
+            ],
+            "details": "In `app/lib/solana/config.ts`, add `export function toLE8(id: number|BN): Buffer { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(id as any)); return b; }`. Update `getCredentialPDA` (and `getVerificationPDA` if present) to call `PublicKey.findProgramAddressSync([Buffer.from(\"credential\"), toLE8(id)], PROGRAM_ID)` and analogous for verification seeds.",
+            "status": "pending",
+            "testStrategy": "Add a small unit test for `toLE8` covering 0, 1, 255, 256, 2^32, and Number.MAX_SAFE_INTEGER to verify LE encoding bytes."
+          },
+          {
+            "id": 3,
+            "title": "Refactor all callers to use LE8 buffers for credential and verification PDAs",
+            "description": "Replace string-based seed usage with the new `toLE8` helper across app and tests.",
+            "dependencies": [
+              2
+            ],
+            "details": "Grep for `Buffer.from(.*toString())`, `getCredentialPDA(`, and any manual seed arrays. In files like `app/tests/fair-credit.test.ts`, swap `Buffer.from(credentialId.toString())` for `toLE8(credentialId)` for both credential and verification PDAs. Ensure all imports updated from `config.ts`.",
+            "status": "pending",
+            "testStrategy": "Run TypeScript build and test compilation to ensure all call sites compile and no stale imports remain."
+          },
+          {
+            "id": 4,
+            "title": "Add PDA parity tests validating LE8 derivation for multiple IDs",
+            "description": "Create tests that derive PDAs in JS using `toLE8` and assert addresses match expected seeds.",
+            "dependencies": [
+              3
+            ],
+            "details": "Add a test suite that calls `getCredentialPDA`/`getVerificationPDA` with several IDs and asserts the returned PDAs equal `PublicKey.findProgramAddressSync([Buffer.from(\"credential\"), toLE8(id)], PROGRAM_ID)` (and verification). Include boundary IDs to catch endian/width errors.",
+            "status": "pending",
+            "testStrategy": "Unit tests in app/tests: assert equality for IDs [0,1,42,65535,4294967296n,9007199254740991n]."
+          },
+          {
+            "id": 5,
+            "title": "Verify Anchor flows (`createCredential`/`verifyCredential`) resolve PDAs post-change",
+            "description": "Run and, if needed, adjust Anchor tests to pass PDA accounts using LE8 derivation.",
+            "dependencies": [
+              4
+            ],
+            "details": "Update Anchor tests to use the updated helpers when passing credential/verification accounts. Ensure the instructions succeed and fetched accounts match derived PDAs after transactions.",
+            "status": "pending",
+            "testStrategy": "Execute Anchor tests; assert transactions succeed and fetched program accounts exist at expected PDAs."
+          },
+          {
+            "id": 6,
+            "title": "Document PDA conventions and migration notes in `DEPLOYMENT.md`",
+            "description": "Explain the 8-byte little-endian convention, sample code, examples, and migration caveats.",
+            "dependencies": [
+              5
+            ],
+            "details": "Add a section describing PDA seeds: `['credential', LE8(id)]` (and verification), show TypeScript/Rust snippets, endianness explanation, example encodings for sample IDs, and warnings against string-byte seeds. Note impacts on existing clients/tests and how to migrate.",
+            "status": "pending",
+            "testStrategy": "Peer review documentation for correctness and clarity; verify code snippets compile in context."
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Integrate create credential flow in UI with Anchor",
+        "description": "Wire Create Credential page to Anchor `create_credential`, persisting draft with student/supervisor wallets, placeholder mint address, and metadata hash placeholder.",
+        "details": "- In `app/app/create-credential/page.tsx`: on submit, generate `credentialId` (timestamp+nonce), generate `mintKeypair` (for SPL token mint to be created later), compute preliminary metadata hash (e.g., SHA-256 of draft JSON without endorsement), and call `program.methods.createCredential(...)` with required accounts (`provider`, `providerAuthority`, `studentWallet`, `mentorWallet`, `nftMint`).\n- Save returned tx sig and navigate to confirmation; trigger email workflow (Task 3).\n- Add small helper in `app/lib/solana/simple-provider-client.ts` or `fairCreditClient.ts` to wrap `createCredential`.\n- Pseudo-code:\n  - const id = Date.now(); const mint = Keypair.generate(); await program.methods.createCredential(new BN(id), title,..., hash).accounts({...nftMint: mint.publicKey}).signers([wallet]).rpc();\n",
+        "testStrategy": "- Integration test (Playwright) that fills form, submits, and asserts an Anchor transaction is sent.\n- Anchor test that fetches credential account and validates fields (student, mentor, provider, metadata.ipfs_hash placeholder).\n- UI unit tests for validation of required fields.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Email-based supervisor endorsement links (Next.js API)",
+        "description": "Implement secure, expiring email links for supervisor endorsement using signed tokens and mail provider.",
+        "details": "- Add Next.js route handlers: `app/app/api/endorsement/initiate/route.ts` (POST) to accept credentialId + supervisor email, mint a short-lived JWT (claims: credId, supervisorEmail, exp), store nonce in KV/DB (or in‑memory dev cache), and send email (Resend/Nodemailer) with link to `/supervisor-endorsement/[id]?token=...`.\n- Add `.env` keys: `JWT_SECRET`, `EMAIL_FROM`, mail provider API key.\n- Validate token in endorsement page (Task 4) before enabling on-chain call.\n- Pseudo-code:\n  - const token = jwt.sign({credId, sup: email}, SECRET, {expiresIn:\"24h\"}); await sendEmail({to:email, html:link}); return {ok:true};\n",
+        "testStrategy": "- Unit tests for JWT creation/verification, expiry, and audience/issuer claims.\n- Test email function with mock transporter; verify payload contains correct URL.\n- Negative tests: invalid/expired token, tampered query string → page shows error and blocks endorsement.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Supervisor endorsement on-chain from UI",
+        "description": "Connect endorsement page to Anchor `endorse_credential` gated by token validation and supervisor wallet signature.",
+        "details": "- In `app/app/supervisor-endorsement/[id]/page.tsx`: validate `token` via API, require wallet connect; on endorse, call `program.methods.endorseCredential(endorsementMessage)` with accounts (`credential`, `mentor`).\n- After success, update UI to show success and cue minting job (Task 6).\n- Store endorsement note in on-chain metadata field already present; rely on tx signature as cryptographic proof of mentor approval.\n- Pseudo-code:\n  - if (validToken && wallet.publicKey==expectedSupervisor) await program.methods.endorseCredential(msg).accounts({credential, mentor: wallet.pk}).rpc();\n",
+        "testStrategy": "- Integration test: open emailed link, connect mock wallet (Phantom test harness), call endorse, and assert transaction success.\n- Anchor test verifies credential status changes to `Endorsed` and endorsement field updated.\n- Security test: reject attempts where wallet ≠ expected supervisor pubkey.",
+        "priority": "high",
+        "dependencies": [
+          3,
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "IPFS metadata pipeline (JSON-LD + pinning)",
+        "description": "Produce canonical JSON-LD credential metadata, hash it, and pin to IPFS; store CID in on-chain record.",
+        "details": "- Define JSON-LD schema compatible with W3C VC; fields: issuer, student, supervisor, title, description, skills[], artifacts[], issuanceDate, proof (to be filled after mint), and links.\n- Implement `app/lib/ipfs.ts` using Pinata or Web3.Storage; add `IPFS_TOKEN` to `.env`.\n- On create (Task 2), build preliminary metadata, compute canonical hash (e.g., `jsonld.canonize` + SHA-256), set `ipfs_hash` once pinned; update UI to reflect CID.\n- On mint (Task 6), include full `uri` to IPFS JSON.\n- Pseudo-code:\n  - const doc = buildVC(data); const canon = await canonize(doc); const hash = sha256(canon); const cid = await pinJSON(doc); write hash+cid to chain/client.\n",
+        "testStrategy": "- Unit tests for metadata builder, canonicalization, stable hashing.\n- Mock IPFS client for offline tests; assert returned CID format.\n- Verify explorer renders NFT metadata JSON from CID after mint.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Mint NFT to student wallet with Metaplex",
+        "description": "After endorsement and IPFS pinning, mint an NFT to the student wallet with metadata URI using Metaplex (Umi or MPL Token Metadata).",
+        "details": "- Use `@metaplex-foundation/mpl-token-metadata` (or Umi) and `@solana/spl-token` to:\n  1) Create mint (if not created earlier), 0 decimals\n  2) Create token account for student (ATA) and mint 1 token\n  3) Create metadata account with `uri` -> IPFS CID, name/symbol\n- Add Next.js server action or client flow with wallet signature; prefer client‑side mint with provider authority or dedicated mint authority.\n- Optionally add program instruction `mark_credential_minted(credentialId, mintPubkey)` to set status=`Minted` and store mint (already present as `nft_mint`).\n- Pseudo-code:\n  - const umi = createUmi(conn, wallet); await createNft(umi,{uri:cid, sellerFee:0, name:title, symbol:\"FCRD\", receiver:studentPk});\n",
+        "testStrategy": "- Devnet mint integration test asserts:\n  - NFT exists, owner=student ATA; metadata.uri=IPFS URL\n- UI test checks confirmation surface and explorer link.\n- Anchor test marks credential status Minted and mint pubkey recorded.",
+        "priority": "high",
+        "dependencies": [
+          4,
+          5
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Public verification page `/verify/[id]`",
+        "description": "Build dynamic verification route that fetches on-chain credential + IPFS JSON and displays proofs and explorer links.",
+        "details": "- Add `app/app/verify/[id]/page.tsx` replacing mock with real data; load credential by PDA (Task 1 util), fetch IPFS JSON via CID from on-chain record.\n- Show issuer, supervisor, student, endorsement (with tx link from Task 4), NFT mint, and a Verify button.\n- Add structured data (JSON-LD) and OpenGraph tags for SEO; mobile responsive per PRD.\n- Pseudo-code:\n  - const cred = await fetchCredential(id); const meta = await fetch(metaCID); render; button → call API to record verification (Task 8).\n",
+        "testStrategy": "- Rendering tests for states: loading, found, not found.\n- Lighthouse perf check < 2s on cached CID.\n- E2E: open `/verify/ID`, see explorer links and correct fields.",
+        "priority": "high",
+        "dependencies": [
+          6,
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "One‑click verification logging via server relayer",
+        "description": "Provide an API to record verification on-chain without requiring verifier wallets, preserving public, one‑click UX.",
+        "details": "- Add `app/app/api/verify/route.ts` POST: input credentialId; server uses a relayer keypair (from `.env`, dev only) to call `program.methods.verifyCredential()` with accounts (`credential`, derived `verificationRecord`, `verifier`=relayer).\n- Rate-limit and sign requests to prevent abuse; store minimal audit log.\n- Update `/verify/[id]` button to POST to this endpoint and reflect incremented count.\n- Pseudo-code:\n  - const kp = loadRelayer(); const [vrPDA]=findPDA([\"verification\", le(id), kp.pk]); await program.methods.verifyCredential().accounts({credential, verificationRecord: vrPDA, verifier: kp.pk}).signers([kp]).rpc();\n",
+        "testStrategy": "- API unit tests with mocked Anchor provider; ensure proper PDA derivation and success handling.\n- Anchor test verifying `verification_count` increments and `VerificationRecord` initialized.\n- Security test: throttle, token/signature check to avoid spam.",
+        "priority": "medium",
+        "dependencies": [
+          7,
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Verifier assessment UI",
+        "description": "Add UI for verifiers to register, set provider suspension/reputation, and view their assessments.",
+        "details": "- Pages/components to:\n  - Initialize verifier (`initialize_verifier`)\n  - List providers (from Hub or by lookup) and set `suspend_provider`, `unsuspend_provider`, `set_provider_reputation`.\n- Surface verifier‑specific view on provider pages (badge: suspended by you / reputation score).\n- Ensure no global reputation gate is enforced in issuance per PRD; this UI is for verifier‑centric trust only.\n- Pseudo-code:\n  - await program.methods.initializeVerifier().accounts({...}).rpc(); await program.methods.setProviderReputation(new BN(score), note).accounts({...}).rpc();\n",
+        "testStrategy": "- UI tests for CRUD interactions and optimistic updates.\n- Anchor tests that verify state changes in `Verifier` account.\n- Snapshot tests to confirm verifier‑specific status badges render.",
+        "priority": "medium",
+        "dependencies": [
+          2,
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Basic analytics dashboard",
+        "description": "Expose verification counts and recent activity using on‑chain counters and lightweight caching.",
+        "details": "- Build a dashboard card set: total credentials, total verifications (sum of `verification_count`), top credentials, recent verification timestamps (from `VerificationRecord` scan).\n- Implement a small server cache (in‑memory/kv) refreshed on demand to avoid expensive scans.\n- Link from Verifier and Provider dashboards.\n- Pseudo-code:\n  - const creds = await scanProgramAccounts(\"credential\"); const totals = sum(creds.map(c=>c.verificationCount)); cache.set(...)\n",
+        "testStrategy": "- Unit tests for aggregation functions.\n- API tests for cache behavior (fresh vs cached).\n- UI tests for rendering and edge cases (no data, large counts).",
+        "priority": "medium",
+        "dependencies": [
+          8,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-11-03T00:08:44.657Z",
+      "updated": "2025-11-03T00:08:44.657Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

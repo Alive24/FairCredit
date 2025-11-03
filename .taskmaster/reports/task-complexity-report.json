@@ -1,0 +1,93 @@
+{
+	"meta": {
+		"generatedAt": "2025-11-03T02:37:51.459Z",
+		"tasksAnalyzed": 10,
+		"totalTasks": 10,
+		"analysisCount": 10,
+		"thresholdScore": 5,
+		"projectName": "Taskmaster",
+		"usedResearch": false
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 1,
+			"taskTitle": "Align credential PDA seeds across program, client, and tests",
+			"complexityScore": 5,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Update `app/lib/solana/config.ts`: add `export function toLE8(id: number|BN): Buffer { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(id)); return b; }` and change `getCredentialPDA` to `findProgramAddressSync([Buffer.from(\"credential\"), toLE8(id)], PROGRAM_ID)`. Grep and update test callers (e.g., `app/tests/fair-credit.test.ts`) replacing `Buffer.from(credentialId.toString())` with LE8 for both `credential` and `verification` PDAs. Add a parity unit test that derives PDA in JS and matches on-chain seeds for several IDs. Run Anchor tests to ensure `createCredential` and `verifyCredential` resolve PDAs. Document the convention in `DEPLOYMENT.md` (include examples, endianness notes, and migration caveats).",
+			"reasoning": "Program seeds already use LE8 (`programs/fair-credit/src/handlers/credential.rs`), while client/tests use string bytes (`app/lib/solana/config.ts`, `app/tests/fair-credit.test.ts`). The change is localized but must be applied consistently (credential + verification PDAs) with tests and docs updated."
+		},
+		{
+			"taskId": 2,
+			"taskTitle": "Integrate create credential flow in UI with Anchor",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Add a wrapper in `app/lib/solana/fairCreditClient.ts` (e.g., `createCredential(...)`) that: generates `credentialId` (timestamp+nonce), creates `mintKeypair`, builds preliminary metadata hash, and calls `program.methods.createCredential(new BN(id), title, desc, skills, research, placeholderEndorsement, new BN(date), hash)` with accounts (`credential` via LE8 PDA, `provider`, `providerAuthority`, `studentWallet`, `mentorWallet`, `nftMint`). Wire `app/app/create-credential/page.tsx` submit to this wrapper using wallet from `FairCreditProvider`. Show tx signature and navigate to a confirmation view. Validate required fields and handle errors (wallet not connected, RPC failure). Reuse Task 1 `toLE8` for PDAs. Add an integration test stub to assert the method is invoked (can mock provider in CI).",
+			"reasoning": "UI page exists but is mock-only; program method and client/provider scaffolding exist (`FairCreditClient`, context). Work spans wallet integration, account wiring, metadata hashing, and navigation with error handling."
+		},
+		{
+			"taskId": 3,
+			"taskTitle": "Email-based supervisor endorsement links (Next.js API)",
+			"complexityScore": 6,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Create `app/app/api/endorsement/initiate/route.ts` (POST) that accepts `{ credentialId, supervisorEmail }`, issues a short-lived JWT (claims: credId, supervisorEmail, exp) using `JWT_SECRET`, stores a nonce in an in-memory map for dev, and sends email via Nodemailer/Resend featuring link `/supervisor-endorsement/[id]?token=...`. Add `.env` keys (`JWT_SECRET`, `EMAIL_FROM`, mail provider key). In the page, plan to validate token (Task 4). Add unit tests to verify JWT creation/verification and email payload formation using a mock transporter.",
+			"reasoning": "No existing API routes; needs a small server route, JWT issuance, simple nonce store, and email integration. Limited coupling to on-chain logic but needs correct link composition and environment setup."
+		},
+		{
+			"taskId": 4,
+			"taskTitle": "Supervisor endorsement on-chain from UI",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Enhance `app/app/supervisor-endorsement/[id]/page.tsx`: parse `token` from query, call a validation endpoint (or server action) to verify JWT claims and expected supervisor address. Require wallet connection and enforce wallet pubkey == token’s supervisor. On submit, call `program.methods.endorseCredential(endorsementMessage).accounts({ credential: getCredentialPDA_LE(id), mentor: wallet.publicKey }).rpc()`. Show success state and emit an event or callback to trigger the minting flow (Task 6). Add negative-path handling (invalid/expired token, wallet mismatch).",
+			"reasoning": "The page is UI-only today. Adds token validation and an Anchor call gated by the connected wallet. Must use LE8 PDAs from Task 1 and handle error/edge states."
+		},
+		{
+			"taskId": 5,
+			"taskTitle": "IPFS metadata pipeline (JSON-LD + pinning)",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Add `app/lib/ipfs.ts` with a Pinata or Web3.Storage client using `IPFS_TOKEN`. Create `app/lib/metadata.ts` to build a JSON-LD VC-compatible doc, canonize (e.g., jsonld.canonize), and compute a stable SHA-256 hash. On create (Task 2), build preliminary metadata from form inputs, compute and (optionally) pin to IPFS, writing hash/CID to chain. On mint (Task 6), finalize `uri` with the CID. Provide unit tests with mocked clients for canonicalization, hashing, and CID shape. Surface CID in UI states.",
+			"reasoning": "No IPFS utilities exist; program expects an `ipfs_hash` string. Requires schema design + canonicalization, pinning integration, error handling, and tests."
+		},
+		{
+			"taskId": 6,
+			"taskTitle": "Mint NFT to student wallet with Metaplex",
+			"complexityScore": 8,
+			"recommendedSubtasks": 9,
+			"expansionPrompt": "Choose SDK (Umi or MPL Token Metadata). Implement `app/lib/solana/mint.ts` helper to: (1) create or reuse the mint (0 decimals), (2) create student ATA and mint 1 token, (3) create metadata with `uri` → IPFS CID and a fixed symbol/name. Gate by provider/mint authority. Optionally add on-chain `mark_credential_minted(credentialId, mintPubkey)` call to persist status/mint. Integrate post-endorsement (Task 4) and post-IPFS pin (Task 5). Add a devnet integration test (mockable) and update UI with explorer links.",
+			"reasoning": "Requires multiple Solana primitives and SDK integration, authority management, and sequencing after endorsement + IPFS. Testing and error handling add complexity."
+		},
+		{
+			"taskId": 7,
+			"taskTitle": "Public verification page `/verify/[id]`",
+			"complexityScore": 6,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Create dynamic route `app/app/verify/[id]/page.tsx`. Fetch credential by LE8 PDA (Task 1 util) and load IPFS JSON via CID stored on-chain. Render issuer, supervisor, student, endorsement (with tx link), NFT mint, and a Verify button wired to Task 8 API. Add structured data (JSON-LD) and OpenGraph tags. Provide loading/found/not-found states and responsive layout. Add rendering tests and a basic perf check stub.",
+			"reasoning": "Current `/verify` is a mock, non-dynamic page. This adds real on-chain/IPFS reads, SEO metadata, and integration with the verify API."
+		},
+		{
+			"taskId": 8,
+			"taskTitle": "One‑click verification logging via server relayer",
+			"complexityScore": 6,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Add `app/app/api/verify/route.ts` (POST) accepting `{ credentialId }`. Load a relayer keypair from `.env`, derive `verificationRecord` PDA with `[\"verification\", toLE8(id), relayerPubkey]`, and call `program.methods.verifyCredential()` with accounts (`credential`, `verificationRecord`, `verifier`=relayer). Add rate-limiting and signed-request/nonce check, and record a minimal audit log (in-memory for dev). Update `/verify/[id]` button to call this endpoint and display updated count. Write unit tests with a mocked Anchor provider for PDA derivation and success path.",
+			"reasoning": "Introduces a server-side signer path with minimal abuse-prevention. Depends on Task 7 UI and Task 1 PDA utility. Moderate complexity in security, env handling, and program call."
+		},
+		{
+			"taskId": 9,
+			"taskTitle": "Verifier assessment UI",
+			"complexityScore": 6,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Create pages/components to manage verifier flows: initialize verifier (`initialize_verifier`), suspend/unsuspend provider, and set provider reputation (`set_provider_reputation`). Reuse wallet/provider context and LE8 utilities. Show verifier-specific badges on provider pages (suspended-by-you, reputation score). Add UI tests for CRUD and optimistic updates; add Anchor tests confirming Verifier account state transitions.",
+			"reasoning": "Program handlers/states exist (`programs/fair-credit/src/handlers/provider.rs`, `state/verifier.rs`). Work centers on UI wiring, wallet interactions, and state display."
+		},
+		{
+			"taskId": 10,
+			"taskTitle": "Basic analytics dashboard",
+			"complexityScore": 5,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Implement an analytics service to scan program accounts (credentials, verification records), aggregate totals (e.g., sum `verification_count`), and cache results in memory/KV. Expose an API endpoint for analytics data and build a dashboard UI section showing totals, top credentials, and recent activity. Add unit tests for aggregation logic and API cache behavior.",
+			"reasoning": "Read-heavy and cache-focused feature. Requires efficient program account scans and clean aggregation, but less risky than write-path flows; UI is straightforward."
+		}
+	]
+}
