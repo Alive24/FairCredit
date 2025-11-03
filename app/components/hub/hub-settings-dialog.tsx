@@ -19,7 +19,7 @@ interface HubSettingsDialogProps {
 }
 
 export function HubSettingsDialog({ open, onOpenChange, hubData, onUpdate }: HubSettingsDialogProps) {
-  const { client, hubClient } = useFairCredit()
+  const { hubClient } = useFairCredit()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 
 export function WalletDebugEnhanced() {
   const wallet = useWallet()
-  const { client, hubClient, fullClient, isLoading, error } = useFairCredit()
+  const { client, providerClient, hubClient, verifierClient, mentorClient, isLoading, error } = useFairCredit()
   const { setVisible, visible } = useWalletModal()
   const [phantomDetected, setPhantomDetected] = useState(false)
 
@@ -77,6 +77,21 @@ export function WalletDebugEnhanced() {
         </div>
         <div>
           <strong>Clients Loading:</strong> {isLoading ? "⏳ Yes" : "❌ No"}
+        </div>
+        <div>
+          <strong>Readonly Client:</strong> {client ? "✅ Ready" : "❌ Not Ready"}
+        </div>
+        <div>
+          <strong>Provider Client:</strong> {providerClient ? "✅ Ready" : "❌ Not Ready"}
+        </div>
+        <div>
+          <strong>Hub Client:</strong> {hubClient ? "✅ Ready" : "❌ Not Ready"}
+        </div>
+        <div>
+          <strong>Verifier Client:</strong> {verifierClient ? "✅ Ready" : "❌ Not Ready"}
+        </div>
+        <div>
+          <strong>Mentor Client:</strong> {mentorClient ? "✅ Ready" : "❌ Not Ready"}
         </div>
         <div>
           <strong>Available Wallets:</strong> {wallet.wallets.length} ({wallet.wallets.map(w => w.adapter.name).join(", ")})

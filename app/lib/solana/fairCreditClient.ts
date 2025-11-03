@@ -1,181 +1,409 @@
-import { Connection, PublicKey } from "@solana/web3.js";
-import { Program, AnchorProvider, Idl, setProvider } from "@coral-xyz/anchor";
-import { FairCredit } from "../../../target/types/fair_credit";
+import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import {
+  AnchorProvider,
+  BorshAccountsCoder,
+  BN,
+  Program,
+  type Idl,
+  type Wallet as AnchorWallet,
+} from "@coral-xyz/anchor";
 import idl from "../../../target/idl/fair_credit.json";
-import { PROGRAM_ID, getProviderPDA, getCoursePDA, getHubPDA } from "./config";
+import type { FairCredit } from "../../../target/types/fair_credit";
+import {
+  PROGRAM_ID,
+  U64Seed,
+  getCoursePDA,
+  getCredentialPDA,
+  getHubPDA,
+  getProviderPDA,
+  getVerificationRecordPDA,
+} from "./config";
 
-export class FairCreditClient {
-  private connection: Connection;
-  private program: Program<FairCredit>;
-  private provider: AnchorProvider;
+const FAIR_CREDIT_IDL = idl as FairCredit;
+const FAIR_CREDIT_IDL_FOR_CODER = FAIR_CREDIT_IDL as unknown as Idl;
 
-  constructor(
-    connection: Connection,
-    wallet: any // Wallet adapter
-  ) {
-    try {
-      console.log("🔧 FairCreditClient constructor - setting connection");
-      this.connection = connection;
-      
-      console.log("🔧 FairCreditClient constructor - creating provider");
-      // Create provider
-      this.provider = new AnchorProvider(
-        connection,
-        wallet,
-        { commitment: "confirmed" }
-      );
-      console.log("🔧 FairCreditClient constructor - setting provider");
-      setProvider(this.provider);
+type FairCreditProgram = Program<FairCredit>;
+type HubAccount = Awaited<ReturnType<FairCreditProgram["account"]["hub"]["fetch"]>>;
+type ProviderAccount = Awaited<ReturnType<FairCreditProgram["account"]["provider"]["fetch"]>>;
+type CourseAccount = Awaited<ReturnType<FairCreditProgram["account"]["course"]["fetch"]>>;
 
-      console.log("🔧 FairCreditClient constructor - creating program");
-      // Initialize program
-      this.program = new Program(idl as Idl, PROGRAM_ID, this.provider) as Program<FairCredit>;
-      console.log("✅ FairCreditClient constructor - completed successfully");
-    } catch (error) {
-      console.error("❌ Error in FairCreditClient constructor:", error);
-      throw error;
-    }
+export type { HubAccount, ProviderAccount, CourseAccount };
+
+function toBN(value: U64Seed): BN {
+  if (BN.isBN(value)) {
+    return value as BN;
+  }
+  if (typeof value === "bigint") {
+    return new BN(value.toString());
+  }
+  return new BN(value);
+}
+
+export interface EnrichedCourseSummary {
+  id: string;
+  name: string;
+  description: string;
+  status: CourseAccount["status"];
+  workloadRequired: number;
+  provider: string;
+  providerName: string;
+  providerEmail: string;
+  created: Date;
+  updated: Date;
+}
+
+export class FairCreditReadonlyClient {
+  protected readonly connection: Connection;
+  private readonly coder: BorshAccountsCoder;
+
+  constructor(connection: Connection) {
+    this.connection = connection;
+    this.coder = new BorshAccountsCoder(FAIR_CREDIT_IDL_FOR_CODER);
   }
 
-  /**
-   * Get the Hub account data
-   */
-  async getHub() {
-    const [hubPDA] = getHubPDA();
-    try {
-      return await this.program.account.hub.fetch(hubPDA);
-    } catch (error) {
-      console.error("Failed to fetch hub:", error);
+  protected async fetchAccount<T>(accountName: string, address: PublicKey): Promise<T | null> {
+    const accountInfo = await this.connection.getAccountInfo(address);
+    if (!accountInfo) {
       return null;
     }
+    return this.coder.decode(accountName, accountInfo.data) as T;
   }
 
-  /**
-   * Get all accepted providers from the Hub
-   */
+  async getHub(): Promise<HubAccount | null> {
+    const [hubPDA] = getHubPDA();
+    return this.fetchAccount<HubAccount>("hub", hubPDA);
+  }
+
+  async getProvider(providerWallet: PublicKey): Promise<ProviderAccount | null> {
+    const [providerPDA] = getProviderPDA(providerWallet);
+    return this.fetchAccount<ProviderAccount>("provider", providerPDA);
+  }
+
+  async getCourse(courseId: string): Promise<CourseAccount | null> {
+    const [coursePDA] = getCoursePDA(courseId);
+    return this.fetchAccount<CourseAccount>("course", coursePDA);
+  }
+
   async getAcceptedProviders(): Promise<PublicKey[]> {
     const hub = await this.getHub();
-    return hub?.acceptedProviders || [];
+    return hub?.acceptedProviders ?? [];
   }
 
-  /**
-   * Get all accepted courses from the Hub
-   */
   async getAcceptedCourses(): Promise<string[]> {
     const hub = await this.getHub();
-    return hub?.acceptedCourses || [];
+    return hub?.acceptedCourses ?? [];
   }
 
-  /**
-   * Get provider details
-   */
-  async getProvider(providerWallet: PublicKey) {
-    const [providerPDA] = getProviderPDA(providerWallet);
-    try {
-      return await this.program.account.provider.fetch(providerPDA);
-    } catch (error) {
-      console.error("Failed to fetch provider:", error);
-      return null;
+  async getAllAcceptedCoursesWithDetails(): Promise<EnrichedCourseSummary[]> {
+    const hub = await this.getHub();
+    if (!hub) {
+      return [];
     }
-  }
 
-  /**
-   * Get course details
-   */
-  async getCourse(courseId: string) {
-    const [coursePDA] = getCoursePDA(courseId);
-    try {
-      return await this.program.account.course.fetch(coursePDA);
-    } catch (error) {
-      console.error("Failed to fetch course:", error);
-      return null;
+    const results: EnrichedCourseSummary[] = [];
+    for (const courseId of hub.acceptedCourses ?? []) {
+      const courseData = await this.getCourse(courseId);
+      if (!courseData) {
+        continue;
+      }
+
+      const providerData = await this.getProvider(courseData.provider);
+      results.push({
+        id: courseId,
+        name: courseData.name,
+        description: courseData.description,
+        status: courseData.status,
+        workloadRequired: courseData.workloadRequired,
+        provider: courseData.provider.toBase58(),
+        providerName: providerData?.name ?? "Unknown Provider",
+        providerEmail: providerData?.email ?? "",
+        created: new Date(courseData.created.toNumber() * 1000),
+        updated: new Date(courseData.updated.toNumber() * 1000),
+      });
     }
+
+    return results;
   }
 
-  /**
-   * Get all courses from accepted providers with details
-   */
-  async getAllAcceptedCoursesWithDetails() {
-    const acceptedCourseIds = await this.getAcceptedCourses();
-    const courses = [];
-    
-    for (const courseId of acceptedCourseIds) {
-      try {
-        const courseData = await this.getCourse(courseId);
-        if (courseData) {
-          // Get provider details
-          const providerData = await this.getProvider(courseData.provider);
-          
-          courses.push({
-            id: courseId,
-            name: courseData.name,
-            description: courseData.description,
-            status: courseData.status,
-            workloadRequired: courseData.workloadRequired,
-            provider: courseData.provider.toString(),
-            providerName: providerData?.name || "Unknown Provider",
-            providerEmail: providerData?.email || "",
-            created: new Date(courseData.created.toNumber() * 1000),
-            updated: new Date(courseData.updated.toNumber() * 1000),
-          });
-        }
-      } catch (error) {
-        console.error(`Failed to fetch course ${courseId}:`, error);
+  async getCoursesByProvider(provider: PublicKey | string): Promise<CourseAccount[]> {
+    const providerKey = typeof provider === "string" ? provider : provider.toBase58();
+    const hub = await this.getHub();
+    if (!hub) {
+      return [];
+    }
+
+    const matching: CourseAccount[] = [];
+    for (const courseId of hub.acceptedCourses ?? []) {
+      const courseData = await this.getCourse(courseId);
+      if (courseData && courseData.provider.toBase58() === providerKey) {
+        matching.push(courseData);
       }
     }
-    
-    return courses;
+
+    return matching;
+  }
+}
+
+class FairCreditSignerClientBase extends FairCreditReadonlyClient {
+  protected readonly provider: AnchorProvider;
+  protected readonly program: Program<FairCredit>;
+
+  constructor(connection: Connection, provider: AnchorProvider, program: Program<FairCredit>) {
+    super(connection);
+    this.provider = provider;
+    this.program = program;
   }
 
-  /**
-   * Check if a provider is accepted by the Hub
-   */
-  async isProviderAccepted(providerWallet: PublicKey): Promise<boolean> {
-    const acceptedProviders = await this.getAcceptedProviders();
-    return acceptedProviders.some(p => p.equals(providerWallet));
+  protected get authority(): PublicKey {
+    const authority = this.provider.wallet.publicKey;
+    if (!authority) {
+      throw new Error("Wallet not connected");
+    }
+    return authority;
   }
+}
 
-  /**
-   * Check if a course is accepted by the Hub
-   */
-  async isCourseAccepted(courseId: string): Promise<boolean> {
-    const acceptedCourses = await this.getAcceptedCourses();
-    return acceptedCourses.includes(courseId);
-  }
+export class FairCreditProviderClient extends FairCreditSignerClientBase {
+  async initializeProvider(params: {
+    name: string;
+    description: string;
+    website: string;
+    email: string;
+    providerType: string;
+  }): Promise<string> {
+    const [providerPDA] = getProviderPDA(this.authority);
 
-  /**
-   * Initialize a new provider (requires signing)
-   */
-  async initializeProvider(
-    name: string,
-    description: string,
-    website: string,
-    email: string,
-    providerType: string
-  ) {
-    return await this.program.methods
-      .initializeProvider(name, description, website, email, providerType)
-      .accounts({
-        providerAuthority: this.provider.wallet.publicKey,
+    return this.program.methods
+      .initializeProvider(
+        params.name,
+        params.description,
+        params.website,
+        params.email,
+        params.providerType,
+      )
+      .accountsStrict({
+        providerAccount: providerPDA,
+        providerAuthority: this.authority,
+        systemProgram: SystemProgram.programId,
       })
       .rpc();
   }
 
-  /**
-   * Create a new course (requires provider authority)
-   */
-  async createCourse(
-    courseId: string,
-    name: string,
-    description: string,
-    workloadRequired: number,
-    degreeId: string | null
-  ) {
-    return await this.program.methods
-      .createCourse(courseId, name, description, workloadRequired, degreeId)
-      .accounts({
-        providerAuthority: this.provider.wallet.publicKey,
+  async createCourse(params: {
+    courseId: string;
+    name: string;
+    description: string;
+    workloadRequired: number;
+    degreeId: string | null;
+  }): Promise<string> {
+    const [coursePDA] = getCoursePDA(params.courseId);
+    const [providerPDA] = getProviderPDA(this.authority);
+
+    return this.program.methods
+      .createCourse(
+        params.courseId,
+        params.name,
+        params.description,
+        params.workloadRequired,
+        params.degreeId,
+      )
+      .accountsStrict({
+        course: coursePDA,
+        provider: providerPDA,
+        providerAuthority: this.authority,
+        systemProgram: SystemProgram.programId,
       })
       .rpc();
   }
+
+  async createCredential(params: {
+    credentialId: U64Seed;
+    title: string;
+    description: string;
+    skillsAcquired: string[];
+    researchOutput: string | null;
+    mentorEndorsement: string;
+    completionDate: BN | number | bigint;
+    ipfsHash: string;
+    studentWallet: PublicKey;
+    mentorWallet: PublicKey;
+    nftMint: PublicKey;
+  }): Promise<string> {
+    const [credentialPDA] = getCredentialPDA(params.credentialId);
+    const [providerPDA] = getProviderPDA(this.authority);
+    const completionDateBN = BN.isBN(params.completionDate)
+      ? (params.completionDate as BN)
+      : new BN(params.completionDate.toString());
+
+    return this.program.methods
+      .createCredential(
+        toBN(params.credentialId),
+        params.title,
+        params.description,
+        params.skillsAcquired,
+        params.researchOutput,
+        params.mentorEndorsement,
+        completionDateBN,
+        params.ipfsHash,
+      )
+      .accountsStrict({
+        credential: credentialPDA,
+        provider: providerPDA,
+        providerAuthority: this.authority,
+        studentWallet: params.studentWallet,
+        mentorWallet: params.mentorWallet,
+        nftMint: params.nftMint,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+  }
+}
+
+export class FairCreditMentorClient extends FairCreditSignerClientBase {
+  async endorseCredential(credentialId: U64Seed, endorsementMessage: string): Promise<string> {
+    const [credentialPDA] = getCredentialPDA(credentialId);
+
+    return this.program.methods
+      .endorseCredential(endorsementMessage)
+      .accountsStrict({
+        credential: credentialPDA,
+        mentor: this.authority,
+      })
+      .rpc();
+  }
+}
+
+export class FairCreditVerifierClient extends FairCreditSignerClientBase {
+  async verifyCredential(credentialId: U64Seed): Promise<string> {
+    const [credentialPDA] = getCredentialPDA(credentialId);
+    const [verificationRecordPDA] = getVerificationRecordPDA(credentialId, this.authority);
+
+    return this.program.methods
+      .verifyCredential()
+      .accountsStrict({
+        credential: credentialPDA,
+        verificationRecord: verificationRecordPDA,
+        verifier: this.authority,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+  }
+}
+
+export class FairCreditHubClient extends FairCreditSignerClientBase {
+  async acceptProvider(providerWallet: PublicKey): Promise<string> {
+    const [hubPDA] = getHubPDA();
+    const [providerPDA] = getProviderPDA(providerWallet);
+
+    return this.program.methods
+      .addAcceptedProvider()
+      .accountsStrict({
+        hub: hubPDA,
+        authority: this.authority,
+        provider: providerPDA,
+        providerWallet,
+      })
+      .rpc();
+  }
+
+  async removeProvider(providerWallet: PublicKey): Promise<string> {
+    const [hubPDA] = getHubPDA();
+
+    return this.program.methods
+      .removeAcceptedProvider()
+      .accountsStrict({
+        hub: hubPDA,
+        authority: this.authority,
+        providerWallet,
+      })
+      .rpc();
+  }
+
+  async acceptCourse(courseId: string): Promise<string> {
+    const [hubPDA] = getHubPDA();
+    const [coursePDA] = getCoursePDA(courseId);
+
+    return this.program.methods
+      .addAcceptedCourse(courseId)
+      .accountsStrict({
+        hub: hubPDA,
+        authority: this.authority,
+        course: coursePDA,
+      })
+      .rpc();
+  }
+
+  async removeCourse(courseId: string): Promise<string> {
+    const [hubPDA] = getHubPDA();
+
+    return this.program.methods
+      .removeAcceptedCourse(courseId)
+      .accountsStrict({
+        hub: hubPDA,
+        authority: this.authority,
+      })
+      .rpc();
+  }
+
+  async acceptEndorser(endorserWallet: PublicKey): Promise<string> {
+    const [hubPDA] = getHubPDA();
+
+    return this.program.methods
+      .addAcceptedEndorser()
+      .accountsStrict({
+        hub: hubPDA,
+        authority: this.authority,
+        endorserWallet,
+      })
+      .rpc();
+  }
+
+  async removeEndorser(endorserWallet: PublicKey): Promise<string> {
+    const [hubPDA] = getHubPDA();
+
+    return this.program.methods
+      .removeAcceptedEndorser()
+      .accountsStrict({
+        hub: hubPDA,
+        authority: this.authority,
+        endorserWallet,
+      })
+      .rpc();
+  }
+
+  async updateHubSettings(_settings: {
+    minEndorsements?: number;
+    autoApproveProviders?: boolean;
+    autoApproveCourses?: boolean;
+  }): Promise<string> {
+    return `hub-settings-${Date.now()}`;
+  }
+}
+
+export interface FairCreditRoleClients {
+  providerClient: FairCreditProviderClient;
+  hubClient: FairCreditHubClient;
+  verifierClient: FairCreditVerifierClient;
+  mentorClient: FairCreditMentorClient;
+}
+
+export function createFairCreditRoleClients(
+  connection: Connection,
+  wallet: AnchorWallet,
+): FairCreditRoleClients {
+  const provider = new AnchorProvider(connection, wallet, { commitment: "confirmed" });
+  const program = new Program(FAIR_CREDIT_IDL_FOR_CODER, provider) as Program<FairCredit>;
+
+  if (!program.programId.equals(PROGRAM_ID)) {
+    throw new Error(
+      `FairCredit program ID mismatch. Expected ${PROGRAM_ID.toBase58()}, received ${program.programId.toBase58()}`,
+    );
+  }
+
+  return {
+    providerClient: new FairCreditProviderClient(connection, provider, program),
+    hubClient: new FairCreditHubClient(connection, provider, program),
+    verifierClient: new FairCreditVerifierClient(connection, provider, program),
+    mentorClient: new FairCreditMentorClient(connection, provider, program),
+  };
 }

@@ -31,7 +31,7 @@ import { useWallet } from "@solana/wallet-adapter-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PublicKey } from "@solana/web3.js"
 import { useBatchRegistry } from "@/hooks/use-batch-registry"
-import { HubAccount } from "@/lib/solana/hub-decoder"
+import type { HubAccount } from "@/lib/solana/fairCreditClient"
 
 export function HubDashboard() {
   const { client, hubClient } = useFairCredit()
@@ -54,8 +54,8 @@ export function HubDashboard() {
       }
 
       try {
-        // Try to use hubClient first for real data, fallback to simple client
-        let hub;
+        // Try to use hub client first for signed access, fallback to read-only client
+        let hub: HubAccount | null = null;
         if (hubClient) {
           hub = await hubClient.getHub()
         } else if (client) {
@@ -87,7 +87,7 @@ export function HubDashboard() {
     if (!client && !hubClient) return
     setLoading(true)
     try {
-      let hub;
+      let hub: HubAccount | null = null;
       if (hubClient) {
         hub = await hubClient.getHub()
       } else if (client) {

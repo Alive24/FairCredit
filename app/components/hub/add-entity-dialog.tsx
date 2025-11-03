@@ -20,7 +20,7 @@ interface AddEntityDialogProps {
 }
 
 export function AddEntityDialog({ open, onOpenChange, onSuccess, onAddToBatch }: AddEntityDialogProps) {
-  const { client, hubClient } = useFairCredit()
+  const { hubClient } = useFairCredit()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   
@@ -58,7 +58,7 @@ export function AddEntityDialog({ open, onOpenChange, onSuccess, onAddToBatch }:
     setLoading(true)
     try {
       let txSignature;
-      
+
       switch (entityType) {
         case "provider":
           txSignature = await hubClient.acceptProvider(new PublicKey(publicKeyInput))

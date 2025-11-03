@@ -13,10 +13,11 @@ import { PublicKey } from "@solana/web3.js"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { TestTransactionButton } from "./test-transaction-button"
+import type { FairCreditProviderClient } from "@/lib/solana/fairCreditClient"
 
 interface ProviderRegistrationCardProps {
   publicKey: PublicKey | null
-  client: any
+  client: FairCreditProviderClient | null
   onRegistrationComplete: () => void
 }
 
@@ -53,16 +54,6 @@ export function ProviderRegistrationCard({
       return
     }
 
-    // Check if client has the required method
-    if (!client.initializeProvider) {
-      toast({
-        title: "Client Error",
-        description: "The connected client doesn't support provider registration. Please ensure your wallet is properly connected and try refreshing the page.",
-        variant: "destructive"
-      })
-      return
-    }
-
     // Validate form
     if (!formData.name || !formData.description || !formData.email) {
       toast({
@@ -77,13 +68,13 @@ export function ProviderRegistrationCard({
     try {
       console.log("Initializing provider with data:", formData)
       
-      const signature = await client.initializeProvider(
-        formData.name,
-        formData.description,
-        formData.website || "https://example.com",
-        formData.email,
-        formData.providerType
-      )
+      const signature = await client.initializeProvider({
+        name: formData.name,
+        description: formData.description,
+        website: formData.website || "https://example.com",
+        email: formData.email,
+        providerType: formData.providerType,
+      })
       
       console.log("Provider initialized successfully:", signature)
       

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function WalletDebug() {
   const wallet = useWallet()
-  const { client, hubClient, fullClient, providerClient, isLoading, error } = useFairCredit()
+  const { client, providerClient, hubClient, verifierClient, mentorClient, isLoading, error } = useFairCredit()
   const [hasMounted, setHasMounted] = useState(false)
   const [availableWalletNames, setAvailableWalletNames] = useState<string[]>([])
   const [extensionStatus, setExtensionStatus] = useState<{
@@ -107,16 +107,19 @@ export function WalletDebug() {
           <strong>Clients Loading:</strong> {hasMounted ? (isLoading ? "Yes" : "No") : "Detecting..."}
         </div>
         <div>
-          <strong>Simple Client:</strong> {hasMounted ? (client ? "Ready" : "Not Ready") : "Detecting..."}
+          <strong>Readonly Client:</strong> {hasMounted ? (client ? "Ready" : "Not Ready") : "Detecting..."}
+        </div>
+        <div>
+          <strong>Provider Client:</strong> {hasMounted ? (providerClient ? "Ready" : "Not Ready") : "Detecting..."}
         </div>
         <div>
           <strong>Hub Client:</strong> {hasMounted ? (hubClient ? "Ready" : "Not Ready") : "Detecting..."}
         </div>
         <div>
-          <strong>Full Client:</strong> {hasMounted ? (fullClient ? "Ready" : "Not Ready") : "Detecting..."}
+          <strong>Verifier Client:</strong> {hasMounted ? (verifierClient ? "Ready" : "Not Ready") : "Detecting..."}
         </div>
         <div>
-          <strong>Provider Client:</strong> {hasMounted ? (providerClient ? "Ready" : "Not Ready") : "Detecting..."}
+          <strong>Mentor Client:</strong> {hasMounted ? (mentorClient ? "Ready" : "Not Ready") : "Detecting..."}
         </div>
         <div>
           <strong>Available Wallets:</strong>{" "}

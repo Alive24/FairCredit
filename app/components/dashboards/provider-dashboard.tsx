@@ -14,7 +14,7 @@ import { ProviderRegistrationCard } from "@/components/provider/provider-registr
 import { WalletDebug } from "@/components/wallet-debug"
 
 export function ProviderDashboard() {
-  const { client, fullClient, hubClient, providerClient } = useFairCredit()
+  const { client, providerClient } = useFairCredit()
   const wallet = useWallet()
   const { publicKey, connected } = wallet
   
@@ -225,7 +225,7 @@ export function ProviderDashboard() {
         ) : !hasProviderAccount ? (
           <ProviderRegistrationCard 
             publicKey={publicKey} 
-            client={providerClient || fullClient || client}
+            client={providerClient}
             onRegistrationComplete={() => {
               // Refresh the data after registration
               window.location.reload()
