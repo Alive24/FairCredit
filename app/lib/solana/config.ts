@@ -1,4 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
+import BN from "bn.js";
 
 // Load deployment configuration
 export const DEPLOYMENT_CONFIG = {
@@ -37,16 +38,70 @@ export function getCoursePDA(courseId: string): [PublicKey, number] {
   );
 }
 
-export function getCredentialPDA(credentialId: number): [PublicKey, number] {
+export function getHubPDA(): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("credential"), Buffer.from(credentialId.toString())],
+    [Buffer.from("hub")],
     PROGRAM_ID
   );
 }
 
-export function getHubPDA(): [PublicKey, number] {
+const MAX_U64 = (1n << 64n) - 1n;
+
+export type U64Seed = number | bigint | BN;
+
+function normaliseU64(id: U64Seed): bigint {
+  if (typeof id === "bigint") {
+    if (id < 0n || id > MAX_U64) {
+      throw new RangeError(`Value ${id} is outside the range of a u64`);
+    }
+    return id;
+  }
+
+  if (typeof id === "number") {
+    if (!Number.isSafeInteger(id)) {
+      throw new RangeError(`Number ${id} cannot be represented exactly as a u64`);
+    }
+    return normaliseU64(BigInt(id));
+  }
+
+  if (BN.isBN(id)) {
+    return normaliseU64(BigInt(id.toString()));
+  }
+
+  throw new TypeError("Unsupported credential identifier type");
+}
+
+export function toLE8(id: U64Seed): Buffer {
+  const value = normaliseU64(id);
+  const buffer = Buffer.alloc(8);
+  buffer.writeBigUInt64LE(value);
+  return buffer;
+}
+
+export function getCredentialPDA(credentialId: U64Seed): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("hub")],
+    [Buffer.from("credential"), toLE8(credentialId)],
+    PROGRAM_ID
+  );
+}
+
+export function getVerifierPDA(verifierWallet: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("verifier"), verifierWallet.toBuffer()],
+    PROGRAM_ID
+  );
+}
+
+export function getVerificationRecordPDA(
+  credentialId: U64Seed,
+  verifierWallet: PublicKey
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("verification"),
+      toLE8(credentialId),
+      verifierWallet.toBuffer()
+    ],
     PROGRAM_ID
   );
 }

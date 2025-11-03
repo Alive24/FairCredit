@@ -100,6 +100,13 @@ The dapp will be available at `http://localhost:3000`
 - **Course Display**: Shows Hub-accepted courses from accepted providers
 - **Provider/Service Architecture**: Clean separation between Solana client and UI components
 
+## PDA Seed Conventions
+
+- Credential-related PDAs now use an 8-byte little-endian encoding of the credential identifier. Use the exported `toLE8(id)` helper from `app/lib/solana/config.ts` to guarantee parity with the on-chain `u64` seeds.
+- Client helpers `getCredentialPDA(id)` and `getVerificationRecordPDA(id, verifier)` wrap `PublicKey.findProgramAddressSync` with the canonical seeds used by the Anchor program.
+- Verifier accounts and verification records share deterministic helpers (`getVerifierPDA`, `getVerificationRecordPDA`) so tests and scripts derive identical addresses without manually re-specifying seed layouts.
+- Avoid passing unsafe JavaScript numbers (>53 bits). The helpers accept `number | bigint | BN` and will throw if a value cannot be represented as an unsigned 64-bit integer.
+
 ## Next Steps
 
 1. **Credential Minting**: Implement the credential creation and NFT minting functionality

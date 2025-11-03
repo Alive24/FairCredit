@@ -1,8 +1,19 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
+import BN from "bn.js";
 import { FairCredit } from "../target/types/fair_credit";
 import { expect } from "chai";
 import { Keypair, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import {
+  PROGRAM_ID,
+  getCoursePDA,
+  getCredentialPDA,
+  getHubPDA,
+  getProviderPDA,
+  getVerificationRecordPDA,
+  getVerifierPDA,
+  toLE8,
+} from "../lib/solana/config";
 
 describe("FairCredit Program Tests", () => {
   // Configure the client to use the local cluster
@@ -20,8 +31,8 @@ describe("FairCredit Program Tests", () => {
   let verifierPDA: PublicKey;
   let credentialPDA: PublicKey;
   let hubPDA: PublicKey;
-  
-  const credentialId = 1;
+
+  const credentialId = new anchor.BN(1);
 
   before(async () => {
     // Generate test wallets
@@ -41,26 +52,40 @@ describe("FairCredit Program Tests", () => {
     await Promise.all(airdropPromises);
     await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for airdrops to confirm
 
-    // Derive PDAs
-    [providerPDA] = PublicKey.findProgramAddressSync(
-      [Buffer.from("provider"), providerWallet.publicKey.toBuffer()],
-      program.programId
-    );
+    // Derive PDAs via shared helpers
+    [providerPDA] = getProviderPDA(providerWallet.publicKey);
+    [verifierPDA] = getVerifierPDA(verifierWallet.publicKey);
+    [credentialPDA] = getCredentialPDA(credentialId);
+    [hubPDA] = getHubPDA();
+  });
 
-    [verifierPDA] = PublicKey.findProgramAddressSync(
-      [Buffer.from("verifier"), verifierWallet.publicKey.toBuffer()],
-      program.programId
-    );
+  describe("PDA Utilities", () => {
+    it("should derive credential PDAs consistently", () => {
+      const samples: Array<number | bigint | BN> = [
+        0,
+        1,
+        42,
+        65535,
+        BigInt(2) ** BigInt(32),
+        BigInt(Number.MAX_SAFE_INTEGER),
+        new BN("1844674407370955161"),
+      ];
 
-    [credentialPDA] = PublicKey.findProgramAddressSync(
-      [Buffer.from("credential"), Buffer.from(credentialId.toString())],
-      program.programId
-    );
+      for (const sample of samples) {
+        const [helperPDA] = getCredentialPDA(sample);
+        const [manualPDA] = PublicKey.findProgramAddressSync(
+          [Buffer.from("credential"), toLE8(sample)],
+          PROGRAM_ID
+        );
 
-    [hubPDA] = PublicKey.findProgramAddressSync(
-      [Buffer.from("hub")],
-      program.programId
-    );
+        expect(helperPDA.toBase58()).to.equal(manualPDA.toBase58());
+      }
+    });
+
+    it("should reject invalid credential identifiers", () => {
+      expect(() => toLE8(Number.MAX_SAFE_INTEGER + 10)).to.throw(RangeError);
+      expect(() => toLE8(-1)).to.throw(RangeError);
+    });
   });
 
   describe("Provider Management", () => {
@@ -131,7 +156,7 @@ describe("FairCredit Program Tests", () => {
       
       const tx = await program.methods
         .createCredential(
-          new anchor.BN(credentialId),
+          credentialId,
           "Advanced Blockchain Development",
           "Comprehensive course on Solana smart contract development",
           ["Rust", "Anchor", "Web3", "Smart Contracts"],
@@ -156,7 +181,7 @@ describe("FairCredit Program Tests", () => {
 
       // Verify credential account
       const credentialAccount = await program.account.credential.fetch(credentialPDA);
-      expect(credentialAccount.id.toNumber()).to.equal(credentialId);
+      expect(credentialAccount.id.eq(credentialId)).to.be.true;
       expect(credentialAccount.metadata.title).to.equal("Advanced Blockchain Development");
       expect(credentialAccount.studentWallet.toString()).to.equal(studentWallet.publicKey.toString());
     });
@@ -186,13 +211,9 @@ describe("FairCredit Program Tests", () => {
       await provider.connection.requestAirdrop(verifierKeypair.publicKey, 1 * LAMPORTS_PER_SOL);
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const [verificationRecordPDA] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("verification"),
-          Buffer.from(credentialId.toString()),
-          verifierKeypair.publicKey.toBuffer()
-        ],
-        program.programId
+      const [verificationRecordPDA] = getVerificationRecordPDA(
+        credentialId,
+        verifierKeypair.publicKey
       );
 
       const tx = await program.methods
