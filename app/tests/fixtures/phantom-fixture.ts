@@ -1,4 +1,5 @@
 import { test as base, BrowserContext } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { createBrowserContextWithPhantom, setupPhantomFirstTime, unlockPhantom } from '../setup/phantom-extension'
 import dotenv from 'dotenv'
 import path from 'path'
@@ -14,7 +15,7 @@ type PhantomFixtures = {
 
 // Create a custom test fixture
 export const test = base.extend<PhantomFixtures>({
-  phantomContext: async ({}, use) => {
+  phantomContext: async ({}, use: (context: BrowserContext) => Promise<void>) => {
     // Create context with Phantom extension
     const context = await createBrowserContextWithPhantom({
       viewport: { width: 1280, height: 720 }
@@ -33,7 +34,10 @@ export const test = base.extend<PhantomFixtures>({
     await context.close()
   },
   
-  phantomPage: async ({ phantomContext }, use) => {
+  phantomPage: async (
+    { phantomContext }: { phantomContext: BrowserContext },
+    use: (page: Page) => Promise<void>,
+  ) => {
     // Create a new page in the Phantom context
     const page = await phantomContext.newPage()
     

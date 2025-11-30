@@ -1,7 +1,6 @@
 import { LiteSVM } from "litesvm";
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { FairCredit } from "../target/types/fair_credit";
+import type { FairCredit } from "../target/types/fair_credit";
 import { expect } from "chai";
 import { readFileSync } from "fs";
 import { Keypair, PublicKey, LAMPORTS_PER_SOL, Connection } from "@solana/web3.js";
@@ -112,7 +111,7 @@ describe("Provider Management - Hybrid Tests", () => {
   // LiteSVM Test Suite
   describe("🚀 Functional Tests (LiteSVM)", () => {
     let svm: LiteSVM;
-    let program: Program<FairCredit>;
+    let program: any;
     let providerWallet: Keypair;
     let adminWallet: Keypair;
     let providerPDA: PublicKey;
@@ -236,10 +235,10 @@ describe("Provider Management - Hybrid Tests", () => {
       anchor.setProvider(customProvider as any);
       
       // Create program instance
-      program = new Program<FairCredit>(
+      program = new anchor.Program<FairCredit>(
         JSON.parse(readFileSync("target/idl/fair_credit.json", "utf8")),
         customProvider as any
-      );
+      ) as any;
     });
 
     it("✅ Should initialize provider successfully", async () => {
@@ -425,7 +424,7 @@ describe("Provider Management - Hybrid Tests", () => {
   // Standard Anchor Test Suite for Security
   if (!SKIP_STANDARD_TESTS) {
     describe("🔒 Security Tests (Standard Anchor)", () => {
-      let program: Program<FairCredit>;
+      let program: any;
       let provider: anchor.AnchorProvider;
       let testProviderWallet: Keypair;
       let testProviderPDA: PublicKey;
@@ -486,10 +485,10 @@ describe("Provider Management - Hybrid Tests", () => {
           anchor.setProvider(provider);
 
           // Load program
-          program = new Program<FairCredit>(
+          program = new anchor.Program<FairCredit>(
             JSON.parse(readFileSync("target/idl/fair_credit.json", "utf8")),
             provider
-          );
+          ) as any;
 
           console.log("✅ Anchor provider setup complete");
         } catch (error) {

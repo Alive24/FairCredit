@@ -1,7 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
 import BN from "bn.js";
-import { FairCredit } from "../target/types/fair_credit";
 import { expect } from "chai";
 import { Keypair, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import {
@@ -10,8 +8,6 @@ import {
   getCredentialPDA,
   getHubPDA,
   getProviderPDA,
-  getVerificationRecordPDA,
-  getVerifierPDA,
   toLE8,
 } from "../lib/solana/config";
 
@@ -20,15 +16,13 @@ describe("FairCredit Program Tests", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = anchor.workspace.FairCredit as Program<FairCredit>;
+  const program: any = anchor.workspace.FairCredit as any;
   
   let providerWallet: Keypair;
-  let verifierWallet: Keypair;
   let studentWallet: Keypair;
   let mentorWallet: Keypair;
   
   let providerPDA: PublicKey;
-  let verifierPDA: PublicKey;
   let credentialPDA: PublicKey;
   let hubPDA: PublicKey;
 
@@ -37,14 +31,12 @@ describe("FairCredit Program Tests", () => {
   before(async () => {
     // Generate test wallets
     providerWallet = Keypair.generate();
-    verifierWallet = Keypair.generate();
     studentWallet = Keypair.generate();
     mentorWallet = Keypair.generate();
 
     // Fund test wallets
     const airdropPromises = [
       provider.connection.requestAirdrop(providerWallet.publicKey, 2 * LAMPORTS_PER_SOL),
-      provider.connection.requestAirdrop(verifierWallet.publicKey, 2 * LAMPORTS_PER_SOL),
       provider.connection.requestAirdrop(studentWallet.publicKey, 1 * LAMPORTS_PER_SOL),
       provider.connection.requestAirdrop(mentorWallet.publicKey, 1 * LAMPORTS_PER_SOL),
     ];
@@ -54,7 +46,6 @@ describe("FairCredit Program Tests", () => {
 
     // Derive PDAs via shared helpers
     [providerPDA] = getProviderPDA(providerWallet.publicKey);
-    [verifierPDA] = getVerifierPDA(verifierWallet.publicKey);
     [credentialPDA] = getCredentialPDA(credentialId);
     [hubPDA] = getHubPDA();
   });
@@ -113,41 +104,6 @@ describe("FairCredit Program Tests", () => {
       expect(providerAccount.name).to.equal("Tech Academy");
       expect(providerAccount.wallet.toString()).to.equal(providerWallet.publicKey.toString());
     });
-
-    it("Should initialize a verifier", async () => {
-      const tx = await program.methods
-        .initializeVerifier()
-        .accounts({
-          verifierAccount: verifierPDA,
-          verifierAuthority: verifierWallet.publicKey,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .signers([verifierWallet])
-        .rpc();
-
-      console.log("Verifier initialized:", tx);
-
-      // Verify verifier account
-      const verifierAccount = await program.account.verifier.fetch(verifierPDA);
-      expect(verifierAccount.wallet.toString()).to.equal(verifierWallet.publicKey.toString());
-    });
-
-    it("Should allow verifier to set provider reputation", async () => {
-      const reputationScore = 85;
-      const note = "Excellent educational standards";
-
-      const tx = await program.methods
-        .setProviderReputation(new anchor.BN(reputationScore), note)
-        .accounts({
-          verifierAccount: verifierPDA,
-          verifier: verifierWallet.publicKey,
-          provider: providerWallet.publicKey,
-        })
-        .signers([verifierWallet])
-        .rpc();
-
-      console.log("Provider reputation set:", tx);
-    });
   });
 
   describe("Credential Management", () => {
@@ -204,64 +160,6 @@ describe("FairCredit Program Tests", () => {
       const credentialAccount = await program.account.credential.fetch(credentialPDA);
       expect(credentialAccount.metadata.mentorEndorsement).to.equal(endorsementMessage);
       expect(credentialAccount.status).to.deep.equal({ endorsed: {} });
-    });
-
-    it("Should allow credential verification", async () => {
-      const verifierKeypair = Keypair.generate();
-      await provider.connection.requestAirdrop(verifierKeypair.publicKey, 1 * LAMPORTS_PER_SOL);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const [verificationRecordPDA] = getVerificationRecordPDA(
-        credentialId,
-        verifierKeypair.publicKey
-      );
-
-      const tx = await program.methods
-        .verifyCredential()
-        .accounts({
-          credential: credentialPDA,
-          verificationRecord: verificationRecordPDA,
-          verifier: verifierKeypair.publicKey,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .signers([verifierKeypair])
-        .rpc();
-
-      console.log("Credential verified:", tx);
-
-      // Check verification count increased
-      const credentialAccount = await program.account.credential.fetch(credentialPDA);
-      expect(credentialAccount.verificationCount.toNumber()).to.equal(1);
-    });
-  });
-
-  describe("Provider Suspension", () => {
-    it("Should allow verifier to suspend a provider", async () => {
-      const tx = await program.methods
-        .suspendProvider()
-        .accounts({
-          verifierAccount: verifierPDA,
-          verifier: verifierWallet.publicKey,
-          providerToSuspend: providerWallet.publicKey,
-        })
-        .signers([verifierWallet])
-        .rpc();
-
-      console.log("Provider suspended:", tx);
-    });
-
-    it("Should allow verifier to unsuspend a provider", async () => {
-      const tx = await program.methods
-        .unsuspendProvider()
-        .accounts({
-          verifierAccount: verifierPDA,
-          verifier: verifierWallet.publicKey,
-          providerToUnsuspend: providerWallet.publicKey,
-        })
-        .signers([verifierWallet])
-        .rpc();
-
-      console.log("Provider unsuspended:", tx);
     });
   });
 

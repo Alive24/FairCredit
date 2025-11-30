@@ -1,7 +1,7 @@
-use anchor_lang::prelude::*;
-use crate::state::*;
-use crate::types::{CredentialStatus, CredentialMetadata};
 use crate::events::*;
+use crate::state::*;
+use crate::types::{CredentialMetadata, CredentialStatus};
+use anchor_lang::prelude::*;
 
 // Simplified credential handlers that work with existing credential system
 
@@ -46,27 +46,6 @@ pub struct EndorseCredential<'info> {
     pub mentor: Signer<'info>,
 }
 
-#[derive(Accounts)]
-pub struct VerifyCredential<'info> {
-    #[account(
-        mut,
-        seeds = [Credential::SEED_PREFIX.as_bytes(), &credential.id.to_le_bytes()],
-        bump
-    )]
-    pub credential: Account<'info, Credential>,
-    #[account(
-        init,
-        payer = verifier,
-        space = 8 + VerificationRecord::INIT_SPACE,
-        seeds = [VerificationRecord::SEED_PREFIX.as_bytes(), &credential.id.to_le_bytes(), verifier.key().as_ref()],
-        bump
-    )]
-    pub verification_record: Account<'info, VerificationRecord>,
-    #[account(mut)]
-    pub verifier: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
 pub fn create_credential(
     ctx: Context<CreateCredential>,
     credential_id: u64,
@@ -80,7 +59,7 @@ pub fn create_credential(
 ) -> Result<()> {
     let credential = &mut ctx.accounts.credential;
     let clock = Clock::get()?;
-    
+
     credential.id = credential_id;
     credential.created = clock.unix_timestamp;
     credential.updated = clock.unix_timestamp;
@@ -90,7 +69,7 @@ pub fn create_credential(
     credential.nft_mint = ctx.accounts.nft_mint.key();
     credential.verification_count = 0;
     credential.status = CredentialStatus::Pending;
-    
+
     credential.metadata = CredentialMetadata {
         title: title.clone(),
         description,
@@ -119,38 +98,15 @@ pub fn endorse_credential(
     endorsement_message: String,
 ) -> Result<()> {
     let credential = &mut ctx.accounts.credential;
-    
+
     // Update mentor endorsement
     credential.metadata.mentor_endorsement = endorsement_message;
     credential.update_status(CredentialStatus::Endorsed);
-    
-    Ok(())
-}
-
-pub fn verify_credential(
-    ctx: Context<VerifyCredential>,
-) -> Result<()> {
-    let credential = &mut ctx.accounts.credential;
-    let verification_record = &mut ctx.accounts.verification_record;
-    let verifier = &ctx.accounts.verifier;
-    let clock = Clock::get()?;
-    
-    // Update credential verification stats
-    credential.increment_verification_count();
-    
-    // Initialize verification record fields directly
-    verification_record.credential_id = credential.id;
-    verification_record.verifier_wallet = Some(verifier.key());
-    verification_record.verified_at = clock.unix_timestamp;
-    verification_record.verification_count = 1;
 
     Ok(())
 }
 
-pub fn generate_user_token(
-    _ctx: Context<GenerateUserToken>,
-    user_id: String,
-) -> Result<String> {
+pub fn generate_user_token(_ctx: Context<GenerateUserToken>, user_id: String) -> Result<String> {
     // In a real implementation, this would generate a JWT or similar token
     // For now, we'll return a simple concatenated string
     let token = format!("{}_{}", user_id, Clock::get()?.unix_timestamp);
@@ -161,4 +117,4 @@ pub fn generate_user_token(
 pub struct GenerateUserToken<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
-} 
+}

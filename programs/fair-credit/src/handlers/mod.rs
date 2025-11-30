@@ -3,24 +3,22 @@
 
 // TODO: Implement handlers for:
 // - initialize_provider
-// - create_credential  
+// - create_credential
 // - endorse_credential
 // - mint_credential
-// - verify_credential 
+// - verify_credential
 
 // Handler modules for FairCredit program instructions
 pub mod activity;
 pub mod course;
 pub mod credential;
+pub mod hub;
 pub mod provider;
 pub mod resource;
-pub mod verifier_update;
-pub mod hub;
 
 pub use activity::*;
 pub use course::*;
 pub use credential::*;
+pub use hub::*;
 pub use provider::*;
 pub use resource::*;
-pub use verifier_update::*;
-pub use hub::*; 

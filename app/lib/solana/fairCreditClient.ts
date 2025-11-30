@@ -71,17 +71,17 @@ export class FairCreditReadonlyClient {
 
   async getHub(): Promise<HubAccount | null> {
     const [hubPDA] = getHubPDA();
-    return this.fetchAccount<HubAccount>("hub", hubPDA);
+    return this.fetchAccount<HubAccount>("Hub", hubPDA);
   }
 
   async getProvider(providerWallet: PublicKey): Promise<ProviderAccount | null> {
     const [providerPDA] = getProviderPDA(providerWallet);
-    return this.fetchAccount<ProviderAccount>("provider", providerPDA);
+    return this.fetchAccount<ProviderAccount>("Provider", providerPDA);
   }
 
   async getCourse(courseId: string): Promise<CourseAccount | null> {
     const [coursePDA] = getCoursePDA(courseId);
-    return this.fetchAccount<CourseAccount>("course", coursePDA);
+    return this.fetchAccount<CourseAccount>("Course", coursePDA);
   }
 
   async getAcceptedProviders(): Promise<PublicKey[]> {

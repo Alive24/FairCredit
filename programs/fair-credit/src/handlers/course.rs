@@ -1,6 +1,6 @@
-use anchor_lang::prelude::*;
 use crate::state::*;
-use crate::types::{CourseStatus, CourseStudentStatus, CourseError};
+use crate::types::{CourseError, CourseStatus, CourseStudentStatus};
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 #[instruction(course_id: String)]
@@ -22,6 +22,35 @@ pub struct CreateCourse<'info> {
     #[account(mut)]
     pub provider_authority: Signer<'info>,
     pub system_program: Program<'info, System>,
+}
+
+pub fn create_course(
+    ctx: Context<CreateCourse>,
+    course_id: String,
+    name: String,
+    description: String,
+    workload_required: u32,
+    degree_id: Option<String>,
+) -> Result<()> {
+    let course = &mut ctx.accounts.course;
+    let clock = Clock::get()?;
+
+    course.id = course_id.clone();
+    course.created = clock.unix_timestamp;
+    course.updated = clock.unix_timestamp;
+    course.provider = ctx.accounts.provider_authority.key();
+    course.status = CourseStatus::Draft;
+    course.rejection_reason = None;
+    course.name = name;
+    course.description = description;
+    course.weight_ids = Vec::new();
+    course.workload_required = workload_required;
+    course.workload = 0;
+    course.college_id = ctx.accounts.provider.wallet.to_string(); // Use provider wallet as ID
+    course.degree_id = degree_id;
+    course.resource_ids = Vec::new();
+
+    Ok(())
 }
 
 #[derive(Accounts)]
@@ -73,35 +102,6 @@ pub struct ArchiveCourseProgress<'info> {
     pub provider_authority: Signer<'info>,
 }
 
-pub fn create_course(
-    ctx: Context<CreateCourse>,
-    course_id: String,
-    name: String,
-    description: String,
-    workload_required: u32,
-    degree_id: Option<String>,
-) -> Result<()> {
-    let course = &mut ctx.accounts.course;
-    let clock = Clock::get()?;
-    
-    course.id = course_id.clone();
-    course.created = clock.unix_timestamp;
-    course.updated = clock.unix_timestamp;
-    course.provider = ctx.accounts.provider_authority.key();
-    course.status = CourseStatus::Draft;
-    course.rejection_reason = None;
-    course.name = name;
-    course.description = description;
-    course.weight_ids = Vec::new();
-    course.workload_required = workload_required;
-    course.workload = 0;
-    course.college_id = ctx.accounts.provider.wallet.to_string(); // Use provider wallet as ID
-    course.degree_id = degree_id;
-    course.resource_ids = Vec::new();
-
-    Ok(())
-}
-
 pub fn create_weight(
     ctx: Context<CreateWeight>,
     weight_id: String,
@@ -110,10 +110,10 @@ pub fn create_weight(
     description: Option<String>,
 ) -> Result<()> {
     require!(percentage <= 100, CourseError::InvalidProgress);
-    
+
     let weight = &mut ctx.accounts.weight;
     let course = &mut ctx.accounts.course;
-    
+
     weight.id = weight_id.clone();
     weight.course_id = course.id.clone();
     weight.name = name;
@@ -136,31 +136,23 @@ pub fn update_course_status(
     Ok(())
 }
 
-pub fn archive_course_progress(
-    ctx: Context<ArchiveCourseProgress>,
-) -> Result<bool> {
+pub fn archive_course_progress(ctx: Context<ArchiveCourseProgress>) -> Result<bool> {
     let course_student = &mut ctx.accounts.course_student;
-    
+
     // Set status to archived/completed
     course_student.status = CourseStudentStatus::Submitted;
     course_student.updated = Clock::get()?.unix_timestamp;
-    
+
     Ok(true)
 }
 
-pub fn update_course_progress(
-    ctx: Context<UpdateCourseProgress>,
-    progress: u8,
-) -> Result<()> {
+pub fn update_course_progress(ctx: Context<UpdateCourseProgress>, progress: u8) -> Result<()> {
     let course_student = &mut ctx.accounts.course_student;
     course_student.update_progress(progress)?;
     Ok(())
 }
 
-pub fn complete_course(
-    ctx: Context<CompleteCourse>,
-    final_grade: f64,
-) -> Result<()> {
+pub fn complete_course(ctx: Context<CompleteCourse>, final_grade: f64) -> Result<()> {
     let course_student = &mut ctx.accounts.course_student;
     course_student.complete_course(final_grade)?;
     Ok(())
@@ -215,4 +207,4 @@ pub struct CompleteCourse<'info> {
     pub provider: Account<'info, Provider>,
     #[account(mut)]
     pub teacher_authority: Signer<'info>,
-} 
+}

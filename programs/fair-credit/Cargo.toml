@@ -22,4 +22,3 @@ mpl-token-metadata = "4.1.2"
 
 [lints]
 workspace = true
-

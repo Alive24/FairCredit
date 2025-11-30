@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
+import type { Page, BrowserContext } from '@playwright/test';
 import { getConnection, getHubAuthorityKeypair, testConfig } from './playwright-config';
 import { PublicKey, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
 
 test.describe('Hub Management', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }: { page: Page }) => {
     // Navigate to the hub management page
     await page.goto('http://localhost:3000/hub');
     
@@ -12,7 +13,7 @@ test.describe('Hub Management', () => {
     await page.waitForLoadState('networkidle');
   });
 
-  test('should display hub information', async ({ page }) => {
+  test('should display hub information', async ({ page }: { page: Page }) => {
     // Check that hub authority is displayed
     await expect(page.locator('text=Hub Authority')).toBeVisible();
     await expect(page.locator(`text=${testConfig.hubAuthority.publicKey}`)).toBeVisible();
@@ -21,7 +22,7 @@ test.describe('Hub Management', () => {
     await expect(page.locator('text=Accepted Providers')).toBeVisible();
   });
 
-  test('should connect wallet using dev wallet', async ({ page }) => {
+  test('should connect wallet using dev wallet', async ({ page }: { page: Page }) => {
     // Click connect wallet button
     await page.click('button:has-text("Connect Wallet")');
     
@@ -51,7 +52,7 @@ test.describe('Hub Management', () => {
     await expect(page.locator(`text=${testConfig.hubAuthority.publicKey.slice(0, 4)}`)).toBeVisible();
   });
 
-  test('should handle provider addition flow', async ({ page, context }) => {
+  test('should handle provider addition flow', async ({ page, context }: { page: Page; context: BrowserContext }) => {
     // This test demonstrates the flow but won't actually add a provider
     // since no providers exist yet
     
@@ -76,7 +77,7 @@ test.describe('Hub Management', () => {
     await expect(page.locator('input[placeholder*="Provider wallet address"]')).toBeVisible();
   });
 
-  test('should fetch hub data correctly', async ({ page }) => {
+  test('should fetch hub data correctly', async ({ page }: { page: Page }) => {
     // Use the connection to verify hub data matches what's displayed
     const connection = getConnection();
     const hubPDA = new PublicKey(testConfig.hubPDA);

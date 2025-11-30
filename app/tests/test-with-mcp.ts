@@ -23,7 +23,10 @@ const mockWalletScript = `
 `;
 
 // Test commands to run via MCP
-export const testCommands = {
+type MCPCommand = { tool: string; params: Record<string, unknown> };
+type MCPCommandEntry = MCPCommand | MCPCommand[];
+
+export const testCommands: Record<string, MCPCommandEntry> = {
   // 1. Setup and navigate
   setup: [
     { tool: 'browser_navigate', params: { url: 'http://localhost:3000' } },
@@ -176,7 +179,10 @@ export const testCommands = {
 };
 
 // Helper to execute test sequence
-export async function runMCPTest(mcp: any, testName: string) {
+export async function runMCPTest(
+  mcp: Record<string, (params: Record<string, unknown>) => Promise<unknown>>,
+  testName: string,
+) {
   console.log(`Running test: ${testName}`);
   
   const commands = testCommands[testName];
@@ -189,7 +195,9 @@ export async function runMCPTest(mcp: any, testName: string) {
 }
 
 // Full test flow
-export async function runFullWalletTest(mcp: any) {
+export async function runFullWalletTest(
+  mcp: Record<string, (params: Record<string, unknown>) => Promise<unknown>>,
+) {
   try {
     // Setup
     await runMCPTest(mcp, 'setup');

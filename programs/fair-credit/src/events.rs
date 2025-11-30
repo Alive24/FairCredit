@@ -9,17 +9,8 @@ pub struct ProviderRegistered {
     pub timestamp: i64,
 }
 
-/// Event emitted when a new verifier is registered
-#[event]
-pub struct VerifierRegistered {
-    pub verifier: Pubkey,
-    pub timestamp: i64,
-}
-
-/// Event emitted when a provider is suspended by a verifier
 #[event]
 pub struct ProviderSuspended {
-    pub verifier: Pubkey,
     pub provider: Pubkey,
     pub timestamp: i64,
 }
@@ -27,15 +18,12 @@ pub struct ProviderSuspended {
 /// Event emitted when a provider suspension is lifted
 #[event]
 pub struct ProviderUnsuspended {
-    pub verifier: Pubkey,
     pub provider: Pubkey,
     pub timestamp: i64,
 }
 
-/// Event emitted when a verifier updates provider reputation
 #[event]
 pub struct ProviderReputationUpdated {
-    pub verifier: Pubkey,
     pub provider: Pubkey,
     pub reputation_score: u64,
     pub note: Option<String>,
@@ -66,7 +54,6 @@ pub struct CredentialEndorsed {
 #[event]
 pub struct CredentialVerified {
     pub credential_id: u64,
-    pub verifier: Pubkey,
     pub verification_count: u64,
     pub timestamp: i64,
 }

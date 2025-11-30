@@ -6,17 +6,16 @@
 
 use anchor_lang::prelude::*;
 
-pub mod types;
-pub mod state;
-pub mod handlers;
 pub mod events;
+pub mod handlers;
+pub mod state;
+pub mod types;
 
 // Use specific imports instead of wildcards
-use handlers::provider::*;
-use handlers::verifier_update::*;
+use handlers::course::*;
 use handlers::credential::*;
 use handlers::hub::*;
-use handlers::course::*;
+use handlers::provider::*;
 use state::HubConfig;
 
 declare_id!("BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk");
@@ -38,39 +37,14 @@ pub mod fair_credit {
         email: String,
         provider_type: String,
     ) -> Result<()> {
-        handlers::provider::initialize_provider(ctx, name, description, website, email, provider_type)
-    }
-
-    pub fn initialize_verifier(
-        ctx: Context<InitializeVerifier>,
-    ) -> Result<()> {
-        handlers::provider::initialize_verifier(ctx)
-    }
-
-    pub fn suspend_provider(
-        ctx: Context<SuspendProvider>,
-    ) -> Result<()> {
-        handlers::provider::suspend_provider(ctx)
-    }
-
-    pub fn unsuspend_provider(
-        ctx: Context<UnsuspendProvider>,
-    ) -> Result<()> {
-        handlers::provider::unsuspend_provider(ctx)
-    }
-
-    pub fn set_provider_reputation(
-        ctx: Context<SetProviderReputation>,
-        reputation_score: u64,
-        note: Option<String>,
-    ) -> Result<()> {
-        handlers::provider::set_provider_reputation(ctx, reputation_score, note)
-    }
-
-    pub fn expand_verifier_capacity(
-        ctx: Context<ExpandVerifierCapacity>,
-    ) -> Result<()> {
-        handlers::verifier_update::expand_verifier_capacity(ctx)
+        handlers::provider::initialize_provider(
+            ctx,
+            name,
+            description,
+            website,
+            email,
+            provider_type,
+        )
     }
 
     pub fn create_credential(
@@ -104,20 +78,11 @@ pub mod fair_credit {
         handlers::credential::endorse_credential(ctx, endorsement_message)
     }
 
-    pub fn verify_credential(
-        ctx: Context<VerifyCredential>,
-    ) -> Result<()> {
-        handlers::credential::verify_credential(ctx)
-    }
-
     pub fn initialize_hub(ctx: Context<InitializeHub>) -> Result<()> {
         handlers::hub::initialize_hub(ctx)
     }
 
-    pub fn update_hub_config(
-        ctx: Context<UpdateHubConfig>,
-        config: HubConfig,
-    ) -> Result<()> {
+    pub fn update_hub_config(ctx: Context<UpdateHubConfig>, config: HubConfig) -> Result<()> {
         handlers::hub::update_hub_config(ctx, config)
     }
 
@@ -141,10 +106,7 @@ pub mod fair_credit {
         handlers::hub::transfer_hub_authority(ctx)
     }
 
-    pub fn add_accepted_course(
-        ctx: Context<AddAcceptedCourse>,
-        course_id: String,
-    ) -> Result<()> {
+    pub fn add_accepted_course(ctx: Context<AddAcceptedCourse>, course_id: String) -> Result<()> {
         handlers::hub::add_accepted_course(ctx, course_id)
     }
 
@@ -163,7 +125,14 @@ pub mod fair_credit {
         workload_required: u32,
         degree_id: Option<String>,
     ) -> Result<()> {
-        handlers::course::create_course(ctx, course_id, name, description, workload_required, degree_id)
+        handlers::course::create_course(
+            ctx,
+            course_id,
+            name,
+            description,
+            workload_required,
+            degree_id,
+        )
     }
 
     pub fn create_weight(
@@ -184,23 +153,15 @@ pub mod fair_credit {
         handlers::course::update_course_status(ctx, status, rejection_reason)
     }
 
-    pub fn archive_course_progress(
-        ctx: Context<ArchiveCourseProgress>,
-    ) -> Result<bool> {
+    pub fn archive_course_progress(ctx: Context<ArchiveCourseProgress>) -> Result<bool> {
         handlers::course::archive_course_progress(ctx)
     }
 
-    pub fn update_course_progress(
-        ctx: Context<UpdateCourseProgress>,
-        progress: u8,
-    ) -> Result<()> {
+    pub fn update_course_progress(ctx: Context<UpdateCourseProgress>, progress: u8) -> Result<()> {
         handlers::course::update_course_progress(ctx, progress)
     }
 
-    pub fn complete_course(
-        ctx: Context<CompleteCourse>,
-        final_grade: f64,
-    ) -> Result<()> {
+    pub fn complete_course(ctx: Context<CompleteCourse>, final_grade: f64) -> Result<()> {
         handlers::course::complete_course(ctx, final_grade)
     }
 }
