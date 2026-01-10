@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+import nextra from "nextra";
+
+const withNextra = nextra({
+  contentDirBasePath: "/docs",
+});
+
+export default withNextra({
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -14,11 +20,14 @@ const nextConfig = {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        'pino-pretty': false,
-      }
+        "pino-pretty": false,
+      };
     }
-    return config
+    return config;
   },
-}
-
-export default nextConfig
+  turbopack: {
+    resolveAlias: {
+      "next-mdx-import-source-file": "./mdx-components.ts",
+    },
+  },
+});

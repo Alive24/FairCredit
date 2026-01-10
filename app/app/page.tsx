@@ -2,7 +2,6 @@ import { Header } from "@/components/header"
 import { HeroSection } from "@/components/hero-section"
 import { RoleSlideshowSection } from "@/components/role-slideshow-section"
 import { FeaturesSection } from "@/components/features-section"
-import { Footer } from "@/components/footer"
 import { WalletDebug } from "@/components/wallet-debug"
 
 export default function Home() {
@@ -17,7 +16,6 @@ export default function Home() {
         <RoleSlideshowSection />
         <FeaturesSection />
       </main>
-      <Footer />
     </div>
   )
 }
