@@ -60,9 +60,7 @@ export function CourseList() {
           authority: DEFAULT_PLACEHOLDER_SIGNER,
           config: {
             requireProviderApproval: false,
-            requireEndorserApproval: false,
             minReputationScore: 0,
-            allowSelfEndorsement: false,
           },
         });
         const hubAddress = hubInstruction.accounts[0].address;
@@ -74,60 +72,66 @@ export function CourseList() {
           return;
         }
 
-        // Fetch and enrich courses with provider data
+        // Fetch and enrich courses with provider data.
+        // Hub stores acceptedCourses as courseIds only; course PDA is (provider, courseId).
+        // Try each (providerWallet, courseId) for accepted providers until we find the course.
         const enrichedCourses = await Promise.all(
           (hub.acceptedCourses ?? []).map(async (courseId) => {
-            // Get course address from Codama instruction (it auto-resolves PDA)
-            const courseInstruction =
-              await getAddAcceptedCourseInstructionAsync({
-                hub: undefined,
-                authority: DEFAULT_PLACEHOLDER_SIGNER,
-                course: undefined,
-                courseId,
-              });
-            const courseAddress = courseInstruction.accounts[2].address;
-            const courseAccount = await fetchMaybeCourse(rpc, courseAddress);
-            if (!courseAccount.exists) {
-              return null;
-            }
-            const courseData = courseAccount.data;
+            const providers = hub.acceptedProviders ?? [];
+            for (const prov of providers) {
+              const providerWallet =
+                typeof prov === "string" ? prov : String(prov);
+              const courseInstruction =
+                await getAddAcceptedCourseInstructionAsync({
+                  hub: undefined,
+                  authority: DEFAULT_PLACEHOLDER_SIGNER,
+                  course: undefined,
+                  courseId,
+                  providerWallet: address(providerWallet),
+                });
+              const courseAddress = courseInstruction.accounts[3].address;
+              const courseAccount = await fetchMaybeCourse(rpc, courseAddress);
+              if (!courseAccount.exists) continue;
+              const courseData = courseAccount.data;
 
-            const providerAddress =
-              typeof courseData.provider === "string"
-                ? courseData.provider
-                : String(courseData.provider);
-            // Get provider address from Codama instruction (it auto-resolves PDA)
-            const providerInstruction =
-              await getAddAcceptedProviderInstructionAsync({
-                hub: undefined,
-                authority: DEFAULT_PLACEHOLDER_SIGNER,
-                provider: undefined,
-                providerWallet: address(providerAddress),
-              });
-            const providerAddressPDA = providerInstruction.accounts[2].address;
-            const providerAccount = await fetchMaybeProvider(
-              rpc,
-              providerAddressPDA,
-            );
-            const provider = providerAccount.exists
-              ? providerAccount.data
-              : null;
-
-            return {
-              id: courseId,
-              name: courseData.name,
-              description: courseData.description,
-              status: courseData.status,
-              workloadRequired: courseData.workloadRequired,
-              provider:
+              const providerAddress =
                 typeof courseData.provider === "string"
                   ? courseData.provider
-                  : String(courseData.provider),
-              providerName: provider?.name ?? "Unknown Provider",
-              providerEmail: provider?.email ?? "",
-              created: new Date(Number(courseData.created) * 1000),
-              updated: new Date(Number(courseData.updated) * 1000),
-            };
+                  : String(courseData.provider);
+              const providerInstruction =
+                await getAddAcceptedProviderInstructionAsync({
+                  hub: undefined,
+                  authority: DEFAULT_PLACEHOLDER_SIGNER,
+                  provider: undefined,
+                  providerWallet: address(providerAddress),
+                });
+              const providerAddressPDA =
+                providerInstruction.accounts[2].address;
+              const providerAccount = await fetchMaybeProvider(
+                rpc,
+                providerAddressPDA,
+              );
+              const provider = providerAccount.exists
+                ? providerAccount.data
+                : null;
+
+              return {
+                id: courseId,
+                name: courseData.name,
+                description: courseData.description,
+                status: courseData.status,
+                workloadRequired: courseData.workloadRequired,
+                provider:
+                  typeof courseData.provider === "string"
+                    ? courseData.provider
+                    : String(courseData.provider),
+                providerName: provider?.name ?? "Unknown Provider",
+                providerEmail: provider?.email ?? "",
+                created: new Date(Number(courseData.created) * 1000),
+                updated: new Date(Number(courseData.updated) * 1000),
+              };
+            }
+            return null;
           }),
         );
 

@@ -1,6 +1,6 @@
-use anchor_lang::prelude::*;
 use crate::state::*;
-use crate::types::{ResourceKind, ResourceStatus, SubmissionStatus, ResourceError};
+use crate::types::{ResourceError, ResourceKind, ResourceStatus, SubmissionStatus};
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 #[instruction(resource_id: String)]
@@ -15,15 +15,25 @@ pub struct AddResource<'info> {
     pub resource: Account<'info, Resource>,
     #[account(
         mut,
-        seeds = [Course::SEED_PREFIX.as_bytes(), course.id.as_bytes()],
+        seeds = [
+            Course::SEED_PREFIX.as_bytes(),
+            provider.key().as_ref(),
+            course.id.as_bytes(),
+        ],
         bump
     )]
     pub course: Account<'info, Course>,
     #[account(
-        seeds = [Provider::SEED_PREFIX.as_bytes(), provider_authority.key().as_ref()],
+        seeds = [
+            Provider::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider_authority.key().as_ref(),
+        ],
         bump
     )]
     pub provider: Account<'info, Provider>,
+    #[account(seeds = [Hub::SEED_PREFIX.as_bytes()], bump)]
+    pub hub: Account<'info, Hub>,
     #[account(mut)]
     pub provider_authority: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -78,11 +88,11 @@ pub fn add_resource(
     require!(weight_ids.len() <= 10, ResourceError::TooManyAssets);
     require!(tags.len() <= 10, ResourceError::TooManyTags);
     require!(teacher_ids.len() <= 5, ResourceError::TooManyTeachers);
-    
+
     let resource = &mut ctx.accounts.resource;
     let course = &mut ctx.accounts.course;
     let clock = Clock::get()?;
-    
+
     resource.id = resource_id.clone();
     resource.name = name;
     resource.kind = kind;
@@ -114,7 +124,7 @@ pub fn update_resource_data(
     tags: Option<Vec<String>>,
 ) -> Result<()> {
     let resource = &mut ctx.accounts.resource;
-    
+
     if let Some(new_name) = name {
         resource.name = new_name;
     }
@@ -128,7 +138,7 @@ pub fn update_resource_data(
         require!(new_tags.len() <= 10, ResourceError::TooManyTags);
         resource.tags = new_tags;
     }
-    
+
     resource.updated = Clock::get()?.unix_timestamp;
 
     Ok(())
@@ -144,10 +154,10 @@ pub fn create_submission(
 ) -> Result<()> {
     require!(asset_ids.len() <= 10, ResourceError::TooManyAssets);
     require!(evidence_asset_ids.len() <= 10, ResourceError::TooManyAssets);
-    
+
     let submission = &mut ctx.accounts.submission;
     let clock = Clock::get()?;
-    
+
     submission.id = submission_id;
     submission.resource_id = ctx.accounts.resource.id.clone();
     submission.student_id = student_id;
@@ -184,4 +194,4 @@ pub struct GradeSubmission<'info> {
     pub submission: Account<'info, ResourceSubmission>,
     #[account(mut)]
     pub grader: Signer<'info>,
-} 
+}

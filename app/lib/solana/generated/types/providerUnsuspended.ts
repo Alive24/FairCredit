@@ -21,21 +21,15 @@ import {
 } from "@solana/kit";
 
 /** Event emitted when a provider suspension is lifted */
-export type ProviderUnsuspended = {
-  verifier: Address;
-  provider: Address;
-  timestamp: bigint;
-};
+export type ProviderUnsuspended = { provider: Address; timestamp: bigint };
 
 export type ProviderUnsuspendedArgs = {
-  verifier: Address;
   provider: Address;
   timestamp: number | bigint;
 };
 
 export function getProviderUnsuspendedEncoder(): FixedSizeEncoder<ProviderUnsuspendedArgs> {
   return getStructEncoder([
-    ["verifier", getAddressEncoder()],
     ["provider", getAddressEncoder()],
     ["timestamp", getI64Encoder()],
   ]);
@@ -43,7 +37,6 @@ export function getProviderUnsuspendedEncoder(): FixedSizeEncoder<ProviderUnsusp
 
 export function getProviderUnsuspendedDecoder(): FixedSizeDecoder<ProviderUnsuspended> {
   return getStructDecoder([
-    ["verifier", getAddressDecoder()],
     ["provider", getAddressDecoder()],
     ["timestamp", getI64Decoder()],
   ]);

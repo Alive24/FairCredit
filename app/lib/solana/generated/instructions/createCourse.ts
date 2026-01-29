@@ -64,6 +64,7 @@ export type CreateCourseInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountCourse extends string | AccountMeta<string> = string,
   TAccountProvider extends string | AccountMeta<string> = string,
+  TAccountHub extends string | AccountMeta<string> = string,
   TAccountProviderAuthority extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
@@ -78,6 +79,7 @@ export type CreateCourseInstruction<
       TAccountProvider extends string
         ? WritableAccount<TAccountProvider>
         : TAccountProvider,
+      TAccountHub extends string ? ReadonlyAccount<TAccountHub> : TAccountHub,
       TAccountProviderAuthority extends string
         ? WritableSignerAccount<TAccountProviderAuthority> &
             AccountSignerMeta<TAccountProviderAuthority>
@@ -152,11 +154,13 @@ export function getCreateCourseInstructionDataCodec(): Codec<
 export type CreateCourseAsyncInput<
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
+  TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   course?: Address<TAccountCourse>;
   provider?: Address<TAccountProvider>;
+  hub?: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
   systemProgram?: Address<TAccountSystemProgram>;
   courseId: CreateCourseInstructionDataArgs["courseId"];
@@ -169,6 +173,7 @@ export type CreateCourseAsyncInput<
 export async function getCreateCourseInstructionAsync<
   TAccountCourse extends string,
   TAccountProvider extends string,
+  TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
@@ -176,6 +181,7 @@ export async function getCreateCourseInstructionAsync<
   input: CreateCourseAsyncInput<
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >,
@@ -185,6 +191,7 @@ export async function getCreateCourseInstructionAsync<
     TProgramAddress,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >
@@ -196,6 +203,7 @@ export async function getCreateCourseInstructionAsync<
   const originalAccounts = {
     course: { value: input.course ?? null, isWritable: true },
     provider: { value: input.provider ?? null, isWritable: true },
+    hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
       isWritable: true,
@@ -211,13 +219,10 @@ export async function getCreateCourseInstructionAsync<
   const args = { ...input };
 
   // Resolve default values.
-  if (!accounts.course.value) {
-    accounts.course.value = await getProgramDerivedAddress({
+  if (!accounts.hub.value) {
+    accounts.hub.value = await getProgramDerivedAddress({
       programAddress,
-      seeds: [
-        getBytesEncoder().encode(new Uint8Array([99, 111, 117, 114, 115, 101])),
-        getUtf8Encoder().encode(expectSome(args.courseId)),
-      ],
+      seeds: [getBytesEncoder().encode(new Uint8Array([104, 117, 98]))],
     });
   }
   if (!accounts.provider.value) {
@@ -227,9 +232,20 @@ export async function getCreateCourseInstructionAsync<
         getBytesEncoder().encode(
           new Uint8Array([112, 114, 111, 118, 105, 100, 101, 114]),
         ),
+        getAddressEncoder().encode(expectAddress(accounts.hub.value)),
         getAddressEncoder().encode(
           expectAddress(accounts.providerAuthority.value),
         ),
+      ],
+    });
+  }
+  if (!accounts.course.value) {
+    accounts.course.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [
+        getBytesEncoder().encode(new Uint8Array([99, 111, 117, 114, 115, 101])),
+        getAddressEncoder().encode(expectAddress(accounts.provider.value)),
+        getUtf8Encoder().encode(expectSome(args.courseId)),
       ],
     });
   }
@@ -243,6 +259,7 @@ export async function getCreateCourseInstructionAsync<
     accounts: [
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
+      getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
       getAccountMeta(accounts.systemProgram),
     ],
@@ -254,6 +271,7 @@ export async function getCreateCourseInstructionAsync<
     TProgramAddress,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >);
@@ -262,11 +280,13 @@ export async function getCreateCourseInstructionAsync<
 export type CreateCourseInput<
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
+  TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   course: Address<TAccountCourse>;
   provider: Address<TAccountProvider>;
+  hub: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
   systemProgram?: Address<TAccountSystemProgram>;
   courseId: CreateCourseInstructionDataArgs["courseId"];
@@ -279,6 +299,7 @@ export type CreateCourseInput<
 export function getCreateCourseInstruction<
   TAccountCourse extends string,
   TAccountProvider extends string,
+  TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
@@ -286,6 +307,7 @@ export function getCreateCourseInstruction<
   input: CreateCourseInput<
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >,
@@ -294,6 +316,7 @@ export function getCreateCourseInstruction<
   TProgramAddress,
   TAccountCourse,
   TAccountProvider,
+  TAccountHub,
   TAccountProviderAuthority,
   TAccountSystemProgram
 > {
@@ -304,6 +327,7 @@ export function getCreateCourseInstruction<
   const originalAccounts = {
     course: { value: input.course ?? null, isWritable: true },
     provider: { value: input.provider ?? null, isWritable: true },
+    hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
       isWritable: true,
@@ -329,6 +353,7 @@ export function getCreateCourseInstruction<
     accounts: [
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
+      getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
       getAccountMeta(accounts.systemProgram),
     ],
@@ -340,6 +365,7 @@ export function getCreateCourseInstruction<
     TProgramAddress,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >);
@@ -353,8 +379,9 @@ export type ParsedCreateCourseInstruction<
   accounts: {
     course: TAccountMetas[0];
     provider: TAccountMetas[1];
-    providerAuthority: TAccountMetas[2];
-    systemProgram: TAccountMetas[3];
+    hub: TAccountMetas[2];
+    providerAuthority: TAccountMetas[3];
+    systemProgram: TAccountMetas[4];
   };
   data: CreateCourseInstructionData;
 };
@@ -367,7 +394,7 @@ export function parseCreateCourseInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateCourseInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 4) {
+  if (instruction.accounts.length < 5) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -382,6 +409,7 @@ export function parseCreateCourseInstruction<
     accounts: {
       course: getNextAccount(),
       provider: getNextAccount(),
+      hub: getNextAccount(),
       providerAuthority: getNextAccount(),
       systemProgram: getNextAccount(),
     },

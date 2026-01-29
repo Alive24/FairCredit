@@ -11,6 +11,4 @@ export * from "./courseStudent";
 export * from "./credential";
 export * from "./hub";
 export * from "./provider";
-export * from "./verificationRecord";
-export * from "./verifier";
 export * from "./weight";

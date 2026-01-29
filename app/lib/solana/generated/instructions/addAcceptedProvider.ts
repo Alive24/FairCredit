@@ -115,7 +115,7 @@ export type AddAcceptedProviderAsyncInput<
 > = {
   hub?: Address<TAccountHub>;
   authority: TransactionSigner<TAccountAuthority>;
-  /** The provider account to be added */
+  /** The provider account to be added (PDA: provider + hub + provider_wallet) */
   provider?: Address<TAccountProvider>;
   providerWallet: Address<TAccountProviderWallet>;
 };
@@ -172,6 +172,7 @@ export async function getAddAcceptedProviderInstructionAsync<
         getBytesEncoder().encode(
           new Uint8Array([112, 114, 111, 118, 105, 100, 101, 114]),
         ),
+        getAddressEncoder().encode(expectAddress(accounts.hub.value)),
         getAddressEncoder().encode(
           expectAddress(accounts.providerWallet.value),
         ),
@@ -206,7 +207,7 @@ export type AddAcceptedProviderInput<
 > = {
   hub: Address<TAccountHub>;
   authority: TransactionSigner<TAccountAuthority>;
-  /** The provider account to be added */
+  /** The provider account to be added (PDA: provider + hub + provider_wallet) */
   provider: Address<TAccountProvider>;
   providerWallet: Address<TAccountProviderWallet>;
 };
@@ -274,7 +275,7 @@ export type ParsedAddAcceptedProviderInstruction<
   accounts: {
     hub: TAccountMetas[0];
     authority: TAccountMetas[1];
-    /** The provider account to be added */
+    /** The provider account to be added (PDA: provider + hub + provider_wallet) */
     provider: TAccountMetas[2];
     providerWallet: TAccountMetas[3];
   };

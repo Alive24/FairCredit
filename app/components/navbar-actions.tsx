@@ -51,7 +51,6 @@ export function NavbarActions() {
     <>
       <div className="flex items-center gap-4">
         <ModeToggle />
-        <AppKitButton />
         {connected && userType && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -177,6 +176,7 @@ export function NavbarActions() {
           </Card>
         </div>
       )}
+      <AppKitButton />
     </>
   );
 }

@@ -128,18 +128,18 @@ pub struct ProviderRemovedFromHub {
     pub timestamp: i64,
 }
 
-/// Event emitted when an endorser is accepted by hub
+/// Event emitted when a provider adds an endorser (provider-managed; no Hub acceptance)
 #[event]
-pub struct EndorserAccepted {
-    pub hub_authority: Pubkey,
+pub struct ProviderEndorserAdded {
+    pub provider: Pubkey,
     pub endorser: Pubkey,
     pub timestamp: i64,
 }
 
-/// Event emitted when an endorser is removed from hub
+/// Event emitted when a provider removes an endorser
 #[event]
-pub struct EndorserRemovedFromHub {
-    pub hub_authority: Pubkey,
+pub struct ProviderEndorserRemoved {
+    pub provider: Pubkey,
     pub endorser: Pubkey,
     pub timestamp: i64,
 }

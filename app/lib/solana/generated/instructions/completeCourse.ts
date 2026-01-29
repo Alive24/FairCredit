@@ -56,6 +56,7 @@ export type CompleteCourseInstruction<
   TAccountCourseStudent extends string | AccountMeta<string> = string,
   TAccountCourse extends string | AccountMeta<string> = string,
   TAccountProvider extends string | AccountMeta<string> = string,
+  TAccountHub extends string | AccountMeta<string> = string,
   TAccountTeacherAuthority extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
@@ -71,6 +72,7 @@ export type CompleteCourseInstruction<
       TAccountProvider extends string
         ? ReadonlyAccount<TAccountProvider>
         : TAccountProvider,
+      TAccountHub extends string ? ReadonlyAccount<TAccountHub> : TAccountHub,
       TAccountTeacherAuthority extends string
         ? WritableSignerAccount<TAccountTeacherAuthority> &
             AccountSignerMeta<TAccountTeacherAuthority>
@@ -117,11 +119,13 @@ export type CompleteCourseAsyncInput<
   TAccountCourseStudent extends string = string,
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
+  TAccountHub extends string = string,
   TAccountTeacherAuthority extends string = string,
 > = {
   courseStudent: Address<TAccountCourseStudent>;
   course: Address<TAccountCourse>;
   provider?: Address<TAccountProvider>;
+  hub?: Address<TAccountHub>;
   teacherAuthority: TransactionSigner<TAccountTeacherAuthority>;
   finalGrade: CompleteCourseInstructionDataArgs["finalGrade"];
 };
@@ -130,6 +134,7 @@ export async function getCompleteCourseInstructionAsync<
   TAccountCourseStudent extends string,
   TAccountCourse extends string,
   TAccountProvider extends string,
+  TAccountHub extends string,
   TAccountTeacherAuthority extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
@@ -137,6 +142,7 @@ export async function getCompleteCourseInstructionAsync<
     TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountTeacherAuthority
   >,
   config?: { programAddress?: TProgramAddress },
@@ -146,6 +152,7 @@ export async function getCompleteCourseInstructionAsync<
     TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountTeacherAuthority
   >
 > {
@@ -157,6 +164,7 @@ export async function getCompleteCourseInstructionAsync<
     courseStudent: { value: input.courseStudent ?? null, isWritable: true },
     course: { value: input.course ?? null, isWritable: false },
     provider: { value: input.provider ?? null, isWritable: false },
+    hub: { value: input.hub ?? null, isWritable: false },
     teacherAuthority: {
       value: input.teacherAuthority ?? null,
       isWritable: true,
@@ -171,6 +179,12 @@ export async function getCompleteCourseInstructionAsync<
   const args = { ...input };
 
   // Resolve default values.
+  if (!accounts.hub.value) {
+    accounts.hub.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [getBytesEncoder().encode(new Uint8Array([104, 117, 98]))],
+    });
+  }
   if (!accounts.provider.value) {
     accounts.provider.value = await getProgramDerivedAddress({
       programAddress,
@@ -178,6 +192,7 @@ export async function getCompleteCourseInstructionAsync<
         getBytesEncoder().encode(
           new Uint8Array([112, 114, 111, 118, 105, 100, 101, 114]),
         ),
+        getAddressEncoder().encode(expectAddress(accounts.hub.value)),
         getAddressEncoder().encode(
           expectAddress(accounts.teacherAuthority.value),
         ),
@@ -191,6 +206,7 @@ export async function getCompleteCourseInstructionAsync<
       getAccountMeta(accounts.courseStudent),
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
+      getAccountMeta(accounts.hub),
       getAccountMeta(accounts.teacherAuthority),
     ],
     data: getCompleteCourseInstructionDataEncoder().encode(
@@ -202,6 +218,7 @@ export async function getCompleteCourseInstructionAsync<
     TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountTeacherAuthority
   >);
 }
@@ -210,11 +227,13 @@ export type CompleteCourseInput<
   TAccountCourseStudent extends string = string,
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
+  TAccountHub extends string = string,
   TAccountTeacherAuthority extends string = string,
 > = {
   courseStudent: Address<TAccountCourseStudent>;
   course: Address<TAccountCourse>;
   provider: Address<TAccountProvider>;
+  hub: Address<TAccountHub>;
   teacherAuthority: TransactionSigner<TAccountTeacherAuthority>;
   finalGrade: CompleteCourseInstructionDataArgs["finalGrade"];
 };
@@ -223,6 +242,7 @@ export function getCompleteCourseInstruction<
   TAccountCourseStudent extends string,
   TAccountCourse extends string,
   TAccountProvider extends string,
+  TAccountHub extends string,
   TAccountTeacherAuthority extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
@@ -230,6 +250,7 @@ export function getCompleteCourseInstruction<
     TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountTeacherAuthority
   >,
   config?: { programAddress?: TProgramAddress },
@@ -238,6 +259,7 @@ export function getCompleteCourseInstruction<
   TAccountCourseStudent,
   TAccountCourse,
   TAccountProvider,
+  TAccountHub,
   TAccountTeacherAuthority
 > {
   // Program address.
@@ -248,6 +270,7 @@ export function getCompleteCourseInstruction<
     courseStudent: { value: input.courseStudent ?? null, isWritable: true },
     course: { value: input.course ?? null, isWritable: false },
     provider: { value: input.provider ?? null, isWritable: false },
+    hub: { value: input.hub ?? null, isWritable: false },
     teacherAuthority: {
       value: input.teacherAuthority ?? null,
       isWritable: true,
@@ -267,6 +290,7 @@ export function getCompleteCourseInstruction<
       getAccountMeta(accounts.courseStudent),
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
+      getAccountMeta(accounts.hub),
       getAccountMeta(accounts.teacherAuthority),
     ],
     data: getCompleteCourseInstructionDataEncoder().encode(
@@ -278,6 +302,7 @@ export function getCompleteCourseInstruction<
     TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountTeacherAuthority
   >);
 }
@@ -291,7 +316,8 @@ export type ParsedCompleteCourseInstruction<
     courseStudent: TAccountMetas[0];
     course: TAccountMetas[1];
     provider: TAccountMetas[2];
-    teacherAuthority: TAccountMetas[3];
+    hub: TAccountMetas[3];
+    teacherAuthority: TAccountMetas[4];
   };
   data: CompleteCourseInstructionData;
 };
@@ -304,7 +330,7 @@ export function parseCompleteCourseInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCompleteCourseInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 4) {
+  if (instruction.accounts.length < 5) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -320,6 +346,7 @@ export function parseCompleteCourseInstruction<
       courseStudent: getNextAccount(),
       course: getNextAccount(),
       provider: getNextAccount(),
+      hub: getNextAccount(),
       teacherAuthority: getNextAccount(),
     },
     data: getCompleteCourseInstructionDataDecoder().decode(instruction.data),

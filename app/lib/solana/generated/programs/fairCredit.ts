@@ -18,59 +18,51 @@ import {
 } from "@solana/kit";
 import {
   parseAddAcceptedCourseInstruction,
-  parseAddAcceptedEndorserInstruction,
   parseAddAcceptedProviderInstruction,
+  parseAddProviderEndorserInstruction,
   parseArchiveCourseProgressInstruction,
+  parseCloseHubInstruction,
+  parseCloseProviderInstruction,
   parseCompleteCourseInstruction,
   parseCreateCourseInstruction,
   parseCreateCredentialInstruction,
   parseCreateWeightInstruction,
   parseEndorseCredentialInstruction,
-  parseExpandVerifierCapacityInstruction,
   parseInitializeHubInstruction,
   parseInitializeInstruction,
   parseInitializeProviderInstruction,
-  parseInitializeVerifierInstruction,
   parseRemoveAcceptedCourseInstruction,
-  parseRemoveAcceptedEndorserInstruction,
   parseRemoveAcceptedProviderInstruction,
-  parseSetProviderReputationInstruction,
-  parseSuspendProviderInstruction,
+  parseRemoveProviderEndorserInstruction,
   parseTransferHubAuthorityInstruction,
-  parseUnsuspendProviderInstruction,
   parseUpdateCourseProgressInstruction,
   parseUpdateCourseStatusInstruction,
   parseUpdateHubConfigInstruction,
-  parseVerifyCredentialInstruction,
   type ParsedAddAcceptedCourseInstruction,
-  type ParsedAddAcceptedEndorserInstruction,
   type ParsedAddAcceptedProviderInstruction,
+  type ParsedAddProviderEndorserInstruction,
   type ParsedArchiveCourseProgressInstruction,
+  type ParsedCloseHubInstruction,
+  type ParsedCloseProviderInstruction,
   type ParsedCompleteCourseInstruction,
   type ParsedCreateCourseInstruction,
   type ParsedCreateCredentialInstruction,
   type ParsedCreateWeightInstruction,
   type ParsedEndorseCredentialInstruction,
-  type ParsedExpandVerifierCapacityInstruction,
   type ParsedInitializeHubInstruction,
   type ParsedInitializeInstruction,
   type ParsedInitializeProviderInstruction,
-  type ParsedInitializeVerifierInstruction,
   type ParsedRemoveAcceptedCourseInstruction,
-  type ParsedRemoveAcceptedEndorserInstruction,
   type ParsedRemoveAcceptedProviderInstruction,
-  type ParsedSetProviderReputationInstruction,
-  type ParsedSuspendProviderInstruction,
+  type ParsedRemoveProviderEndorserInstruction,
   type ParsedTransferHubAuthorityInstruction,
-  type ParsedUnsuspendProviderInstruction,
   type ParsedUpdateCourseProgressInstruction,
   type ParsedUpdateCourseStatusInstruction,
   type ParsedUpdateHubConfigInstruction,
-  type ParsedVerifyCredentialInstruction,
 } from "../instructions";
 
 export const FAIR_CREDIT_PROGRAM_ADDRESS =
-  "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk" as Address<"BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk">;
+  "95asCfd7nbJN5i6REuiuLHj7Wb6DqqAKrhG1tRJ7Dthx" as Address<"95asCfd7nbJN5i6REuiuLHj7Wb6DqqAKrhG1tRJ7Dthx">;
 
 export enum FairCreditAccount {
   Course,
@@ -78,8 +70,6 @@ export enum FairCreditAccount {
   Credential,
   Hub,
   Provider,
-  VerificationRecord,
-  Verifier,
   Weight,
 }
 
@@ -146,28 +136,6 @@ export function identifyFairCreditAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([247, 14, 72, 93, 184, 36, 154, 215]),
-      ),
-      0,
-    )
-  ) {
-    return FairCreditAccount.VerificationRecord;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([195, 177, 185, 71, 72, 61, 77, 112]),
-      ),
-      0,
-    )
-  ) {
-    return FairCreditAccount.Verifier;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([159, 182, 127, 85, 32, 81, 76, 51]),
       ),
       0,
@@ -182,30 +150,26 @@ export function identifyFairCreditAccount(
 
 export enum FairCreditInstruction {
   AddAcceptedCourse,
-  AddAcceptedEndorser,
   AddAcceptedProvider,
+  AddProviderEndorser,
   ArchiveCourseProgress,
+  CloseHub,
+  CloseProvider,
   CompleteCourse,
   CreateCourse,
   CreateCredential,
   CreateWeight,
   EndorseCredential,
-  ExpandVerifierCapacity,
   Initialize,
   InitializeHub,
   InitializeProvider,
-  InitializeVerifier,
   RemoveAcceptedCourse,
-  RemoveAcceptedEndorser,
   RemoveAcceptedProvider,
-  SetProviderReputation,
-  SuspendProvider,
+  RemoveProviderEndorser,
   TransferHubAuthority,
-  UnsuspendProvider,
   UpdateCourseProgress,
   UpdateCourseStatus,
   UpdateHubConfig,
-  VerifyCredential,
 }
 
 export function identifyFairCreditInstruction(
@@ -227,17 +191,6 @@ export function identifyFairCreditInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([0, 23, 132, 187, 42, 28, 234, 190]),
-      ),
-      0,
-    )
-  ) {
-    return FairCreditInstruction.AddAcceptedEndorser;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([254, 208, 75, 70, 237, 107, 97, 207]),
       ),
       0,
@@ -249,12 +202,45 @@ export function identifyFairCreditInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([49, 66, 186, 64, 50, 121, 37, 73]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.AddProviderEndorser;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([31, 154, 201, 129, 175, 4, 79, 57]),
       ),
       0,
     )
   ) {
     return FairCreditInstruction.ArchiveCourseProgress;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([55, 105, 65, 207, 233, 226, 149, 185]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.CloseHub;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([165, 19, 159, 160, 179, 241, 87, 244]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.CloseProvider;
   }
   if (
     containsBytes(
@@ -315,17 +301,6 @@ export function identifyFairCreditInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([116, 51, 141, 221, 109, 83, 32, 143]),
-      ),
-      0,
-    )
-  ) {
-    return FairCreditInstruction.ExpandVerifierCapacity;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([175, 175, 109, 31, 13, 152, 155, 237]),
       ),
       0,
@@ -359,34 +334,12 @@ export function identifyFairCreditInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([94, 212, 44, 130, 71, 242, 204, 155]),
-      ),
-      0,
-    )
-  ) {
-    return FairCreditInstruction.InitializeVerifier;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([229, 110, 78, 208, 100, 200, 240, 217]),
       ),
       0,
     )
   ) {
     return FairCreditInstruction.RemoveAcceptedCourse;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([22, 73, 184, 227, 224, 207, 6, 23]),
-      ),
-      0,
-    )
-  ) {
-    return FairCreditInstruction.RemoveAcceptedEndorser;
   }
   if (
     containsBytes(
@@ -403,23 +356,12 @@ export function identifyFairCreditInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([16, 168, 136, 89, 52, 6, 194, 25]),
+        new Uint8Array([239, 116, 68, 254, 232, 180, 205, 128]),
       ),
       0,
     )
   ) {
-    return FairCreditInstruction.SetProviderReputation;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([16, 250, 103, 150, 251, 36, 32, 42]),
-      ),
-      0,
-    )
-  ) {
-    return FairCreditInstruction.SuspendProvider;
+    return FairCreditInstruction.RemoveProviderEndorser;
   }
   if (
     containsBytes(
@@ -431,17 +373,6 @@ export function identifyFairCreditInstruction(
     )
   ) {
     return FairCreditInstruction.TransferHubAuthority;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([237, 19, 219, 250, 69, 183, 204, 154]),
-      ),
-      0,
-    )
-  ) {
-    return FairCreditInstruction.UnsuspendProvider;
   }
   if (
     containsBytes(
@@ -476,37 +407,32 @@ export function identifyFairCreditInstruction(
   ) {
     return FairCreditInstruction.UpdateHubConfig;
   }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([139, 189, 60, 127, 32, 241, 162, 134]),
-      ),
-      0,
-    )
-  ) {
-    return FairCreditInstruction.VerifyCredential;
-  }
   throw new Error(
     "The provided instruction could not be identified as a fairCredit instruction.",
   );
 }
 
 export type ParsedFairCreditInstruction<
-  TProgram extends string = "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk",
+  TProgram extends string = "95asCfd7nbJN5i6REuiuLHj7Wb6DqqAKrhG1tRJ7Dthx",
 > =
   | ({
       instructionType: FairCreditInstruction.AddAcceptedCourse;
     } & ParsedAddAcceptedCourseInstruction<TProgram>)
   | ({
-      instructionType: FairCreditInstruction.AddAcceptedEndorser;
-    } & ParsedAddAcceptedEndorserInstruction<TProgram>)
-  | ({
       instructionType: FairCreditInstruction.AddAcceptedProvider;
     } & ParsedAddAcceptedProviderInstruction<TProgram>)
   | ({
+      instructionType: FairCreditInstruction.AddProviderEndorser;
+    } & ParsedAddProviderEndorserInstruction<TProgram>)
+  | ({
       instructionType: FairCreditInstruction.ArchiveCourseProgress;
     } & ParsedArchiveCourseProgressInstruction<TProgram>)
+  | ({
+      instructionType: FairCreditInstruction.CloseHub;
+    } & ParsedCloseHubInstruction<TProgram>)
+  | ({
+      instructionType: FairCreditInstruction.CloseProvider;
+    } & ParsedCloseProviderInstruction<TProgram>)
   | ({
       instructionType: FairCreditInstruction.CompleteCourse;
     } & ParsedCompleteCourseInstruction<TProgram>)
@@ -523,9 +449,6 @@ export type ParsedFairCreditInstruction<
       instructionType: FairCreditInstruction.EndorseCredential;
     } & ParsedEndorseCredentialInstruction<TProgram>)
   | ({
-      instructionType: FairCreditInstruction.ExpandVerifierCapacity;
-    } & ParsedExpandVerifierCapacityInstruction<TProgram>)
-  | ({
       instructionType: FairCreditInstruction.Initialize;
     } & ParsedInitializeInstruction<TProgram>)
   | ({
@@ -535,29 +458,17 @@ export type ParsedFairCreditInstruction<
       instructionType: FairCreditInstruction.InitializeProvider;
     } & ParsedInitializeProviderInstruction<TProgram>)
   | ({
-      instructionType: FairCreditInstruction.InitializeVerifier;
-    } & ParsedInitializeVerifierInstruction<TProgram>)
-  | ({
       instructionType: FairCreditInstruction.RemoveAcceptedCourse;
     } & ParsedRemoveAcceptedCourseInstruction<TProgram>)
-  | ({
-      instructionType: FairCreditInstruction.RemoveAcceptedEndorser;
-    } & ParsedRemoveAcceptedEndorserInstruction<TProgram>)
   | ({
       instructionType: FairCreditInstruction.RemoveAcceptedProvider;
     } & ParsedRemoveAcceptedProviderInstruction<TProgram>)
   | ({
-      instructionType: FairCreditInstruction.SetProviderReputation;
-    } & ParsedSetProviderReputationInstruction<TProgram>)
-  | ({
-      instructionType: FairCreditInstruction.SuspendProvider;
-    } & ParsedSuspendProviderInstruction<TProgram>)
+      instructionType: FairCreditInstruction.RemoveProviderEndorser;
+    } & ParsedRemoveProviderEndorserInstruction<TProgram>)
   | ({
       instructionType: FairCreditInstruction.TransferHubAuthority;
     } & ParsedTransferHubAuthorityInstruction<TProgram>)
-  | ({
-      instructionType: FairCreditInstruction.UnsuspendProvider;
-    } & ParsedUnsuspendProviderInstruction<TProgram>)
   | ({
       instructionType: FairCreditInstruction.UpdateCourseProgress;
     } & ParsedUpdateCourseProgressInstruction<TProgram>)
@@ -566,10 +477,7 @@ export type ParsedFairCreditInstruction<
     } & ParsedUpdateCourseStatusInstruction<TProgram>)
   | ({
       instructionType: FairCreditInstruction.UpdateHubConfig;
-    } & ParsedUpdateHubConfigInstruction<TProgram>)
-  | ({
-      instructionType: FairCreditInstruction.VerifyCredential;
-    } & ParsedVerifyCredentialInstruction<TProgram>);
+    } & ParsedUpdateHubConfigInstruction<TProgram>);
 
 export function parseFairCreditInstruction<TProgram extends string>(
   instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
@@ -583,13 +491,6 @@ export function parseFairCreditInstruction<TProgram extends string>(
         ...parseAddAcceptedCourseInstruction(instruction),
       };
     }
-    case FairCreditInstruction.AddAcceptedEndorser: {
-      assertIsInstructionWithAccounts(instruction);
-      return {
-        instructionType: FairCreditInstruction.AddAcceptedEndorser,
-        ...parseAddAcceptedEndorserInstruction(instruction),
-      };
-    }
     case FairCreditInstruction.AddAcceptedProvider: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -597,11 +498,32 @@ export function parseFairCreditInstruction<TProgram extends string>(
         ...parseAddAcceptedProviderInstruction(instruction),
       };
     }
+    case FairCreditInstruction.AddProviderEndorser: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.AddProviderEndorser,
+        ...parseAddProviderEndorserInstruction(instruction),
+      };
+    }
     case FairCreditInstruction.ArchiveCourseProgress: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: FairCreditInstruction.ArchiveCourseProgress,
         ...parseArchiveCourseProgressInstruction(instruction),
+      };
+    }
+    case FairCreditInstruction.CloseHub: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.CloseHub,
+        ...parseCloseHubInstruction(instruction),
+      };
+    }
+    case FairCreditInstruction.CloseProvider: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.CloseProvider,
+        ...parseCloseProviderInstruction(instruction),
       };
     }
     case FairCreditInstruction.CompleteCourse: {
@@ -639,13 +561,6 @@ export function parseFairCreditInstruction<TProgram extends string>(
         ...parseEndorseCredentialInstruction(instruction),
       };
     }
-    case FairCreditInstruction.ExpandVerifierCapacity: {
-      assertIsInstructionWithAccounts(instruction);
-      return {
-        instructionType: FairCreditInstruction.ExpandVerifierCapacity,
-        ...parseExpandVerifierCapacityInstruction(instruction),
-      };
-    }
     case FairCreditInstruction.Initialize: {
       return {
         instructionType: FairCreditInstruction.Initialize,
@@ -666,25 +581,11 @@ export function parseFairCreditInstruction<TProgram extends string>(
         ...parseInitializeProviderInstruction(instruction),
       };
     }
-    case FairCreditInstruction.InitializeVerifier: {
-      assertIsInstructionWithAccounts(instruction);
-      return {
-        instructionType: FairCreditInstruction.InitializeVerifier,
-        ...parseInitializeVerifierInstruction(instruction),
-      };
-    }
     case FairCreditInstruction.RemoveAcceptedCourse: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: FairCreditInstruction.RemoveAcceptedCourse,
         ...parseRemoveAcceptedCourseInstruction(instruction),
-      };
-    }
-    case FairCreditInstruction.RemoveAcceptedEndorser: {
-      assertIsInstructionWithAccounts(instruction);
-      return {
-        instructionType: FairCreditInstruction.RemoveAcceptedEndorser,
-        ...parseRemoveAcceptedEndorserInstruction(instruction),
       };
     }
     case FairCreditInstruction.RemoveAcceptedProvider: {
@@ -694,18 +595,11 @@ export function parseFairCreditInstruction<TProgram extends string>(
         ...parseRemoveAcceptedProviderInstruction(instruction),
       };
     }
-    case FairCreditInstruction.SetProviderReputation: {
+    case FairCreditInstruction.RemoveProviderEndorser: {
       assertIsInstructionWithAccounts(instruction);
       return {
-        instructionType: FairCreditInstruction.SetProviderReputation,
-        ...parseSetProviderReputationInstruction(instruction),
-      };
-    }
-    case FairCreditInstruction.SuspendProvider: {
-      assertIsInstructionWithAccounts(instruction);
-      return {
-        instructionType: FairCreditInstruction.SuspendProvider,
-        ...parseSuspendProviderInstruction(instruction),
+        instructionType: FairCreditInstruction.RemoveProviderEndorser,
+        ...parseRemoveProviderEndorserInstruction(instruction),
       };
     }
     case FairCreditInstruction.TransferHubAuthority: {
@@ -713,13 +607,6 @@ export function parseFairCreditInstruction<TProgram extends string>(
       return {
         instructionType: FairCreditInstruction.TransferHubAuthority,
         ...parseTransferHubAuthorityInstruction(instruction),
-      };
-    }
-    case FairCreditInstruction.UnsuspendProvider: {
-      assertIsInstructionWithAccounts(instruction);
-      return {
-        instructionType: FairCreditInstruction.UnsuspendProvider,
-        ...parseUnsuspendProviderInstruction(instruction),
       };
     }
     case FairCreditInstruction.UpdateCourseProgress: {
@@ -741,13 +628,6 @@ export function parseFairCreditInstruction<TProgram extends string>(
       return {
         instructionType: FairCreditInstruction.UpdateHubConfig,
         ...parseUpdateHubConfigInstruction(instruction),
-      };
-    }
-    case FairCreditInstruction.VerifyCredential: {
-      assertIsInstructionWithAccounts(instruction);
-      return {
-        instructionType: FairCreditInstruction.VerifyCredential,
-        ...parseVerifyCredentialInstruction(instruction),
       };
     }
     default:

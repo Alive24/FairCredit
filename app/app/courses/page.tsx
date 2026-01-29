@@ -5,7 +5,7 @@ import { CourseList } from "@/components/courses/course-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFairCredit } from "@/hooks/use-fair-credit";
 import { useEffect, useState } from "react";
-import { FileText, Users, Award, Loader2 } from "lucide-react";
+import { FileText, Users, Loader2 } from "lucide-react";
 import { fetchMaybeHub } from "@/lib/solana/generated/accounts";
 import type { Hub } from "@/lib/solana/generated/accounts";
 import { getUpdateHubConfigInstructionAsync } from "@/lib/solana/generated/instructions/updateHubConfig";
@@ -30,9 +30,7 @@ export default function ProgramsPage() {
           authority: DEFAULT_PLACEHOLDER_SIGNER,
           config: {
             requireProviderApproval: false,
-            requireEndorserApproval: false,
             minReputationScore: 0,
-            allowSelfEndorsement: false,
           },
         });
         const hubAddress = instruction.accounts[0].address;
@@ -62,7 +60,7 @@ export default function ProgramsPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -78,7 +76,9 @@ export default function ProgramsPage() {
                   {hubData?.acceptedCourses?.length || 0}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Curated by Hub</p>
+              <p className="text-xs text-muted-foreground">
+                Hub-accepted; available for credentials
+              </p>
             </CardContent>
           </Card>
 
@@ -100,25 +100,6 @@ export default function ProgramsPage() {
               <p className="text-xs text-muted-foreground">
                 Verified educators
               </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Accepted Endorsers
-              </CardTitle>
-              <Award className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Loader2 className="h-6 w-6 animate-spin" />
-              ) : (
-                <div className="text-2xl font-bold">
-                  {hubData?.acceptedEndorsers?.length || 0}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">Qualified mentors</p>
             </CardContent>
           </Card>
         </div>

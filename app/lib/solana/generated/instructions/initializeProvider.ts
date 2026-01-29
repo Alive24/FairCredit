@@ -58,6 +58,7 @@ export function getInitializeProviderDiscriminatorBytes() {
 export type InitializeProviderInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountProviderAccount extends string | AccountMeta<string> = string,
+  TAccountHub extends string | AccountMeta<string> = string,
   TAccountProviderAuthority extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
@@ -69,6 +70,7 @@ export type InitializeProviderInstruction<
       TAccountProviderAccount extends string
         ? WritableAccount<TAccountProviderAccount>
         : TAccountProviderAccount,
+      TAccountHub extends string ? ReadonlyAccount<TAccountHub> : TAccountHub,
       TAccountProviderAuthority extends string
         ? WritableSignerAccount<TAccountProviderAuthority> &
             AccountSignerMeta<TAccountProviderAuthority>
@@ -134,10 +136,13 @@ export function getInitializeProviderInstructionDataCodec(): Codec<
 
 export type InitializeProviderAsyncInput<
   TAccountProviderAccount extends string = string,
+  TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   providerAccount?: Address<TAccountProviderAccount>;
+  /** Hub that this provider is registered under */
+  hub?: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
   systemProgram?: Address<TAccountSystemProgram>;
   name: InitializeProviderInstructionDataArgs["name"];
@@ -149,12 +154,14 @@ export type InitializeProviderAsyncInput<
 
 export async function getInitializeProviderInstructionAsync<
   TAccountProviderAccount extends string,
+  TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
   input: InitializeProviderAsyncInput<
     TAccountProviderAccount,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >,
@@ -163,6 +170,7 @@ export async function getInitializeProviderInstructionAsync<
   InitializeProviderInstruction<
     TProgramAddress,
     TAccountProviderAccount,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >
@@ -173,6 +181,7 @@ export async function getInitializeProviderInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     providerAccount: { value: input.providerAccount ?? null, isWritable: true },
+    hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
       isWritable: true,
@@ -188,6 +197,12 @@ export async function getInitializeProviderInstructionAsync<
   const args = { ...input };
 
   // Resolve default values.
+  if (!accounts.hub.value) {
+    accounts.hub.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [getBytesEncoder().encode(new Uint8Array([104, 117, 98]))],
+    });
+  }
   if (!accounts.providerAccount.value) {
     accounts.providerAccount.value = await getProgramDerivedAddress({
       programAddress,
@@ -195,6 +210,7 @@ export async function getInitializeProviderInstructionAsync<
         getBytesEncoder().encode(
           new Uint8Array([112, 114, 111, 118, 105, 100, 101, 114]),
         ),
+        getAddressEncoder().encode(expectAddress(accounts.hub.value)),
         getAddressEncoder().encode(
           expectAddress(accounts.providerAuthority.value),
         ),
@@ -210,6 +226,7 @@ export async function getInitializeProviderInstructionAsync<
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.providerAccount),
+      getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
       getAccountMeta(accounts.systemProgram),
     ],
@@ -220,6 +237,7 @@ export async function getInitializeProviderInstructionAsync<
   } as InitializeProviderInstruction<
     TProgramAddress,
     TAccountProviderAccount,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >);
@@ -227,10 +245,13 @@ export async function getInitializeProviderInstructionAsync<
 
 export type InitializeProviderInput<
   TAccountProviderAccount extends string = string,
+  TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   providerAccount: Address<TAccountProviderAccount>;
+  /** Hub that this provider is registered under */
+  hub: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
   systemProgram?: Address<TAccountSystemProgram>;
   name: InitializeProviderInstructionDataArgs["name"];
@@ -242,12 +263,14 @@ export type InitializeProviderInput<
 
 export function getInitializeProviderInstruction<
   TAccountProviderAccount extends string,
+  TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
   input: InitializeProviderInput<
     TAccountProviderAccount,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >,
@@ -255,6 +278,7 @@ export function getInitializeProviderInstruction<
 ): InitializeProviderInstruction<
   TProgramAddress,
   TAccountProviderAccount,
+  TAccountHub,
   TAccountProviderAuthority,
   TAccountSystemProgram
 > {
@@ -264,6 +288,7 @@ export function getInitializeProviderInstruction<
   // Original accounts.
   const originalAccounts = {
     providerAccount: { value: input.providerAccount ?? null, isWritable: true },
+    hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
       isWritable: true,
@@ -288,6 +313,7 @@ export function getInitializeProviderInstruction<
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.providerAccount),
+      getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
       getAccountMeta(accounts.systemProgram),
     ],
@@ -298,6 +324,7 @@ export function getInitializeProviderInstruction<
   } as InitializeProviderInstruction<
     TProgramAddress,
     TAccountProviderAccount,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >);
@@ -310,8 +337,10 @@ export type ParsedInitializeProviderInstruction<
   programAddress: Address<TProgram>;
   accounts: {
     providerAccount: TAccountMetas[0];
-    providerAuthority: TAccountMetas[1];
-    systemProgram: TAccountMetas[2];
+    /** Hub that this provider is registered under */
+    hub: TAccountMetas[1];
+    providerAuthority: TAccountMetas[2];
+    systemProgram: TAccountMetas[3];
   };
   data: InitializeProviderInstructionData;
 };
@@ -324,7 +353,7 @@ export function parseInitializeProviderInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeProviderInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
+  if (instruction.accounts.length < 4) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -338,6 +367,7 @@ export function parseInitializeProviderInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       providerAccount: getNextAccount(),
+      hub: getNextAccount(),
       providerAuthority: getNextAccount(),
       systemProgram: getNextAccount(),
     },

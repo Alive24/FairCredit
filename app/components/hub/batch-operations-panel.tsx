@@ -24,7 +24,8 @@ import {
 import { BatchOperation, useBatchRegistry } from "@/hooks/use-batch-registry";
 import { BatchRegistryManager } from "@/lib/solana/batch-registry";
 import { useToast } from "@/hooks/use-toast";
-import { useSendTransaction, useWallet } from "@solana/react-hooks";
+import { useAppKitTransaction } from "@/hooks/use-appkit-transaction";
+import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 
 interface BatchOperationsPanelProps {
   batchRegistry: ReturnType<typeof useBatchRegistry>;
@@ -36,8 +37,8 @@ export function BatchOperationsPanel({
   onBatchComplete,
 }: BatchOperationsPanelProps) {
   const { toast } = useToast();
-  const wallet = useWallet();
-  const { send, isSending } = useSendTransaction();
+  const { address, isConnected, sendTransaction, isSending } =
+    useAppKitTransaction();
   const [costEstimate, setCostEstimate] = useState<{
     estimatedFee: number;
     computeUnits: number;
@@ -68,11 +69,7 @@ export function BatchOperationsPanel({
   }, [pendingOperations, hasPendingOperations]);
 
   const executeBatch = async () => {
-    if (
-      !hasPendingOperations ||
-      wallet.status !== "connected" ||
-      !wallet.session?.account
-    ) {
+    if (!hasPendingOperations || !isConnected || !address) {
       toast({
         title: "Error",
         description: "Wallet not connected",
@@ -85,10 +82,10 @@ export function BatchOperationsPanel({
     try {
       const instructions = await BatchRegistryManager.createBatchInstructions(
         pendingOperations,
-        wallet.session.account as any,
+        createPlaceholderSigner(address),
       );
 
-      const signature = await send({ instructions });
+      const signature = await sendTransaction(instructions);
 
       toast({
         title: "Batch Complete",
@@ -168,19 +165,13 @@ export function BatchOperationsPanel({
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-white dark:bg-gray-950 rounded-lg">
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">
-              +
-              {summary.adds.providers +
-                summary.adds.courses +
-                summary.adds.endorsers}
+              +{summary.adds.providers + summary.adds.courses}
             </div>
             <div className="text-sm text-muted-foreground">Additions</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-red-600">
-              -
-              {summary.removes.providers +
-                summary.removes.courses +
-                summary.removes.endorsers}
+              -{summary.removes.providers + summary.removes.courses}
             </div>
             <div className="text-sm text-muted-foreground">Removals</div>
           </div>
@@ -274,7 +265,7 @@ export function BatchOperationsPanel({
                 !hasPendingOperations ||
                 isProcessing ||
                 isSending ||
-                wallet.status !== "connected"
+                !isConnected
               }
               className="bg-orange-600 hover:bg-orange-700"
             >

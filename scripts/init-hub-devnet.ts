@@ -67,7 +67,6 @@ async function initHubDevnet() {
       console.log("  Authority:", hub.data.authority);
       console.log("  Accepted Providers:", hub.data.acceptedProviders.length);
       console.log("  Accepted Courses:", hub.data.acceptedCourses.length);
-      console.log("  Accepted Endorsers:", hub.data.acceptedEndorsers.length);
     }
   } catch (error: any) {
     console.error("Error:", error);

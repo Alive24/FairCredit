@@ -30,7 +30,8 @@ const navbar = (
       </div>
     }
     logoLink="/"
-    projectLink="https://github.com/Bohemialive/FairCredit"
+    projectLink="https://github.com/Alive24/FairCredit"
+    align="left"
   >
     <div className="flex items-center gap-6">
       <nav className="hidden items-center gap-6 md:flex">
@@ -100,7 +101,7 @@ export default async function RootLayout({
               navbar={navbar}
               footer={footer}
               pageMap={pageMap}
-              docsRepositoryBase="https://github.com/Bohemialive/FairCredit/tree/main/app/content"
+              docsRepositoryBase="https://github.com/Alive24/FairCredit/tree/main/app/content"
             >
               <ClientLayout>{children}</ClientLayout>
             </Layout>

@@ -24,7 +24,6 @@ pub fn initialize_hub(ctx: Context<InitializeHub>) -> Result<()> {
 
     hub.authority = ctx.accounts.authority.key();
     hub.accepted_providers = Vec::new();
-    hub.accepted_endorsers = Vec::new();
     hub.accepted_courses = Vec::new();
     hub.created_at = clock.unix_timestamp;
     hub.updated_at = clock.unix_timestamp;
@@ -74,9 +73,13 @@ pub struct AddAcceptedProvider<'info> {
     )]
     pub hub: Account<'info, Hub>,
     pub authority: Signer<'info>,
-    /// The provider account to be added
+    /// The provider account to be added (PDA: provider + hub + provider_wallet)
     #[account(
-        seeds = [Provider::SEED_PREFIX.as_bytes(), provider_wallet.key().as_ref()],
+        seeds = [
+            Provider::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider_wallet.key().as_ref(),
+        ],
         bump
     )]
     pub provider: Account<'info, Provider>,
@@ -131,66 +134,6 @@ pub fn remove_accepted_provider(ctx: Context<RemoveAcceptedProvider>) -> Result<
 }
 
 #[derive(Accounts)]
-pub struct AddAcceptedEndorser<'info> {
-    #[account(
-        mut,
-        seeds = [Hub::SEED_PREFIX.as_bytes()],
-        bump,
-        constraint = hub.authority == authority.key() @ HubError::UnauthorizedHubAction
-    )]
-    pub hub: Account<'info, Hub>,
-    pub authority: Signer<'info>,
-    /// CHECK: Endorser wallet being added
-    pub endorser_wallet: AccountInfo<'info>,
-}
-
-pub fn add_accepted_endorser(ctx: Context<AddAcceptedEndorser>) -> Result<()> {
-    let hub = &mut ctx.accounts.hub;
-    let endorser_wallet = ctx.accounts.endorser_wallet.key();
-
-    hub.add_endorser(endorser_wallet)?;
-
-    // Emit endorser accepted event
-    emit!(EndorserAccepted {
-        hub_authority: hub.authority,
-        endorser: endorser_wallet,
-        timestamp: Clock::get()?.unix_timestamp,
-    });
-
-    Ok(())
-}
-
-#[derive(Accounts)]
-pub struct RemoveAcceptedEndorser<'info> {
-    #[account(
-        mut,
-        seeds = [Hub::SEED_PREFIX.as_bytes()],
-        bump,
-        constraint = hub.authority == authority.key() @ HubError::UnauthorizedHubAction
-    )]
-    pub hub: Account<'info, Hub>,
-    pub authority: Signer<'info>,
-    /// CHECK: Endorser wallet being removed
-    pub endorser_wallet: AccountInfo<'info>,
-}
-
-pub fn remove_accepted_endorser(ctx: Context<RemoveAcceptedEndorser>) -> Result<()> {
-    let hub = &mut ctx.accounts.hub;
-    let endorser_wallet = ctx.accounts.endorser_wallet.key();
-
-    hub.remove_endorser(&endorser_wallet)?;
-
-    // Emit endorser removed event
-    emit!(EndorserRemovedFromHub {
-        hub_authority: hub.authority,
-        endorser: endorser_wallet,
-        timestamp: Clock::get()?.unix_timestamp,
-    });
-
-    Ok(())
-}
-
-#[derive(Accounts)]
 pub struct TransferHubAuthority<'info> {
     #[account(
         mut,
@@ -223,7 +166,7 @@ pub fn transfer_hub_authority(ctx: Context<TransferHubAuthority>) -> Result<()> 
 }
 
 #[derive(Accounts)]
-#[instruction(course_id: String)]
+#[instruction(course_id: String, provider_wallet: Pubkey)]
 pub struct AddAcceptedCourse<'info> {
     #[account(
         mut,
@@ -233,15 +176,33 @@ pub struct AddAcceptedCourse<'info> {
     )]
     pub hub: Account<'info, Hub>,
     pub authority: Signer<'info>,
-    /// The course account to be added
+    /// Provider that owns the course (PDA: provider + hub + provider_wallet)
     #[account(
-        seeds = [Course::SEED_PREFIX.as_bytes(), course_id.as_bytes()],
+        seeds = [
+            Provider::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider_wallet.as_ref(),
+        ],
+        bump
+    )]
+    pub provider: Account<'info, Provider>,
+    /// The course account to be added (PDA: course + provider + course_id)
+    #[account(
+        seeds = [
+            Course::SEED_PREFIX.as_bytes(),
+            provider.key().as_ref(),
+            course_id.as_bytes(),
+        ],
         bump
     )]
     pub course: Account<'info, Course>,
 }
 
-pub fn add_accepted_course(ctx: Context<AddAcceptedCourse>, course_id: String) -> Result<()> {
+pub fn add_accepted_course(
+    ctx: Context<AddAcceptedCourse>,
+    course_id: String,
+    _provider_wallet: Pubkey,
+) -> Result<()> {
     let hub = &mut ctx.accounts.hub;
     let course = &ctx.accounts.course;
 
@@ -289,5 +250,23 @@ pub fn remove_accepted_course(ctx: Context<RemoveAcceptedCourse>, course_id: Str
         timestamp: Clock::get()?.unix_timestamp,
     });
 
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct CloseHub<'info> {
+    #[account(
+        mut,
+        close = authority,
+        seeds = [Hub::SEED_PREFIX.as_bytes()],
+        bump,
+        constraint = hub.authority == authority.key() @ HubError::UnauthorizedHubAction
+    )]
+    pub hub: Account<'info, Hub>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+}
+
+pub fn close_hub(_ctx: Context<CloseHub>) -> Result<()> {
     Ok(())
 }

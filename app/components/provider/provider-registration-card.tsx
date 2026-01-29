@@ -24,7 +24,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { TestTransactionButton } from "./test-transaction-button";
-import { useSendTransaction, useWallet } from "@solana/react-hooks";
+import { useAppKitTransaction } from "@/hooks/use-appkit-transaction";
+import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 import { address, type Address } from "@solana/kit";
 import { getInitializeProviderInstructionAsync } from "@/lib/solana/generated/instructions";
 
@@ -38,8 +39,13 @@ export function ProviderRegistrationCard({
   onRegistrationComplete,
 }: ProviderRegistrationCardProps) {
   const { toast } = useToast();
-  const wallet = useWallet();
-  const { send, isSending } = useSendTransaction();
+  const {
+    address: walletAddress,
+    isConnected,
+    walletProvider,
+    sendTransaction,
+    isSending,
+  } = useAppKitTransaction();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"info" | "form" | "submitted">("info");
 
@@ -57,11 +63,7 @@ export function ProviderRegistrationCard({
 
     console.log("Debug - publicKey:", publicKey);
 
-    if (
-      !publicKey ||
-      wallet.status !== "connected" ||
-      !wallet.session?.account
-    ) {
+    if (!publicKey || !isConnected || !walletAddress) {
       toast({
         title: "Error",
         description: "Wallet not connected",
@@ -87,7 +89,7 @@ export function ProviderRegistrationCard({
       const ix = await getInitializeProviderInstructionAsync(
         {
           providerAccount: undefined,
-          providerAuthority: wallet.session.account,
+          providerAuthority: createPlaceholderSigner(walletAddress),
           systemProgram: undefined,
           name: formData.name,
           description: formData.description,
@@ -98,7 +100,7 @@ export function ProviderRegistrationCard({
         {},
       );
 
-      const signature = await send({ instructions: [ix] });
+      const signature = await sendTransaction([ix]);
 
       console.log("Provider initialized successfully:", signature);
 
@@ -305,7 +307,7 @@ export function ProviderRegistrationCard({
           <p className="font-medium mb-1">Your Wallet Address:</p>
           <p className="font-mono text-xs">{publicKey?.toBase58()}</p>
           <p className="text-xs text-muted-foreground mt-2">
-            Debug: Client ready: {!!client ? "Yes" : "No"}
+            Debug: Wallet ready: {!!walletProvider ? "Yes" : "No"}
           </p>
         </div>
         <div className="space-y-3">
@@ -313,22 +315,16 @@ export function ProviderRegistrationCard({
             onClick={() => setStep("form")}
             size="lg"
             className="w-full"
-            disabled={!client || !publicKey || !client?.initializeProvider}
+            disabled={!walletProvider || !publicKey || !isConnected}
           >
             Start Provider Registration
           </Button>
           <p className="text-xs text-muted-foreground">
             Registration creates your provider account on the blockchain
           </p>
-          {(!client || !publicKey) && (
+          {(!walletProvider || !publicKey) && (
             <p className="text-xs text-red-500">
               Please ensure your wallet is connected and try refreshing the page
-            </p>
-          )}
-          {client && publicKey && !client?.initializeProvider && (
-            <p className="text-xs text-red-500">
-              Provider registration requires the full client. Please refresh to
-              reconnect.
             </p>
           )}
           <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">

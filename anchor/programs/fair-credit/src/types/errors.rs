@@ -92,6 +92,8 @@ pub enum CollegeError {
 
 #[error_code]
 pub enum ProviderError {
+    #[msg("Unauthorized provider action")]
+    UnauthorizedProviderAction,
     #[msg("Provider already suspended by this verifier")]
     AlreadySuspended,
     #[msg("Provider not suspended by this verifier")]
@@ -112,14 +114,10 @@ pub enum HubError {
     ProviderAlreadyAccepted,
     #[msg("Provider not in accepted list")]
     ProviderNotAccepted,
-    #[msg("Endorser already accepted")]
-    EndorserAlreadyAccepted,
-    #[msg("Endorser not in accepted list")]
-    EndorserNotAccepted,
     #[msg("Hub list capacity reached")]
     HubListCapacityReached,
     #[msg("Course already accepted")]
     CourseAlreadyAccepted,
     #[msg("Course not in accepted list")]
     CourseNotAccepted,
-} 
+}

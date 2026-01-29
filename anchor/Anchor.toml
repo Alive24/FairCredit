@@ -5,11 +5,12 @@ package_manager = "npm"
 resolution = true
 skip-lint = false
 
+# Program ID must match target/deploy/fair_credit-keypair.json
 [programs.localnet]
-fair_credit = "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk"
+fair_credit = "95asCfd7nbJN5i6REuiuLHj7Wb6DqqAKrhG1tRJ7Dthx"
 
 [programs.devnet]
-fair_credit = "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk"
+fair_credit = "95asCfd7nbJN5i6REuiuLHj7Wb6DqqAKrhG1tRJ7Dthx"
 
 [registry]
 url = "https://api.apr.dev"

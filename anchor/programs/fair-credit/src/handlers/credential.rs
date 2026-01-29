@@ -17,11 +17,17 @@ pub struct CreateCredential<'info> {
     )]
     pub credential: Account<'info, Credential>,
     #[account(
-        seeds = [Provider::SEED_PREFIX.as_bytes(), provider.wallet.as_ref()],
+        seeds = [
+            Provider::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider.wallet.as_ref(),
+        ],
         bump,
         constraint = provider.wallet == provider_authority.key()
     )]
     pub provider: Account<'info, Provider>,
+    #[account(seeds = [Hub::SEED_PREFIX.as_bytes()], bump)]
+    pub hub: Account<'info, Hub>,
     #[account(mut)]
     pub provider_authority: Signer<'info>,
     /// CHECK: Student wallet address

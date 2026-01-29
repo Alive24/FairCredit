@@ -54,6 +54,7 @@ export type ArchiveCourseProgressInstruction<
   TAccountCourseStudent extends string | AccountMeta<string> = string,
   TAccountCourse extends string | AccountMeta<string> = string,
   TAccountProvider extends string | AccountMeta<string> = string,
+  TAccountHub extends string | AccountMeta<string> = string,
   TAccountProviderAuthority extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
@@ -69,6 +70,7 @@ export type ArchiveCourseProgressInstruction<
       TAccountProvider extends string
         ? ReadonlyAccount<TAccountProvider>
         : TAccountProvider,
+      TAccountHub extends string ? ReadonlyAccount<TAccountHub> : TAccountHub,
       TAccountProviderAuthority extends string
         ? WritableSignerAccount<TAccountProviderAuthority> &
             AccountSignerMeta<TAccountProviderAuthority>
@@ -113,11 +115,13 @@ export type ArchiveCourseProgressAsyncInput<
   TAccountCourseStudent extends string = string,
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
+  TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
 > = {
   courseStudent: Address<TAccountCourseStudent>;
   course: Address<TAccountCourse>;
   provider?: Address<TAccountProvider>;
+  hub?: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
 };
 
@@ -125,6 +129,7 @@ export async function getArchiveCourseProgressInstructionAsync<
   TAccountCourseStudent extends string,
   TAccountCourse extends string,
   TAccountProvider extends string,
+  TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
@@ -132,6 +137,7 @@ export async function getArchiveCourseProgressInstructionAsync<
     TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority
   >,
   config?: { programAddress?: TProgramAddress },
@@ -141,6 +147,7 @@ export async function getArchiveCourseProgressInstructionAsync<
     TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority
   >
 > {
@@ -152,6 +159,7 @@ export async function getArchiveCourseProgressInstructionAsync<
     courseStudent: { value: input.courseStudent ?? null, isWritable: true },
     course: { value: input.course ?? null, isWritable: false },
     provider: { value: input.provider ?? null, isWritable: false },
+    hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
       isWritable: true,
@@ -163,6 +171,12 @@ export async function getArchiveCourseProgressInstructionAsync<
   >;
 
   // Resolve default values.
+  if (!accounts.hub.value) {
+    accounts.hub.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [getBytesEncoder().encode(new Uint8Array([104, 117, 98]))],
+    });
+  }
   if (!accounts.provider.value) {
     accounts.provider.value = await getProgramDerivedAddress({
       programAddress,
@@ -170,6 +184,7 @@ export async function getArchiveCourseProgressInstructionAsync<
         getBytesEncoder().encode(
           new Uint8Array([112, 114, 111, 118, 105, 100, 101, 114]),
         ),
+        getAddressEncoder().encode(expectAddress(accounts.hub.value)),
         getAddressEncoder().encode(
           expectAddress(accounts.providerAuthority.value),
         ),
@@ -183,6 +198,7 @@ export async function getArchiveCourseProgressInstructionAsync<
       getAccountMeta(accounts.courseStudent),
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
+      getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
     ],
     data: getArchiveCourseProgressInstructionDataEncoder().encode({}),
@@ -192,6 +208,7 @@ export async function getArchiveCourseProgressInstructionAsync<
     TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority
   >);
 }
@@ -200,11 +217,13 @@ export type ArchiveCourseProgressInput<
   TAccountCourseStudent extends string = string,
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
+  TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
 > = {
   courseStudent: Address<TAccountCourseStudent>;
   course: Address<TAccountCourse>;
   provider: Address<TAccountProvider>;
+  hub: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
 };
 
@@ -212,6 +231,7 @@ export function getArchiveCourseProgressInstruction<
   TAccountCourseStudent extends string,
   TAccountCourse extends string,
   TAccountProvider extends string,
+  TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
@@ -219,6 +239,7 @@ export function getArchiveCourseProgressInstruction<
     TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority
   >,
   config?: { programAddress?: TProgramAddress },
@@ -227,6 +248,7 @@ export function getArchiveCourseProgressInstruction<
   TAccountCourseStudent,
   TAccountCourse,
   TAccountProvider,
+  TAccountHub,
   TAccountProviderAuthority
 > {
   // Program address.
@@ -237,6 +259,7 @@ export function getArchiveCourseProgressInstruction<
     courseStudent: { value: input.courseStudent ?? null, isWritable: true },
     course: { value: input.course ?? null, isWritable: false },
     provider: { value: input.provider ?? null, isWritable: false },
+    hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
       isWritable: true,
@@ -253,6 +276,7 @@ export function getArchiveCourseProgressInstruction<
       getAccountMeta(accounts.courseStudent),
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
+      getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
     ],
     data: getArchiveCourseProgressInstructionDataEncoder().encode({}),
@@ -262,6 +286,7 @@ export function getArchiveCourseProgressInstruction<
     TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority
   >);
 }
@@ -275,7 +300,8 @@ export type ParsedArchiveCourseProgressInstruction<
     courseStudent: TAccountMetas[0];
     course: TAccountMetas[1];
     provider: TAccountMetas[2];
-    providerAuthority: TAccountMetas[3];
+    hub: TAccountMetas[3];
+    providerAuthority: TAccountMetas[4];
   };
   data: ArchiveCourseProgressInstructionData;
 };
@@ -288,7 +314,7 @@ export function parseArchiveCourseProgressInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedArchiveCourseProgressInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 4) {
+  if (instruction.accounts.length < 5) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -304,6 +330,7 @@ export function parseArchiveCourseProgressInstruction<
       courseStudent: getNextAccount(),
       course: getNextAccount(),
       provider: getNextAccount(),
+      hub: getNextAccount(),
       providerAuthority: getNextAccount(),
     },
     data: getArchiveCourseProgressInstructionDataDecoder().decode(

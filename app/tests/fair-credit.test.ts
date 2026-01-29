@@ -20,7 +20,6 @@ import { getCreateCredentialInstructionAsync } from "../lib/solana/generated/ins
 import { getEndorseCredentialInstruction } from "../lib/solana/generated/instructions/endorseCredential";
 import { getInitializeHubInstructionAsync } from "../lib/solana/generated/instructions/initializeHub";
 import { getAddAcceptedProviderInstructionAsync } from "../lib/solana/generated/instructions/addAcceptedProvider";
-import { getAddAcceptedEndorserInstructionAsync } from "../lib/solana/generated/instructions/addAcceptedEndorser";
 import { getUpdateHubConfigInstructionAsync } from "../lib/solana/generated/instructions/updateHubConfig";
 import { getCreateCourseInstructionAsync } from "../lib/solana/generated/instructions/createCourse";
 import { getAddAcceptedCourseInstructionAsync } from "../lib/solana/generated/instructions/addAcceptedCourse";
@@ -202,7 +201,6 @@ describe("FairCredit Program Tests", () => {
       const hubAccount = await fetchHub(rpc, hubPDA);
       expect(hubAccount.data.authority).to.equal(hubAuthority.address);
       expect(hubAccount.data.acceptedProviders).to.be.an("array").that.is.empty;
-      expect(hubAccount.data.acceptedEndorsers).to.be.an("array").that.is.empty;
     });
 
     it("Should add accepted provider to hub", async () => {
@@ -227,36 +225,13 @@ describe("FairCredit Program Tests", () => {
       );
     });
 
-    it("Should add accepted endorser to hub", async () => {
-      const instruction = await getAddAcceptedEndorserInstructionAsync({
-        hub: hubPDA,
-        authority: hubAuthority,
-        endorserWallet: mentorWallet.address,
-      });
-
-      const tx = await sendInstructions(rpcUrl, [instruction], hubAuthority);
-      console.log("Endorser added to hub:", tx);
-
-      // Wait for transaction to confirm
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Verify endorser was added
-      const hubAccount = await fetchHub(rpc, hubPDA);
-      expect(hubAccount.data.acceptedEndorsers).to.have.lengthOf(1);
-      expect(hubAccount.data.acceptedEndorsers[0]).to.equal(
-        mentorWallet.address,
-      );
-    });
-
     it("Should update hub configuration", async () => {
       const instruction = await getUpdateHubConfigInstructionAsync({
         hub: hubPDA,
         authority: hubAuthority,
         config: {
           requireProviderApproval: false,
-          requireEndorserApproval: true,
           minReputationScore: BigInt(80),
-          allowSelfEndorsement: false,
         },
       });
 
@@ -269,7 +244,6 @@ describe("FairCredit Program Tests", () => {
       // Verify config was updated
       const hubAccount = await fetchHub(rpc, hubPDA);
       expect(hubAccount.data.config.requireProviderApproval).to.be.false;
-      expect(hubAccount.data.config.requireEndorserApproval).to.be.true;
       expect(hubAccount.data.config.minReputationScore).to.equal(BigInt(80));
     });
   });
@@ -314,6 +288,7 @@ describe("FairCredit Program Tests", () => {
         authority: hubAuthority,
         course: coursePDA,
         courseId,
+        providerWallet: providerWallet.address,
       });
 
       const tx = await sendInstructions(rpcUrl, [instruction], hubAuthority);
@@ -384,6 +359,7 @@ describe("FairCredit Program Tests", () => {
             authority: hubAuthority,
             course: newCoursePDA,
             courseId: newCourseId,
+            providerWallet: newProviderWallet.address,
           },
         );
 

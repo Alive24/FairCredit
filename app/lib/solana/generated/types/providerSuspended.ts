@@ -20,22 +20,15 @@ import {
   type FixedSizeEncoder,
 } from "@solana/kit";
 
-/** Event emitted when a provider is suspended by a verifier */
-export type ProviderSuspended = {
-  verifier: Address;
-  provider: Address;
-  timestamp: bigint;
-};
+export type ProviderSuspended = { provider: Address; timestamp: bigint };
 
 export type ProviderSuspendedArgs = {
-  verifier: Address;
   provider: Address;
   timestamp: number | bigint;
 };
 
 export function getProviderSuspendedEncoder(): FixedSizeEncoder<ProviderSuspendedArgs> {
   return getStructEncoder([
-    ["verifier", getAddressEncoder()],
     ["provider", getAddressEncoder()],
     ["timestamp", getI64Encoder()],
   ]);
@@ -43,7 +36,6 @@ export function getProviderSuspendedEncoder(): FixedSizeEncoder<ProviderSuspende
 
 export function getProviderSuspendedDecoder(): FixedSizeDecoder<ProviderSuspended> {
   return getStructDecoder([
-    ["verifier", getAddressDecoder()],
     ["provider", getAddressDecoder()],
     ["timestamp", getI64Decoder()],
   ]);

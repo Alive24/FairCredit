@@ -12,7 +12,8 @@
     "dev": "cd app && netlify dev",
     "validator": "solana-test-validator --reset --quiet",
     "gen:client": "npx codama run --all",
-    "build:full": "cd anchor && anchor build && cd .. && npm run gen:client"
+    "build:full": "cd anchor && anchor build && cd .. && npm run gen:client",
+    "deploy": "npx tsx scripts/deploy/index.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",

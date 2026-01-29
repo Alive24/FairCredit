@@ -37,6 +37,7 @@ import { useAppKitAccount } from "@reown/appkit/react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useBatchRegistry } from "@/hooks/use-batch-registry";
 import { canonicalAddress } from "@/lib/utils/canonical-address";
+import { InitializeHubCard } from "@/components/hub/initialize-hub-card";
 import type { Address } from "@solana/kit";
 
 export function HubDashboard() {
@@ -51,18 +52,13 @@ export function HubDashboard() {
   const batchRegistry = useBatchRegistry();
 
   const handleRemoveEntity = (
-    entityType: string,
+    entityType: "provider" | "course",
     entityKey: string,
     entityName?: string,
   ) => {
     if (!isHubAuthority) return;
 
-    batchRegistry.addOperation(
-      "remove",
-      entityType as "provider" | "course" | "endorser",
-      entityKey,
-      entityName,
-    );
+    batchRegistry.addOperation("remove", entityType, entityKey, entityName);
 
     toast({
       title: "Operation Queued",
@@ -71,17 +67,19 @@ export function HubDashboard() {
   };
 
   const handleAddEntityToBatch = (
-    entityType: string,
+    entityType: "provider" | "course",
     entityKey: string,
     entityName?: string,
+    providerWallet?: string,
   ) => {
     if (!isHubAuthority) return;
 
     batchRegistry.addOperation(
       "add",
-      entityType as "provider" | "course" | "endorser",
+      entityType,
       entityKey,
       entityName,
+      providerWallet,
     );
 
     toast({
@@ -103,14 +101,7 @@ export function HubDashboard() {
       value: hubData?.acceptedCourses?.length || 0,
       icon: FileText,
       color: "text-green-600",
-      description: "Available for credentials",
-    },
-    {
-      title: "Accepted Endorsers",
-      value: hubData?.acceptedEndorsers?.length || 0,
-      icon: Award,
-      color: "text-purple-600",
-      description: "Academic supervisors",
+      description: "Hub-accepted; available for credentials",
     },
     {
       title: "System Status",
@@ -134,6 +125,11 @@ export function HubDashboard() {
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
+  }
+
+  /* Hub not created yet: show Initialize Hub (re-init) option */
+  if (!hubData) {
+    return <InitializeHubCard onSuccess={refreshHubData} />;
   }
 
   /* Non–hub authority: only show the info card + prompt that only admin can see the full page */
@@ -296,15 +292,12 @@ export function HubDashboard() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="providers">
                 Providers ({hubData?.acceptedProviders?.length || 0})
               </TabsTrigger>
               <TabsTrigger value="courses">
                 Courses ({hubData?.acceptedCourses?.length || 0})
-              </TabsTrigger>
-              <TabsTrigger value="endorsers">
-                Endorsers ({hubData?.acceptedEndorsers?.length || 0})
               </TabsTrigger>
             </TabsList>
 
@@ -405,55 +398,6 @@ export function HubDashboard() {
                 )}
               </div>
             </TabsContent>
-
-            <TabsContent value="endorsers" className="space-y-4">
-              <div className="space-y-2">
-                {filterData(hubData?.acceptedEndorsers || [], searchTerm).map(
-                  (endorser, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 border rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                          <Award className="h-5 w-5 text-purple-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Endorser #{index + 1}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {endorser.toString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">Verified</Badge>
-                        {isHubAuthority && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              handleRemoveEntity(
-                                "endorser",
-                                endorser.toString(),
-                                `Endorser #${index + 1}`,
-                              )
-                            }
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ),
-                )}
-                {(!hubData?.acceptedEndorsers ||
-                  hubData.acceptedEndorsers.length === 0) && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No accepted endorsers yet
-                  </div>
-                )}
-              </div>
-            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
@@ -515,7 +459,14 @@ export function HubDashboard() {
         open={addEntityOpen}
         onOpenChange={setAddEntityOpen}
         onSuccess={refreshHubData}
-        onAddToBatch={handleAddEntityToBatch}
+        onAddToBatch={(entityType, entityKey, entityName, providerWallet) =>
+          handleAddEntityToBatch(
+            entityType as "provider" | "course",
+            entityKey,
+            entityName,
+            providerWallet,
+          )
+        }
       />
     </div>
   );

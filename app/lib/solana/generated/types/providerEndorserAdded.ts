@@ -20,41 +20,41 @@ import {
   type FixedSizeEncoder,
 } from "@solana/kit";
 
-/** Event emitted when an endorser is accepted by hub */
-export type EndorserAccepted = {
-  hubAuthority: Address;
+/** Event emitted when a provider adds an endorser (provider-managed; no Hub acceptance) */
+export type ProviderEndorserAdded = {
+  provider: Address;
   endorser: Address;
   timestamp: bigint;
 };
 
-export type EndorserAcceptedArgs = {
-  hubAuthority: Address;
+export type ProviderEndorserAddedArgs = {
+  provider: Address;
   endorser: Address;
   timestamp: number | bigint;
 };
 
-export function getEndorserAcceptedEncoder(): FixedSizeEncoder<EndorserAcceptedArgs> {
+export function getProviderEndorserAddedEncoder(): FixedSizeEncoder<ProviderEndorserAddedArgs> {
   return getStructEncoder([
-    ["hubAuthority", getAddressEncoder()],
+    ["provider", getAddressEncoder()],
     ["endorser", getAddressEncoder()],
     ["timestamp", getI64Encoder()],
   ]);
 }
 
-export function getEndorserAcceptedDecoder(): FixedSizeDecoder<EndorserAccepted> {
+export function getProviderEndorserAddedDecoder(): FixedSizeDecoder<ProviderEndorserAdded> {
   return getStructDecoder([
-    ["hubAuthority", getAddressDecoder()],
+    ["provider", getAddressDecoder()],
     ["endorser", getAddressDecoder()],
     ["timestamp", getI64Decoder()],
   ]);
 }
 
-export function getEndorserAcceptedCodec(): FixedSizeCodec<
-  EndorserAcceptedArgs,
-  EndorserAccepted
+export function getProviderEndorserAddedCodec(): FixedSizeCodec<
+  ProviderEndorserAddedArgs,
+  ProviderEndorserAdded
 > {
   return combineCodec(
-    getEndorserAcceptedEncoder(),
-    getEndorserAcceptedDecoder(),
+    getProviderEndorserAddedEncoder(),
+    getProviderEndorserAddedDecoder(),
   );
 }

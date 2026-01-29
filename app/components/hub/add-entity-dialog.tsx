@@ -30,9 +30,10 @@ interface AddEntityDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   onAddToBatch?: (
-    entityType: string,
+    entityType: "provider" | "course",
     entityKey: string,
     entityName?: string,
+    providerWallet?: string,
   ) => void;
 }
 
@@ -46,10 +47,11 @@ export function AddEntityDialog({
   const [loading, setLoading] = useState(false);
 
   // Form state
-  const [entityType, setEntityType] = useState<
-    "provider" | "course" | "endorser"
-  >("provider");
+  const [entityType, setEntityType] = useState<"provider" | "course">(
+    "provider",
+  );
   const [publicKeyInput, setPublicKeyInput] = useState("");
+  const [providerWalletInput, setProviderWalletInput] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [metadata, setMetadata] = useState("");
@@ -64,8 +66,7 @@ export function AddEntityDialog({
   };
 
   const handleAddToBatch = () => {
-    // Validate input based on entity type
-    if (entityType !== "course") {
+    if (entityType === "provider") {
       try {
         address(publicKeyInput);
       } catch (error) {
@@ -89,17 +90,45 @@ export function AddEntityDialog({
       return;
     }
 
+    if (entityType === "course") {
+      const pw = providerWalletInput.trim();
+      if (!pw) {
+        toast({
+          title: "Missing Provider Wallet",
+          description:
+            "Adding a course requires the provider's wallet address.",
+          variant: "destructive",
+        });
+        return;
+      }
+      try {
+        address(pw);
+      } catch (error) {
+        toast({
+          title: "Invalid Provider Wallet",
+          description: "Please enter a valid Solana address for the provider.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     const entityName =
       name.trim() || `${entityType} ${publicKeyInput.slice(0, 8)}...`;
-    onAddToBatch?.(entityType, publicKeyInput, entityName);
+    onAddToBatch?.(
+      entityType,
+      publicKeyInput,
+      entityName,
+      entityType === "course" ? providerWalletInput.trim() : undefined,
+    );
 
-    // Reset form
     resetForm();
     onOpenChange(false);
   };
 
   const resetForm = () => {
     setPublicKeyInput("");
+    setProviderWalletInput("");
     setName("");
     setDescription("");
     setMetadata("");
@@ -111,7 +140,8 @@ export function AddEntityDialog({
         <DialogHeader>
           <DialogTitle>Add New Entity</DialogTitle>
           <DialogDescription>
-            Add a new provider, course, or endorser to the hub
+            Add a new provider or course to the hub (endorsers are managed by
+            each provider)
           </DialogDescription>
         </DialogHeader>
 
@@ -128,7 +158,6 @@ export function AddEntityDialog({
               <SelectContent>
                 <SelectItem value="provider">Provider</SelectItem>
                 <SelectItem value="course">Course</SelectItem>
-                <SelectItem value="endorser">Endorser</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -148,6 +177,18 @@ export function AddEntityDialog({
               }
             />
           </div>
+
+          {entityType === "course" && (
+            <div className="space-y-2">
+              <Label htmlFor="provider-wallet">Provider Wallet</Label>
+              <Input
+                id="provider-wallet"
+                value={providerWalletInput}
+                onChange={(e) => setProviderWalletInput(e.target.value)}
+                placeholder="Provider's Solana wallet address"
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
@@ -192,7 +233,11 @@ export function AddEntityDialog({
             <Button
               variant="secondary"
               onClick={handleAddToBatch}
-              disabled={loading || !publicKeyInput}
+              disabled={
+                loading ||
+                !publicKeyInput ||
+                (entityType === "course" && !providerWalletInput.trim())
+              }
             >
               Add to Batch
             </Button>

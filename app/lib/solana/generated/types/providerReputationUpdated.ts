@@ -32,9 +32,7 @@ import {
   type OptionOrNullable,
 } from "@solana/kit";
 
-/** Event emitted when a verifier updates provider reputation */
 export type ProviderReputationUpdated = {
-  verifier: Address;
   provider: Address;
   reputationScore: bigint;
   note: Option<string>;
@@ -42,7 +40,6 @@ export type ProviderReputationUpdated = {
 };
 
 export type ProviderReputationUpdatedArgs = {
-  verifier: Address;
   provider: Address;
   reputationScore: number | bigint;
   note: OptionOrNullable<string>;
@@ -51,7 +48,6 @@ export type ProviderReputationUpdatedArgs = {
 
 export function getProviderReputationUpdatedEncoder(): Encoder<ProviderReputationUpdatedArgs> {
   return getStructEncoder([
-    ["verifier", getAddressEncoder()],
     ["provider", getAddressEncoder()],
     ["reputationScore", getU64Encoder()],
     [
@@ -64,7 +60,6 @@ export function getProviderReputationUpdatedEncoder(): Encoder<ProviderReputatio
 
 export function getProviderReputationUpdatedDecoder(): Decoder<ProviderReputationUpdated> {
   return getStructDecoder([
-    ["verifier", getAddressDecoder()],
     ["provider", getAddressDecoder()],
     ["reputationScore", getU64Decoder()],
     [

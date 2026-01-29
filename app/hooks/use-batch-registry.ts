@@ -1,25 +1,30 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { useState } from "react";
 
 export type BatchOperation = {
-  id: string
-  type: "add" | "remove"
-  entityType: "provider" | "course" | "endorser"
-  entityKey: string
-  entityName?: string
-  timestamp: number
-}
+  id: string;
+  type: "add" | "remove";
+  entityType: "provider" | "course";
+  entityKey: string;
+  entityName?: string;
+  /** Required when type is "add" and entityType is "course" (AddAcceptedCourse) */
+  providerWallet?: string;
+  timestamp: number;
+};
 
 export function useBatchRegistry() {
-  const [pendingOperations, setPendingOperations] = useState<BatchOperation[]>([])
-  const [isProcessing, setIsProcessing] = useState(false)
+  const [pendingOperations, setPendingOperations] = useState<BatchOperation[]>(
+    [],
+  );
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const addOperation = (
     type: "add" | "remove",
-    entityType: "provider" | "course" | "endorser",
+    entityType: "provider" | "course",
     entityKey: string,
-    entityName?: string
+    entityName?: string,
+    providerWallet?: string,
   ) => {
     const operation: BatchOperation = {
       id: `${type}-${entityType}-${entityKey}-${Date.now()}`,
@@ -27,42 +32,51 @@ export function useBatchRegistry() {
       entityType,
       entityKey,
       entityName,
-      timestamp: Date.now()
-    }
+      ...(type === "add" && entityType === "course" && providerWallet != null
+        ? { providerWallet }
+        : {}),
+      timestamp: Date.now(),
+    };
 
-    setPendingOperations(prev => {
+    setPendingOperations((prev) => {
       // Remove any conflicting operations (e.g., add then remove same entity)
-      const filtered = prev.filter(op => 
-        !(op.entityType === entityType && op.entityKey === entityKey)
-      )
-      return [...filtered, operation]
-    })
-  }
+      const filtered = prev.filter(
+        (op) => !(op.entityType === entityType && op.entityKey === entityKey),
+      );
+      return [...filtered, operation];
+    });
+  };
 
   const removeOperation = (operationId: string) => {
-    setPendingOperations(prev => prev.filter(op => op.id !== operationId))
-  }
+    setPendingOperations((prev) => prev.filter((op) => op.id !== operationId));
+  };
 
   const clearOperations = () => {
-    setPendingOperations([])
-  }
+    setPendingOperations([]);
+  };
 
   const getOperationSummary = () => {
     const summary = {
       adds: {
-        providers: pendingOperations.filter(op => op.type === "add" && op.entityType === "provider").length,
-        courses: pendingOperations.filter(op => op.type === "add" && op.entityType === "course").length,
-        endorsers: pendingOperations.filter(op => op.type === "add" && op.entityType === "endorser").length,
+        providers: pendingOperations.filter(
+          (op) => op.type === "add" && op.entityType === "provider",
+        ).length,
+        courses: pendingOperations.filter(
+          (op) => op.type === "add" && op.entityType === "course",
+        ).length,
       },
       removes: {
-        providers: pendingOperations.filter(op => op.type === "remove" && op.entityType === "provider").length,
-        courses: pendingOperations.filter(op => op.type === "remove" && op.entityType === "course").length,
-        endorsers: pendingOperations.filter(op => op.type === "remove" && op.entityType === "endorser").length,
+        providers: pendingOperations.filter(
+          (op) => op.type === "remove" && op.entityType === "provider",
+        ).length,
+        courses: pendingOperations.filter(
+          (op) => op.type === "remove" && op.entityType === "course",
+        ).length,
       },
-      total: pendingOperations.length
-    }
-    return summary
-  }
+      total: pendingOperations.length,
+    };
+    return summary;
+  };
 
   return {
     pendingOperations,
@@ -72,6 +86,6 @@ export function useBatchRegistry() {
     removeOperation,
     clearOperations,
     getOperationSummary,
-    hasPendingOperations: pendingOperations.length > 0
-  }
+    hasPendingOperations: pendingOperations.length > 0,
+  };
 }

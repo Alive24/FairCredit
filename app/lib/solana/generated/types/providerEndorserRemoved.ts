@@ -20,41 +20,41 @@ import {
   type FixedSizeEncoder,
 } from "@solana/kit";
 
-/** Event emitted when an endorser is removed from hub */
-export type EndorserRemovedFromHub = {
-  hubAuthority: Address;
+/** Event emitted when a provider removes an endorser */
+export type ProviderEndorserRemoved = {
+  provider: Address;
   endorser: Address;
   timestamp: bigint;
 };
 
-export type EndorserRemovedFromHubArgs = {
-  hubAuthority: Address;
+export type ProviderEndorserRemovedArgs = {
+  provider: Address;
   endorser: Address;
   timestamp: number | bigint;
 };
 
-export function getEndorserRemovedFromHubEncoder(): FixedSizeEncoder<EndorserRemovedFromHubArgs> {
+export function getProviderEndorserRemovedEncoder(): FixedSizeEncoder<ProviderEndorserRemovedArgs> {
   return getStructEncoder([
-    ["hubAuthority", getAddressEncoder()],
+    ["provider", getAddressEncoder()],
     ["endorser", getAddressEncoder()],
     ["timestamp", getI64Encoder()],
   ]);
 }
 
-export function getEndorserRemovedFromHubDecoder(): FixedSizeDecoder<EndorserRemovedFromHub> {
+export function getProviderEndorserRemovedDecoder(): FixedSizeDecoder<ProviderEndorserRemoved> {
   return getStructDecoder([
-    ["hubAuthority", getAddressDecoder()],
+    ["provider", getAddressDecoder()],
     ["endorser", getAddressDecoder()],
     ["timestamp", getI64Decoder()],
   ]);
 }
 
-export function getEndorserRemovedFromHubCodec(): FixedSizeCodec<
-  EndorserRemovedFromHubArgs,
-  EndorserRemovedFromHub
+export function getProviderEndorserRemovedCodec(): FixedSizeCodec<
+  ProviderEndorserRemovedArgs,
+  ProviderEndorserRemoved
 > {
   return combineCodec(
-    getEndorserRemovedFromHubEncoder(),
-    getEndorserRemovedFromHubDecoder(),
+    getProviderEndorserRemovedEncoder(),
+    getProviderEndorserRemovedDecoder(),
   );
 }

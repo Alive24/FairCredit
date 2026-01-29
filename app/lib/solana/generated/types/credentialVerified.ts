@@ -8,15 +8,12 @@
 
 import {
   combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
   getI64Decoder,
   getI64Encoder,
   getStructDecoder,
   getStructEncoder,
   getU64Decoder,
   getU64Encoder,
-  type Address,
   type FixedSizeCodec,
   type FixedSizeDecoder,
   type FixedSizeEncoder,
@@ -25,14 +22,12 @@ import {
 /** Event emitted when a credential is verified */
 export type CredentialVerified = {
   credentialId: bigint;
-  verifier: Address;
   verificationCount: bigint;
   timestamp: bigint;
 };
 
 export type CredentialVerifiedArgs = {
   credentialId: number | bigint;
-  verifier: Address;
   verificationCount: number | bigint;
   timestamp: number | bigint;
 };
@@ -40,7 +35,6 @@ export type CredentialVerifiedArgs = {
 export function getCredentialVerifiedEncoder(): FixedSizeEncoder<CredentialVerifiedArgs> {
   return getStructEncoder([
     ["credentialId", getU64Encoder()],
-    ["verifier", getAddressEncoder()],
     ["verificationCount", getU64Encoder()],
     ["timestamp", getI64Encoder()],
   ]);
@@ -49,7 +43,6 @@ export function getCredentialVerifiedEncoder(): FixedSizeEncoder<CredentialVerif
 export function getCredentialVerifiedDecoder(): FixedSizeDecoder<CredentialVerified> {
   return getStructDecoder([
     ["credentialId", getU64Decoder()],
-    ["verifier", getAddressDecoder()],
     ["verificationCount", getU64Decoder()],
     ["timestamp", getI64Decoder()],
   ]);

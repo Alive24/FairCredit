@@ -65,9 +65,7 @@ export type Hub = {
   authority: Address;
   /** List of accepted provider wallets */
   acceptedProviders: Array<Address>;
-  /** List of accepted endorser/mentor wallets */
-  acceptedEndorsers: Array<Address>;
-  /** List of accepted course IDs (courses from accepted providers) */
+  /** List of accepted course IDs (courses from accepted providers; must be accepted to be usable) */
   acceptedCourses: Array<string>;
   /** Hub creation timestamp */
   createdAt: bigint;
@@ -82,9 +80,7 @@ export type HubArgs = {
   authority: Address;
   /** List of accepted provider wallets */
   acceptedProviders: Array<Address>;
-  /** List of accepted endorser/mentor wallets */
-  acceptedEndorsers: Array<Address>;
-  /** List of accepted course IDs (courses from accepted providers) */
+  /** List of accepted course IDs (courses from accepted providers; must be accepted to be usable) */
   acceptedCourses: Array<string>;
   /** Hub creation timestamp */
   createdAt: number | bigint;
@@ -101,7 +97,6 @@ export function getHubEncoder(): Encoder<HubArgs> {
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["authority", getAddressEncoder()],
       ["acceptedProviders", getArrayEncoder(getAddressEncoder())],
-      ["acceptedEndorsers", getArrayEncoder(getAddressEncoder())],
       [
         "acceptedCourses",
         getArrayEncoder(
@@ -122,7 +117,6 @@ export function getHubDecoder(): Decoder<Hub> {
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
     ["authority", getAddressDecoder()],
     ["acceptedProviders", getArrayDecoder(getAddressDecoder())],
-    ["acceptedEndorsers", getArrayDecoder(getAddressDecoder())],
     [
       "acceptedCourses",
       getArrayDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),

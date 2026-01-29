@@ -67,6 +67,7 @@ export type CreateWeightInstruction<
   TAccountWeight extends string | AccountMeta<string> = string,
   TAccountCourse extends string | AccountMeta<string> = string,
   TAccountProvider extends string | AccountMeta<string> = string,
+  TAccountHub extends string | AccountMeta<string> = string,
   TAccountProviderAuthority extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
@@ -84,6 +85,7 @@ export type CreateWeightInstruction<
       TAccountProvider extends string
         ? ReadonlyAccount<TAccountProvider>
         : TAccountProvider,
+      TAccountHub extends string ? ReadonlyAccount<TAccountHub> : TAccountHub,
       TAccountProviderAuthority extends string
         ? WritableSignerAccount<TAccountProviderAuthority> &
             AccountSignerMeta<TAccountProviderAuthority>
@@ -155,12 +157,14 @@ export type CreateWeightAsyncInput<
   TAccountWeight extends string = string,
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
+  TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   weight?: Address<TAccountWeight>;
   course: Address<TAccountCourse>;
   provider?: Address<TAccountProvider>;
+  hub?: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
   systemProgram?: Address<TAccountSystemProgram>;
   weightId: CreateWeightInstructionDataArgs["weightId"];
@@ -173,6 +177,7 @@ export async function getCreateWeightInstructionAsync<
   TAccountWeight extends string,
   TAccountCourse extends string,
   TAccountProvider extends string,
+  TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
@@ -181,6 +186,7 @@ export async function getCreateWeightInstructionAsync<
     TAccountWeight,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >,
@@ -191,6 +197,7 @@ export async function getCreateWeightInstructionAsync<
     TAccountWeight,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >
@@ -203,6 +210,7 @@ export async function getCreateWeightInstructionAsync<
     weight: { value: input.weight ?? null, isWritable: true },
     course: { value: input.course ?? null, isWritable: true },
     provider: { value: input.provider ?? null, isWritable: false },
+    hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
       isWritable: true,
@@ -229,6 +237,12 @@ export async function getCreateWeightInstructionAsync<
       ],
     });
   }
+  if (!accounts.hub.value) {
+    accounts.hub.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [getBytesEncoder().encode(new Uint8Array([104, 117, 98]))],
+    });
+  }
   if (!accounts.provider.value) {
     accounts.provider.value = await getProgramDerivedAddress({
       programAddress,
@@ -236,6 +250,7 @@ export async function getCreateWeightInstructionAsync<
         getBytesEncoder().encode(
           new Uint8Array([112, 114, 111, 118, 105, 100, 101, 114]),
         ),
+        getAddressEncoder().encode(expectAddress(accounts.hub.value)),
         getAddressEncoder().encode(
           expectAddress(accounts.providerAuthority.value),
         ),
@@ -253,6 +268,7 @@ export async function getCreateWeightInstructionAsync<
       getAccountMeta(accounts.weight),
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
+      getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
       getAccountMeta(accounts.systemProgram),
     ],
@@ -265,6 +281,7 @@ export async function getCreateWeightInstructionAsync<
     TAccountWeight,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >);
@@ -274,12 +291,14 @@ export type CreateWeightInput<
   TAccountWeight extends string = string,
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
+  TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   weight: Address<TAccountWeight>;
   course: Address<TAccountCourse>;
   provider: Address<TAccountProvider>;
+  hub: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
   systemProgram?: Address<TAccountSystemProgram>;
   weightId: CreateWeightInstructionDataArgs["weightId"];
@@ -292,6 +311,7 @@ export function getCreateWeightInstruction<
   TAccountWeight extends string,
   TAccountCourse extends string,
   TAccountProvider extends string,
+  TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
@@ -300,6 +320,7 @@ export function getCreateWeightInstruction<
     TAccountWeight,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >,
@@ -309,6 +330,7 @@ export function getCreateWeightInstruction<
   TAccountWeight,
   TAccountCourse,
   TAccountProvider,
+  TAccountHub,
   TAccountProviderAuthority,
   TAccountSystemProgram
 > {
@@ -320,6 +342,7 @@ export function getCreateWeightInstruction<
     weight: { value: input.weight ?? null, isWritable: true },
     course: { value: input.course ?? null, isWritable: true },
     provider: { value: input.provider ?? null, isWritable: false },
+    hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
       isWritable: true,
@@ -346,6 +369,7 @@ export function getCreateWeightInstruction<
       getAccountMeta(accounts.weight),
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
+      getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
       getAccountMeta(accounts.systemProgram),
     ],
@@ -358,6 +382,7 @@ export function getCreateWeightInstruction<
     TAccountWeight,
     TAccountCourse,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountSystemProgram
   >);
@@ -372,8 +397,9 @@ export type ParsedCreateWeightInstruction<
     weight: TAccountMetas[0];
     course: TAccountMetas[1];
     provider: TAccountMetas[2];
-    providerAuthority: TAccountMetas[3];
-    systemProgram: TAccountMetas[4];
+    hub: TAccountMetas[3];
+    providerAuthority: TAccountMetas[4];
+    systemProgram: TAccountMetas[5];
   };
   data: CreateWeightInstructionData;
 };
@@ -386,7 +412,7 @@ export function parseCreateWeightInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateWeightInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 5) {
+  if (instruction.accounts.length < 6) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -402,6 +428,7 @@ export function parseCreateWeightInstruction<
       weight: getNextAccount(),
       course: getNextAccount(),
       provider: getNextAccount(),
+      hub: getNextAccount(),
       providerAuthority: getNextAccount(),
       systemProgram: getNextAccount(),
     },

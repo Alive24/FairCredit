@@ -5,8 +5,6 @@ import {
   getRemoveAcceptedProviderInstructionAsync,
   getAddAcceptedCourseInstructionAsync,
   getRemoveAcceptedCourseInstructionAsync,
-  getAddAcceptedEndorserInstructionAsync,
-  getRemoveAcceptedEndorserInstructionAsync,
 } from "./generated/instructions";
 import { BatchOperation } from "@/hooks/use-batch-registry";
 
@@ -18,17 +16,19 @@ export class BatchRegistryManager {
     operation: BatchOperation,
     authority: TransactionSigner,
   ): Promise<Instruction> {
-    const { type, entityType, entityKey } = operation;
+    const { type, entityType, entityKey, providerWallet } = operation;
 
     switch (entityType) {
       case "provider":
         return this.createProviderInstruction(type, entityKey, authority);
 
       case "course":
-        return this.createCourseInstruction(type, entityKey, authority);
-
-      case "endorser":
-        return this.createEndorserInstruction(type, entityKey, authority);
+        return this.createCourseInstruction(
+          type,
+          entityKey,
+          authority,
+          providerWallet,
+        );
 
       default:
         throw new Error(`Unknown entity type: ${entityType}`);
@@ -64,44 +64,27 @@ export class BatchRegistryManager {
     type: "add" | "remove",
     courseId: string,
     authority: TransactionSigner,
+    providerWallet?: string,
   ): Promise<Instruction> {
     if (type === "add") {
-      // Codama will automatically derive the hub and course PDAs
+      if (!providerWallet) {
+        throw new Error(
+          "Add course requires providerWallet (provider's wallet address).",
+        );
+      }
       return getAddAcceptedCourseInstructionAsync({
         hub: undefined,
         authority,
         course: undefined,
         courseId,
+        providerWallet: address(providerWallet),
       });
     }
 
-    // Codama will automatically derive the hub PDA
     return getRemoveAcceptedCourseInstructionAsync({
       hub: undefined,
       authority,
       courseId,
-    });
-  }
-
-  private static async createEndorserInstruction(
-    type: "add" | "remove",
-    endorserKey: string,
-    authority: TransactionSigner,
-  ): Promise<Instruction> {
-    const endorserWallet = address(endorserKey);
-
-    if (type === "add") {
-      return getAddAcceptedEndorserInstructionAsync({
-        hub: undefined,
-        authority,
-        endorserWallet,
-      });
-    }
-
-    return getRemoveAcceptedEndorserInstructionAsync({
-      hub: undefined,
-      authority,
-      endorserWallet,
     });
   }
 

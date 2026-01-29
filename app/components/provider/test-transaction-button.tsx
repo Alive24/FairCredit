@@ -1,23 +1,26 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useAppKitAccount } from "@reown/appkit/react";
-import { useFairCredit } from "@/hooks/use-fair-credit";
+import { useAppKitTransaction } from "@/hooks/use-appkit-transaction";
+import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { address } from "@solana/kit";
-import { useSendTransaction, useWallet } from "@solana/react-hooks";
 import { getTransferSolInstruction } from "@solana-program/system";
 import { lamports } from "@solana/kit";
 
 export function TestTransactionButton() {
-  const wallet = useWallet();
-  const { send, isSending } = useSendTransaction();
+  const {
+    address: walletAddress,
+    isConnected,
+    sendTransaction,
+    isSending,
+  } = useAppKitTransaction();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
 
   const sendTestTransaction = async () => {
-    if (wallet.status !== "connected" || !wallet.session?.account) {
+    if (!isConnected || !walletAddress) {
       setStatus("Wallet not connected");
       return;
     }
@@ -27,13 +30,13 @@ export function TestTransactionButton() {
 
     try {
       const transferInstruction = getTransferSolInstruction({
-        source: wallet.session.account,
-        destination: wallet.session.account.address,
+        source: createPlaceholderSigner(walletAddress),
+        destination: address(walletAddress),
         amount: lamports(BigInt(1)),
       });
 
       setStatus("Sending transaction...");
-      const signature = await send({ instructions: [transferInstruction] });
+      const signature = await sendTransaction([transferInstruction]);
 
       setStatus(`Success! Signature: ${signature.slice(0, 8)}...`);
     } catch (error) {
@@ -50,7 +53,7 @@ export function TestTransactionButton() {
     <div className="space-y-2">
       <Button
         onClick={sendTestTransaction}
-        disabled={wallet.status !== "connected" || loading || isSending}
+        disabled={!isConnected || loading || isSending}
         className="w-full"
       >
         {(loading || isSending) && (

@@ -10,6 +10,7 @@ import {
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
+  getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getProgramDerivedAddress,
@@ -32,33 +33,41 @@ import {
   type WritableAccount,
 } from "@solana/kit";
 import { FAIR_CREDIT_PROGRAM_ADDRESS } from "../programs";
-import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
+import {
+  expectAddress,
+  getAccountMetaFactory,
+  type ResolvedAccount,
+} from "../shared";
 
-export const ADD_ACCEPTED_ENDORSER_DISCRIMINATOR = new Uint8Array([
-  0, 23, 132, 187, 42, 28, 234, 190,
+export const REMOVE_PROVIDER_ENDORSER_DISCRIMINATOR = new Uint8Array([
+  239, 116, 68, 254, 232, 180, 205, 128,
 ]);
 
-export function getAddAcceptedEndorserDiscriminatorBytes() {
+export function getRemoveProviderEndorserDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    ADD_ACCEPTED_ENDORSER_DISCRIMINATOR,
+    REMOVE_PROVIDER_ENDORSER_DISCRIMINATOR,
   );
 }
 
-export type AddAcceptedEndorserInstruction<
+export type RemoveProviderEndorserInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
+  TAccountProviderAccount extends string | AccountMeta<string> = string,
   TAccountHub extends string | AccountMeta<string> = string,
-  TAccountAuthority extends string | AccountMeta<string> = string,
+  TAccountProviderAuthority extends string | AccountMeta<string> = string,
   TAccountEndorserWallet extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
-      TAccountHub extends string ? WritableAccount<TAccountHub> : TAccountHub,
-      TAccountAuthority extends string
-        ? ReadonlySignerAccount<TAccountAuthority> &
-            AccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority,
+      TAccountProviderAccount extends string
+        ? WritableAccount<TAccountProviderAccount>
+        : TAccountProviderAccount,
+      TAccountHub extends string ? ReadonlyAccount<TAccountHub> : TAccountHub,
+      TAccountProviderAuthority extends string
+        ? ReadonlySignerAccount<TAccountProviderAuthority> &
+            AccountSignerMeta<TAccountProviderAuthority>
+        : TAccountProviderAuthority,
       TAccountEndorserWallet extends string
         ? ReadonlyAccount<TAccountEndorserWallet>
         : TAccountEndorserWallet,
@@ -66,65 +75,70 @@ export type AddAcceptedEndorserInstruction<
     ]
   >;
 
-export type AddAcceptedEndorserInstructionData = {
+export type RemoveProviderEndorserInstructionData = {
   discriminator: ReadonlyUint8Array;
 };
 
-export type AddAcceptedEndorserInstructionDataArgs = {};
+export type RemoveProviderEndorserInstructionDataArgs = {};
 
-export function getAddAcceptedEndorserInstructionDataEncoder(): FixedSizeEncoder<AddAcceptedEndorserInstructionDataArgs> {
+export function getRemoveProviderEndorserInstructionDataEncoder(): FixedSizeEncoder<RemoveProviderEndorserInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
     (value) => ({
       ...value,
-      discriminator: ADD_ACCEPTED_ENDORSER_DISCRIMINATOR,
+      discriminator: REMOVE_PROVIDER_ENDORSER_DISCRIMINATOR,
     }),
   );
 }
 
-export function getAddAcceptedEndorserInstructionDataDecoder(): FixedSizeDecoder<AddAcceptedEndorserInstructionData> {
+export function getRemoveProviderEndorserInstructionDataDecoder(): FixedSizeDecoder<RemoveProviderEndorserInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
   ]);
 }
 
-export function getAddAcceptedEndorserInstructionDataCodec(): FixedSizeCodec<
-  AddAcceptedEndorserInstructionDataArgs,
-  AddAcceptedEndorserInstructionData
+export function getRemoveProviderEndorserInstructionDataCodec(): FixedSizeCodec<
+  RemoveProviderEndorserInstructionDataArgs,
+  RemoveProviderEndorserInstructionData
 > {
   return combineCodec(
-    getAddAcceptedEndorserInstructionDataEncoder(),
-    getAddAcceptedEndorserInstructionDataDecoder(),
+    getRemoveProviderEndorserInstructionDataEncoder(),
+    getRemoveProviderEndorserInstructionDataDecoder(),
   );
 }
 
-export type AddAcceptedEndorserAsyncInput<
+export type RemoveProviderEndorserAsyncInput<
+  TAccountProviderAccount extends string = string,
   TAccountHub extends string = string,
-  TAccountAuthority extends string = string,
+  TAccountProviderAuthority extends string = string,
   TAccountEndorserWallet extends string = string,
 > = {
+  providerAccount?: Address<TAccountProviderAccount>;
   hub?: Address<TAccountHub>;
-  authority: TransactionSigner<TAccountAuthority>;
+  providerAuthority: TransactionSigner<TAccountProviderAuthority>;
   endorserWallet: Address<TAccountEndorserWallet>;
 };
 
-export async function getAddAcceptedEndorserInstructionAsync<
+export async function getRemoveProviderEndorserInstructionAsync<
+  TAccountProviderAccount extends string,
   TAccountHub extends string,
-  TAccountAuthority extends string,
+  TAccountProviderAuthority extends string,
   TAccountEndorserWallet extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: AddAcceptedEndorserAsyncInput<
+  input: RemoveProviderEndorserAsyncInput<
+    TAccountProviderAccount,
     TAccountHub,
-    TAccountAuthority,
+    TAccountProviderAuthority,
     TAccountEndorserWallet
   >,
   config?: { programAddress?: TProgramAddress },
 ): Promise<
-  AddAcceptedEndorserInstruction<
+  RemoveProviderEndorserInstruction<
     TProgramAddress,
+    TAccountProviderAccount,
     TAccountHub,
-    TAccountAuthority,
+    TAccountProviderAuthority,
     TAccountEndorserWallet
   >
 > {
@@ -133,8 +147,12 @@ export async function getAddAcceptedEndorserInstructionAsync<
 
   // Original accounts.
   const originalAccounts = {
-    hub: { value: input.hub ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: false },
+    providerAccount: { value: input.providerAccount ?? null, isWritable: true },
+    hub: { value: input.hub ?? null, isWritable: false },
+    providerAuthority: {
+      value: input.providerAuthority ?? null,
+      isWritable: false,
+    },
     endorserWallet: { value: input.endorserWallet ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -149,50 +167,71 @@ export async function getAddAcceptedEndorserInstructionAsync<
       seeds: [getBytesEncoder().encode(new Uint8Array([104, 117, 98]))],
     });
   }
+  if (!accounts.providerAccount.value) {
+    accounts.providerAccount.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [
+        getBytesEncoder().encode(
+          new Uint8Array([112, 114, 111, 118, 105, 100, 101, 114]),
+        ),
+        getAddressEncoder().encode(expectAddress(accounts.hub.value)),
+        getAddressEncoder().encode(
+          expectAddress(accounts.providerAuthority.value),
+        ),
+      ],
+    });
+  }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
+      getAccountMeta(accounts.providerAccount),
       getAccountMeta(accounts.hub),
-      getAccountMeta(accounts.authority),
+      getAccountMeta(accounts.providerAuthority),
       getAccountMeta(accounts.endorserWallet),
     ],
-    data: getAddAcceptedEndorserInstructionDataEncoder().encode({}),
+    data: getRemoveProviderEndorserInstructionDataEncoder().encode({}),
     programAddress,
-  } as AddAcceptedEndorserInstruction<
+  } as RemoveProviderEndorserInstruction<
     TProgramAddress,
+    TAccountProviderAccount,
     TAccountHub,
-    TAccountAuthority,
+    TAccountProviderAuthority,
     TAccountEndorserWallet
   >);
 }
 
-export type AddAcceptedEndorserInput<
+export type RemoveProviderEndorserInput<
+  TAccountProviderAccount extends string = string,
   TAccountHub extends string = string,
-  TAccountAuthority extends string = string,
+  TAccountProviderAuthority extends string = string,
   TAccountEndorserWallet extends string = string,
 > = {
+  providerAccount: Address<TAccountProviderAccount>;
   hub: Address<TAccountHub>;
-  authority: TransactionSigner<TAccountAuthority>;
+  providerAuthority: TransactionSigner<TAccountProviderAuthority>;
   endorserWallet: Address<TAccountEndorserWallet>;
 };
 
-export function getAddAcceptedEndorserInstruction<
+export function getRemoveProviderEndorserInstruction<
+  TAccountProviderAccount extends string,
   TAccountHub extends string,
-  TAccountAuthority extends string,
+  TAccountProviderAuthority extends string,
   TAccountEndorserWallet extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: AddAcceptedEndorserInput<
+  input: RemoveProviderEndorserInput<
+    TAccountProviderAccount,
     TAccountHub,
-    TAccountAuthority,
+    TAccountProviderAuthority,
     TAccountEndorserWallet
   >,
   config?: { programAddress?: TProgramAddress },
-): AddAcceptedEndorserInstruction<
+): RemoveProviderEndorserInstruction<
   TProgramAddress,
+  TAccountProviderAccount,
   TAccountHub,
-  TAccountAuthority,
+  TAccountProviderAuthority,
   TAccountEndorserWallet
 > {
   // Program address.
@@ -200,8 +239,12 @@ export function getAddAcceptedEndorserInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    hub: { value: input.hub ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: false },
+    providerAccount: { value: input.providerAccount ?? null, isWritable: true },
+    hub: { value: input.hub ?? null, isWritable: false },
+    providerAuthority: {
+      value: input.providerAuthority ?? null,
+      isWritable: false,
+    },
     endorserWallet: { value: input.endorserWallet ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -212,42 +255,45 @@ export function getAddAcceptedEndorserInstruction<
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
+      getAccountMeta(accounts.providerAccount),
       getAccountMeta(accounts.hub),
-      getAccountMeta(accounts.authority),
+      getAccountMeta(accounts.providerAuthority),
       getAccountMeta(accounts.endorserWallet),
     ],
-    data: getAddAcceptedEndorserInstructionDataEncoder().encode({}),
+    data: getRemoveProviderEndorserInstructionDataEncoder().encode({}),
     programAddress,
-  } as AddAcceptedEndorserInstruction<
+  } as RemoveProviderEndorserInstruction<
     TProgramAddress,
+    TAccountProviderAccount,
     TAccountHub,
-    TAccountAuthority,
+    TAccountProviderAuthority,
     TAccountEndorserWallet
   >);
 }
 
-export type ParsedAddAcceptedEndorserInstruction<
+export type ParsedRemoveProviderEndorserInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    hub: TAccountMetas[0];
-    authority: TAccountMetas[1];
-    endorserWallet: TAccountMetas[2];
+    providerAccount: TAccountMetas[0];
+    hub: TAccountMetas[1];
+    providerAuthority: TAccountMetas[2];
+    endorserWallet: TAccountMetas[3];
   };
-  data: AddAcceptedEndorserInstructionData;
+  data: RemoveProviderEndorserInstructionData;
 };
 
-export function parseAddAcceptedEndorserInstruction<
+export function parseRemoveProviderEndorserInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedAddAcceptedEndorserInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
+): ParsedRemoveProviderEndorserInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 4) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -260,11 +306,12 @@ export function parseAddAcceptedEndorserInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
+      providerAccount: getNextAccount(),
       hub: getNextAccount(),
-      authority: getNextAccount(),
+      providerAuthority: getNextAccount(),
       endorserWallet: getNextAccount(),
     },
-    data: getAddAcceptedEndorserInstructionDataDecoder().decode(
+    data: getRemoveProviderEndorserInstructionDataDecoder().decode(
       instruction.data,
     ),
   };

@@ -28,6 +28,7 @@ import { useFairCredit } from "@/hooks/use-fair-credit";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useToast } from "@/hooks/use-toast";
 import { ProviderRegistrationCard } from "@/components/provider/provider-registration-card";
+import { CloseProviderCard } from "@/components/provider/close-provider-card";
 import { WalletDebug } from "@/components/wallet-debug";
 import { address } from "@solana/kit";
 import type { Address } from "@solana/kit";
@@ -68,9 +69,7 @@ export function ProviderDashboard() {
           authority: DEFAULT_PLACEHOLDER_SIGNER,
           config: {
             requireProviderApproval: false,
-            requireEndorserApproval: false,
             minReputationScore: 0,
-            allowSelfEndorsement: false,
           },
         });
         const hubAddress = hubInstruction.accounts[0].address;
@@ -115,32 +114,24 @@ export function ProviderDashboard() {
             console.log("Is accepted provider:", isAcceptedProvider);
 
             if (isAcceptedProvider) {
-              // Fetch courses by this provider
               const providerCourses: Course[] = [];
               for (const courseId of hub.acceptedCourses ?? []) {
-                // Get course address from Codama instruction (it auto-resolves PDA)
-                const courseInstruction =
-                  await getAddAcceptedCourseInstructionAsync({
-                    hub: undefined,
-                    authority: DEFAULT_PLACEHOLDER_SIGNER,
-                    course: undefined,
-                    courseId,
-                  });
-                const courseAddress = courseInstruction.accounts[2].address;
-                const courseAccount = await fetchMaybeCourse(
-                  rpc,
-                  courseAddress,
-                );
-                if (courseAccount.exists) {
-                  const courseData = courseAccount.data;
-                  const courseProviderKey =
-                    typeof courseData.provider === "string"
-                      ? courseData.provider
-                      : String(courseData.provider);
-                  if (courseProviderKey === walletAddress) {
-                    providerCourses.push(courseData);
-                  }
-                }
+                const ix = await getAddAcceptedCourseInstructionAsync({
+                  hub: undefined,
+                  authority: DEFAULT_PLACEHOLDER_SIGNER,
+                  course: undefined,
+                  courseId,
+                  providerWallet: address(walletAddress),
+                });
+                const courseAddr = ix.accounts[3].address as Address;
+                const acc = await fetchMaybeCourse(rpc, courseAddr);
+                if (!acc.exists) continue;
+                const data: Course = acc.data;
+                const provKey: string =
+                  typeof data.provider === "string"
+                    ? data.provider
+                    : String(data.provider);
+                if (provKey === walletAddress) providerCourses.push(data);
               }
               setCourses(providerCourses);
             }
@@ -321,13 +312,23 @@ export function ProviderDashboard() {
             </CardContent>
           </Card>
         ) : !hasProviderAccount ? (
-          <ProviderRegistrationCard
-            publicKey={publicKey}
-            onRegistrationComplete={() => {
-              // Refresh the data after registration
-              window.location.reload();
-            }}
-          />
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Initialize Provider</CardTitle>
+                <CardDescription>
+                  Register as a provider on-chain. Use the form below to create
+                  your provider account (re-init option).
+                </CardDescription>
+              </CardHeader>
+            </Card>
+            <ProviderRegistrationCard
+              publicKey={publicKey}
+              onRegistrationComplete={() => {
+                window.location.reload();
+              }}
+            />
+          </div>
         ) : !isAcceptedProvider ? (
           <Card className="p-8">
             <CardContent className="text-center">
@@ -358,6 +359,14 @@ export function ProviderDashboard() {
               <p className="text-xs text-muted-foreground mt-4">
                 Once approved, you'll be able to create and manage courses.
               </p>
+              <div className="mt-6 pt-4 border-t">
+                <CloseProviderCard
+                  onClose={() => {
+                    setProviderData(null);
+                    window.location.reload();
+                  }}
+                />
+              </div>
               {process.env.NODE_ENV === "development" && (
                 <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded text-xs">
                   <p className="font-mono">Debug Info:</p>
@@ -376,6 +385,24 @@ export function ProviderDashboard() {
           </Card>
         ) : (
           <>
+            {/* Close / Re-initialize: close account in-app first */}
+            <CloseProviderCard
+              onClose={() => {
+                setProviderData(null);
+                window.location.reload();
+              }}
+            />
+            <Card className="mb-6 mt-6">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">
+                  Re-initialize Provider
+                </CardTitle>
+                <CardDescription>
+                  To re-initialize, close the provider account first using the
+                  button above, then register again from the registration form.
+                </CardDescription>
+              </CardHeader>
+            </Card>
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {stats.map((stat, index) => (

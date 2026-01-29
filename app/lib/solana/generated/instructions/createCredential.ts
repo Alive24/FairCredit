@@ -68,6 +68,7 @@ export type CreateCredentialInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountCredential extends string | AccountMeta<string> = string,
   TAccountProvider extends string | AccountMeta<string> = string,
+  TAccountHub extends string | AccountMeta<string> = string,
   TAccountProviderAuthority extends string | AccountMeta<string> = string,
   TAccountStudentWallet extends string | AccountMeta<string> = string,
   TAccountMentorWallet extends string | AccountMeta<string> = string,
@@ -85,6 +86,7 @@ export type CreateCredentialInstruction<
       TAccountProvider extends string
         ? ReadonlyAccount<TAccountProvider>
         : TAccountProvider,
+      TAccountHub extends string ? ReadonlyAccount<TAccountHub> : TAccountHub,
       TAccountProviderAuthority extends string
         ? WritableSignerAccount<TAccountProviderAuthority> &
             AccountSignerMeta<TAccountProviderAuthority>
@@ -194,6 +196,7 @@ export function getCreateCredentialInstructionDataCodec(): Codec<
 export type CreateCredentialAsyncInput<
   TAccountCredential extends string = string,
   TAccountProvider extends string = string,
+  TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
   TAccountStudentWallet extends string = string,
   TAccountMentorWallet extends string = string,
@@ -202,6 +205,7 @@ export type CreateCredentialAsyncInput<
 > = {
   credential?: Address<TAccountCredential>;
   provider: Address<TAccountProvider>;
+  hub?: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
   studentWallet: Address<TAccountStudentWallet>;
   mentorWallet: Address<TAccountMentorWallet>;
@@ -220,6 +224,7 @@ export type CreateCredentialAsyncInput<
 export async function getCreateCredentialInstructionAsync<
   TAccountCredential extends string,
   TAccountProvider extends string,
+  TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TAccountStudentWallet extends string,
   TAccountMentorWallet extends string,
@@ -230,6 +235,7 @@ export async function getCreateCredentialInstructionAsync<
   input: CreateCredentialAsyncInput<
     TAccountCredential,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountStudentWallet,
     TAccountMentorWallet,
@@ -242,6 +248,7 @@ export async function getCreateCredentialInstructionAsync<
     TProgramAddress,
     TAccountCredential,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountStudentWallet,
     TAccountMentorWallet,
@@ -256,6 +263,7 @@ export async function getCreateCredentialInstructionAsync<
   const originalAccounts = {
     credential: { value: input.credential ?? null, isWritable: true },
     provider: { value: input.provider ?? null, isWritable: false },
+    hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
       isWritable: true,
@@ -285,6 +293,12 @@ export async function getCreateCredentialInstructionAsync<
       ],
     });
   }
+  if (!accounts.hub.value) {
+    accounts.hub.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [getBytesEncoder().encode(new Uint8Array([104, 117, 98]))],
+    });
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -295,6 +309,7 @@ export async function getCreateCredentialInstructionAsync<
     accounts: [
       getAccountMeta(accounts.credential),
       getAccountMeta(accounts.provider),
+      getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
       getAccountMeta(accounts.studentWallet),
       getAccountMeta(accounts.mentorWallet),
@@ -309,6 +324,7 @@ export async function getCreateCredentialInstructionAsync<
     TProgramAddress,
     TAccountCredential,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountStudentWallet,
     TAccountMentorWallet,
@@ -320,6 +336,7 @@ export async function getCreateCredentialInstructionAsync<
 export type CreateCredentialInput<
   TAccountCredential extends string = string,
   TAccountProvider extends string = string,
+  TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
   TAccountStudentWallet extends string = string,
   TAccountMentorWallet extends string = string,
@@ -328,6 +345,7 @@ export type CreateCredentialInput<
 > = {
   credential: Address<TAccountCredential>;
   provider: Address<TAccountProvider>;
+  hub: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
   studentWallet: Address<TAccountStudentWallet>;
   mentorWallet: Address<TAccountMentorWallet>;
@@ -346,6 +364,7 @@ export type CreateCredentialInput<
 export function getCreateCredentialInstruction<
   TAccountCredential extends string,
   TAccountProvider extends string,
+  TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TAccountStudentWallet extends string,
   TAccountMentorWallet extends string,
@@ -356,6 +375,7 @@ export function getCreateCredentialInstruction<
   input: CreateCredentialInput<
     TAccountCredential,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountStudentWallet,
     TAccountMentorWallet,
@@ -367,6 +387,7 @@ export function getCreateCredentialInstruction<
   TProgramAddress,
   TAccountCredential,
   TAccountProvider,
+  TAccountHub,
   TAccountProviderAuthority,
   TAccountStudentWallet,
   TAccountMentorWallet,
@@ -380,6 +401,7 @@ export function getCreateCredentialInstruction<
   const originalAccounts = {
     credential: { value: input.credential ?? null, isWritable: true },
     provider: { value: input.provider ?? null, isWritable: false },
+    hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
       isWritable: true,
@@ -408,6 +430,7 @@ export function getCreateCredentialInstruction<
     accounts: [
       getAccountMeta(accounts.credential),
       getAccountMeta(accounts.provider),
+      getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
       getAccountMeta(accounts.studentWallet),
       getAccountMeta(accounts.mentorWallet),
@@ -422,6 +445,7 @@ export function getCreateCredentialInstruction<
     TProgramAddress,
     TAccountCredential,
     TAccountProvider,
+    TAccountHub,
     TAccountProviderAuthority,
     TAccountStudentWallet,
     TAccountMentorWallet,
@@ -438,11 +462,12 @@ export type ParsedCreateCredentialInstruction<
   accounts: {
     credential: TAccountMetas[0];
     provider: TAccountMetas[1];
-    providerAuthority: TAccountMetas[2];
-    studentWallet: TAccountMetas[3];
-    mentorWallet: TAccountMetas[4];
-    nftMint: TAccountMetas[5];
-    systemProgram: TAccountMetas[6];
+    hub: TAccountMetas[2];
+    providerAuthority: TAccountMetas[3];
+    studentWallet: TAccountMetas[4];
+    mentorWallet: TAccountMetas[5];
+    nftMint: TAccountMetas[6];
+    systemProgram: TAccountMetas[7];
   };
   data: CreateCredentialInstructionData;
 };
@@ -455,7 +480,7 @@ export function parseCreateCredentialInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateCredentialInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 7) {
+  if (instruction.accounts.length < 8) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -470,6 +495,7 @@ export function parseCreateCredentialInstruction<
     accounts: {
       credential: getNextAccount(),
       provider: getNextAccount(),
+      hub: getNextAccount(),
       providerAuthority: getNextAccount(),
       studentWallet: getNextAccount(),
       mentorWallet: getNextAccount(),

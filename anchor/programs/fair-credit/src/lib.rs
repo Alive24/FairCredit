@@ -12,7 +12,8 @@ use handlers::hub::*;
 use handlers::provider::*;
 use state::HubConfig;
 
-declare_id!("BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk");
+// Must match target/deploy/fair_credit-keypair.json (run: solana address -k anchor/target/deploy/fair_credit-keypair.json)
+declare_id!("95asCfd7nbJN5i6REuiuLHj7Wb6DqqAKrhG1tRJ7Dthx");
 
 #[program]
 pub mod fair_credit {
@@ -76,6 +77,10 @@ pub mod fair_credit {
         handlers::hub::initialize_hub(ctx)
     }
 
+    pub fn close_hub(ctx: Context<CloseHub>) -> Result<()> {
+        handlers::hub::close_hub(ctx)
+    }
+
     pub fn update_hub_config(ctx: Context<UpdateHubConfig>, config: HubConfig) -> Result<()> {
         handlers::hub::update_hub_config(ctx, config)
     }
@@ -88,20 +93,16 @@ pub mod fair_credit {
         handlers::hub::remove_accepted_provider(ctx)
     }
 
-    pub fn add_accepted_endorser(ctx: Context<AddAcceptedEndorser>) -> Result<()> {
-        handlers::hub::add_accepted_endorser(ctx)
-    }
-
-    pub fn remove_accepted_endorser(ctx: Context<RemoveAcceptedEndorser>) -> Result<()> {
-        handlers::hub::remove_accepted_endorser(ctx)
-    }
-
     pub fn transfer_hub_authority(ctx: Context<TransferHubAuthority>) -> Result<()> {
         handlers::hub::transfer_hub_authority(ctx)
     }
 
-    pub fn add_accepted_course(ctx: Context<AddAcceptedCourse>, course_id: String) -> Result<()> {
-        handlers::hub::add_accepted_course(ctx, course_id)
+    pub fn add_accepted_course(
+        ctx: Context<AddAcceptedCourse>,
+        course_id: String,
+        provider_wallet: Pubkey,
+    ) -> Result<()> {
+        handlers::hub::add_accepted_course(ctx, course_id, provider_wallet)
     }
 
     pub fn remove_accepted_course(
@@ -109,6 +110,18 @@ pub mod fair_credit {
         course_id: String,
     ) -> Result<()> {
         handlers::hub::remove_accepted_course(ctx, course_id)
+    }
+
+    pub fn add_provider_endorser(ctx: Context<AddProviderEndorser>) -> Result<()> {
+        handlers::provider::add_provider_endorser(ctx)
+    }
+
+    pub fn remove_provider_endorser(ctx: Context<RemoveProviderEndorser>) -> Result<()> {
+        handlers::provider::remove_provider_endorser(ctx)
+    }
+
+    pub fn close_provider(ctx: Context<CloseProvider>) -> Result<()> {
+        handlers::provider::close_provider(ctx)
     }
 
     pub fn create_course(

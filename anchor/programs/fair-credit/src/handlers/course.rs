@@ -9,16 +9,26 @@ pub struct CreateCourse<'info> {
         init,
         payer = provider_authority,
         space = 8 + Course::INIT_SPACE,
-        seeds = [Course::SEED_PREFIX.as_bytes(), course_id.as_bytes()],
+        seeds = [
+            Course::SEED_PREFIX.as_bytes(),
+            provider.key().as_ref(),
+            course_id.as_bytes(),
+        ],
         bump
     )]
     pub course: Account<'info, Course>,
     #[account(
         mut,
-        seeds = [Provider::SEED_PREFIX.as_bytes(), provider_authority.key().as_ref()],
+        seeds = [
+            Provider::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider_authority.key().as_ref(),
+        ],
         bump
     )]
     pub provider: Account<'info, Provider>,
+    #[account(seeds = [Hub::SEED_PREFIX.as_bytes()], bump)]
+    pub hub: Account<'info, Hub>,
     #[account(mut)]
     pub provider_authority: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -66,15 +76,25 @@ pub struct CreateWeight<'info> {
     pub weight: Account<'info, Weight>,
     #[account(
         mut,
-        seeds = [Course::SEED_PREFIX.as_bytes(), course.id.as_bytes()],
+        seeds = [
+            Course::SEED_PREFIX.as_bytes(),
+            provider.key().as_ref(),
+            course.id.as_bytes(),
+        ],
         bump
     )]
     pub course: Account<'info, Course>,
     #[account(
-        seeds = [Provider::SEED_PREFIX.as_bytes(), provider_authority.key().as_ref()],
+        seeds = [
+            Provider::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider_authority.key().as_ref(),
+        ],
         bump
     )]
     pub provider: Account<'info, Provider>,
+    #[account(seeds = [Hub::SEED_PREFIX.as_bytes()], bump)]
+    pub hub: Account<'info, Hub>,
     #[account(mut)]
     pub provider_authority: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -89,15 +109,25 @@ pub struct ArchiveCourseProgress<'info> {
     )]
     pub course_student: Account<'info, CourseStudent>,
     #[account(
-        seeds = [Course::SEED_PREFIX.as_bytes(), course_student.course_id.as_bytes()],
+        seeds = [
+            Course::SEED_PREFIX.as_bytes(),
+            provider.key().as_ref(),
+            course_student.course_id.as_bytes(),
+        ],
         bump
     )]
     pub course: Account<'info, Course>,
     #[account(
-        seeds = [Provider::SEED_PREFIX.as_bytes(), provider_authority.key().as_ref()],
+        seeds = [
+            Provider::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider_authority.key().as_ref(),
+        ],
         bump
     )]
     pub provider: Account<'info, Provider>,
+    #[account(seeds = [Hub::SEED_PREFIX.as_bytes()], bump)]
+    pub hub: Account<'info, Hub>,
     #[account(mut)]
     pub provider_authority: Signer<'info>,
 }
@@ -162,15 +192,25 @@ pub fn complete_course(ctx: Context<CompleteCourse>, final_grade: f64) -> Result
 pub struct UpdateCourseStatus<'info> {
     #[account(
         mut,
-        seeds = [Course::SEED_PREFIX.as_bytes(), course.id.as_bytes()],
+        seeds = [
+            Course::SEED_PREFIX.as_bytes(),
+            provider.key().as_ref(),
+            course.id.as_bytes(),
+        ],
         bump
     )]
     pub course: Account<'info, Course>,
     #[account(
-        seeds = [Provider::SEED_PREFIX.as_bytes(), provider_authority.key().as_ref()],
+        seeds = [
+            Provider::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider_authority.key().as_ref(),
+        ],
         bump
     )]
     pub provider: Account<'info, Provider>,
+    #[account(seeds = [Hub::SEED_PREFIX.as_bytes()], bump)]
+    pub hub: Account<'info, Hub>,
     #[account(mut)]
     pub provider_authority: Signer<'info>,
 }
@@ -196,15 +236,25 @@ pub struct CompleteCourse<'info> {
     )]
     pub course_student: Account<'info, CourseStudent>,
     #[account(
-        seeds = [Course::SEED_PREFIX.as_bytes(), course_student.course_id.as_bytes()],
+        seeds = [
+            Course::SEED_PREFIX.as_bytes(),
+            provider.key().as_ref(),
+            course_student.course_id.as_bytes(),
+        ],
         bump
     )]
     pub course: Account<'info, Course>,
     #[account(
-        seeds = [Provider::SEED_PREFIX.as_bytes(), teacher_authority.key().as_ref()],
+        seeds = [
+            Provider::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            teacher_authority.key().as_ref(),
+        ],
         bump
     )]
     pub provider: Account<'info, Provider>,
+    #[account(seeds = [Hub::SEED_PREFIX.as_bytes()], bump)]
+    pub hub: Account<'info, Hub>,
     #[account(mut)]
     pub teacher_authority: Signer<'info>,
 }

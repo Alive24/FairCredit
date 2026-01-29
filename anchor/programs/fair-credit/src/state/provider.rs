@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 
-/// Educational provider state
+/// Educational provider state.
+/// Provider creates Courses (Hub must accept them to be usable) and manages its own Endorsers (no Hub acceptance).
 #[account]
 #[derive(InitSpace)]
 pub struct Provider {
@@ -23,17 +24,31 @@ pub struct Provider {
     pub provider_type: String,
     /// Registration timestamp
     pub registered_at: i64,
+    /// Endorser wallets set by this provider (no Hub acceptance required)
+    #[max_len(50)]
+    pub endorsers: Vec<Pubkey>,
 }
 
 impl Provider {
     /// Seed prefix for PDA generation
     pub const SEED_PREFIX: &'static str = "provider";
-    
+
+    /// Add an endorser wallet
+    pub fn add_endorser(&mut self, endorser: Pubkey) -> Result<()> {
+        if !self.endorsers.contains(&endorser) {
+            self.endorsers.push(endorser);
+        }
+        Ok(())
+    }
+
+    /// Remove an endorser wallet
+    pub fn remove_endorser(&mut self, endorser: &Pubkey) -> Result<()> {
+        self.endorsers.retain(|e| e != endorser);
+        Ok(())
+    }
+
     /// Check if provider can issue credentials
-    /// In decentralized system, all providers can issue credentials
     pub fn can_issue_credentials(&self) -> bool {
         true
     }
 }
-
-

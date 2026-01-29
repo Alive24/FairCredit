@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
 
-/// Hub state account - acts as a curated registry
-/// Maintains lists of accepted providers and endorsers for website filtering
+/// Hub state account - acts as a curated registry.
+/// Hub accepts Providers; Providers create Courses which Hub must accept to be usable.
+/// Endorsers are set by each Provider and do not require Hub acceptance.
 #[account]
 #[derive(InitSpace)]
 pub struct Hub {
@@ -10,10 +11,7 @@ pub struct Hub {
     /// List of accepted provider wallets
     #[max_len(50)]
     pub accepted_providers: Vec<Pubkey>,
-    /// List of accepted endorser/mentor wallets
-    #[max_len(50)]
-    pub accepted_endorsers: Vec<Pubkey>,
-    /// List of accepted course IDs (courses from accepted providers)
+    /// List of accepted course IDs (courses from accepted providers; must be accepted to be usable)
     #[max_len(100, 32)]
     pub accepted_courses: Vec<String>,
     /// Hub creation timestamp
@@ -29,8 +27,6 @@ pub struct Hub {
 pub struct HubConfig {
     /// Whether new providers need approval
     pub require_provider_approval: bool,
-    /// Whether new endorsers need approval
-    pub require_endorser_approval: bool,
     /// Minimum reputation score for auto-acceptance
     pub min_reputation_score: u64,
 }
@@ -39,7 +35,6 @@ impl Default for HubConfig {
     fn default() -> Self {
         Self {
             require_provider_approval: true,
-            require_endorser_approval: true,
             min_reputation_score: 70,
         }
     }
@@ -65,30 +60,9 @@ impl Hub {
         Ok(())
     }
 
-    /// Add an endorser to the accepted list
-    pub fn add_endorser(&mut self, endorser: Pubkey) -> Result<()> {
-        if !self.accepted_endorsers.contains(&endorser) {
-            self.accepted_endorsers.push(endorser);
-            self.updated_at = Clock::get()?.unix_timestamp;
-        }
-        Ok(())
-    }
-
-    /// Remove an endorser from the accepted list
-    pub fn remove_endorser(&mut self, endorser: &Pubkey) -> Result<()> {
-        self.accepted_endorsers.retain(|e| e != endorser);
-        self.updated_at = Clock::get()?.unix_timestamp;
-        Ok(())
-    }
-
     /// Check if a provider is accepted
     pub fn is_provider_accepted(&self, provider: &Pubkey) -> bool {
         self.accepted_providers.contains(provider)
-    }
-
-    /// Check if an endorser is accepted
-    pub fn is_endorser_accepted(&self, endorser: &Pubkey) -> bool {
-        self.accepted_endorsers.contains(endorser)
     }
 
     /// Update hub configuration

@@ -7,35 +7,25 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
   getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
-  getOptionDecoder,
-  getOptionEncoder,
   getProgramDerivedAddress,
   getStructDecoder,
   getStructEncoder,
-  getU32Decoder,
-  getU32Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
   transformEncoder,
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
-  type Option,
-  type OptionOrNullable,
   type ReadonlyAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
@@ -48,27 +38,20 @@ import {
   getAccountMetaFactory,
   type ResolvedAccount,
 } from "../shared";
-import {
-  getCourseStatusDecoder,
-  getCourseStatusEncoder,
-  type CourseStatus,
-  type CourseStatusArgs,
-} from "../types";
 
-export const UPDATE_COURSE_STATUS_DISCRIMINATOR = new Uint8Array([
-  212, 91, 18, 222, 178, 244, 1, 226,
+export const CLOSE_PROVIDER_DISCRIMINATOR = new Uint8Array([
+  165, 19, 159, 160, 179, 241, 87, 244,
 ]);
 
-export function getUpdateCourseStatusDiscriminatorBytes() {
+export function getCloseProviderDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    UPDATE_COURSE_STATUS_DISCRIMINATOR,
+    CLOSE_PROVIDER_DISCRIMINATOR,
   );
 }
 
-export type UpdateCourseStatusInstruction<
+export type CloseProviderInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
-  TAccountCourse extends string | AccountMeta<string> = string,
-  TAccountProvider extends string | AccountMeta<string> = string,
+  TAccountProviderAccount extends string | AccountMeta<string> = string,
   TAccountHub extends string | AccountMeta<string> = string,
   TAccountProviderAuthority extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -76,12 +59,9 @@ export type UpdateCourseStatusInstruction<
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
-      TAccountCourse extends string
-        ? WritableAccount<TAccountCourse>
-        : TAccountCourse,
-      TAccountProvider extends string
-        ? ReadonlyAccount<TAccountProvider>
-        : TAccountProvider,
+      TAccountProviderAccount extends string
+        ? WritableAccount<TAccountProviderAccount>
+        : TAccountProviderAccount,
       TAccountHub extends string ? ReadonlyAccount<TAccountHub> : TAccountHub,
       TAccountProviderAuthority extends string
         ? WritableSignerAccount<TAccountProviderAuthority> &
@@ -91,90 +71,61 @@ export type UpdateCourseStatusInstruction<
     ]
   >;
 
-export type UpdateCourseStatusInstructionData = {
+export type CloseProviderInstructionData = {
   discriminator: ReadonlyUint8Array;
-  status: CourseStatus;
-  rejectionReason: Option<string>;
 };
 
-export type UpdateCourseStatusInstructionDataArgs = {
-  status: CourseStatusArgs;
-  rejectionReason: OptionOrNullable<string>;
-};
+export type CloseProviderInstructionDataArgs = {};
 
-export function getUpdateCourseStatusInstructionDataEncoder(): Encoder<UpdateCourseStatusInstructionDataArgs> {
+export function getCloseProviderInstructionDataEncoder(): FixedSizeEncoder<CloseProviderInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([
-      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
-      ["status", getCourseStatusEncoder()],
-      [
-        "rejectionReason",
-        getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
-        ),
-      ],
-    ]),
-    (value) => ({
-      ...value,
-      discriminator: UPDATE_COURSE_STATUS_DISCRIMINATOR,
-    }),
+    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
+    (value) => ({ ...value, discriminator: CLOSE_PROVIDER_DISCRIMINATOR }),
   );
 }
 
-export function getUpdateCourseStatusInstructionDataDecoder(): Decoder<UpdateCourseStatusInstructionData> {
+export function getCloseProviderInstructionDataDecoder(): FixedSizeDecoder<CloseProviderInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
-    ["status", getCourseStatusDecoder()],
-    [
-      "rejectionReason",
-      getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
-    ],
   ]);
 }
 
-export function getUpdateCourseStatusInstructionDataCodec(): Codec<
-  UpdateCourseStatusInstructionDataArgs,
-  UpdateCourseStatusInstructionData
+export function getCloseProviderInstructionDataCodec(): FixedSizeCodec<
+  CloseProviderInstructionDataArgs,
+  CloseProviderInstructionData
 > {
   return combineCodec(
-    getUpdateCourseStatusInstructionDataEncoder(),
-    getUpdateCourseStatusInstructionDataDecoder(),
+    getCloseProviderInstructionDataEncoder(),
+    getCloseProviderInstructionDataDecoder(),
   );
 }
 
-export type UpdateCourseStatusAsyncInput<
-  TAccountCourse extends string = string,
-  TAccountProvider extends string = string,
+export type CloseProviderAsyncInput<
+  TAccountProviderAccount extends string = string,
   TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
 > = {
-  course: Address<TAccountCourse>;
-  provider?: Address<TAccountProvider>;
+  providerAccount?: Address<TAccountProviderAccount>;
   hub?: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
-  status: UpdateCourseStatusInstructionDataArgs["status"];
-  rejectionReason: UpdateCourseStatusInstructionDataArgs["rejectionReason"];
 };
 
-export async function getUpdateCourseStatusInstructionAsync<
-  TAccountCourse extends string,
-  TAccountProvider extends string,
+export async function getCloseProviderInstructionAsync<
+  TAccountProviderAccount extends string,
   TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: UpdateCourseStatusAsyncInput<
-    TAccountCourse,
-    TAccountProvider,
+  input: CloseProviderAsyncInput<
+    TAccountProviderAccount,
     TAccountHub,
     TAccountProviderAuthority
   >,
   config?: { programAddress?: TProgramAddress },
 ): Promise<
-  UpdateCourseStatusInstruction<
+  CloseProviderInstruction<
     TProgramAddress,
-    TAccountCourse,
-    TAccountProvider,
+    TAccountProviderAccount,
     TAccountHub,
     TAccountProviderAuthority
   >
@@ -184,8 +135,7 @@ export async function getUpdateCourseStatusInstructionAsync<
 
   // Original accounts.
   const originalAccounts = {
-    course: { value: input.course ?? null, isWritable: true },
-    provider: { value: input.provider ?? null, isWritable: false },
+    providerAccount: { value: input.providerAccount ?? null, isWritable: true },
     hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
@@ -197,9 +147,6 @@ export async function getUpdateCourseStatusInstructionAsync<
     ResolvedAccount
   >;
 
-  // Original args.
-  const args = { ...input };
-
   // Resolve default values.
   if (!accounts.hub.value) {
     accounts.hub.value = await getProgramDerivedAddress({
@@ -207,8 +154,8 @@ export async function getUpdateCourseStatusInstructionAsync<
       seeds: [getBytesEncoder().encode(new Uint8Array([104, 117, 98]))],
     });
   }
-  if (!accounts.provider.value) {
-    accounts.provider.value = await getProgramDerivedAddress({
+  if (!accounts.providerAccount.value) {
+    accounts.providerAccount.value = await getProgramDerivedAddress({
       programAddress,
       seeds: [
         getBytesEncoder().encode(
@@ -225,56 +172,45 @@ export async function getUpdateCourseStatusInstructionAsync<
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta(accounts.course),
-      getAccountMeta(accounts.provider),
+      getAccountMeta(accounts.providerAccount),
       getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
     ],
-    data: getUpdateCourseStatusInstructionDataEncoder().encode(
-      args as UpdateCourseStatusInstructionDataArgs,
-    ),
+    data: getCloseProviderInstructionDataEncoder().encode({}),
     programAddress,
-  } as UpdateCourseStatusInstruction<
+  } as CloseProviderInstruction<
     TProgramAddress,
-    TAccountCourse,
-    TAccountProvider,
+    TAccountProviderAccount,
     TAccountHub,
     TAccountProviderAuthority
   >);
 }
 
-export type UpdateCourseStatusInput<
-  TAccountCourse extends string = string,
-  TAccountProvider extends string = string,
+export type CloseProviderInput<
+  TAccountProviderAccount extends string = string,
   TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
 > = {
-  course: Address<TAccountCourse>;
-  provider: Address<TAccountProvider>;
+  providerAccount: Address<TAccountProviderAccount>;
   hub: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
-  status: UpdateCourseStatusInstructionDataArgs["status"];
-  rejectionReason: UpdateCourseStatusInstructionDataArgs["rejectionReason"];
 };
 
-export function getUpdateCourseStatusInstruction<
-  TAccountCourse extends string,
-  TAccountProvider extends string,
+export function getCloseProviderInstruction<
+  TAccountProviderAccount extends string,
   TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: UpdateCourseStatusInput<
-    TAccountCourse,
-    TAccountProvider,
+  input: CloseProviderInput<
+    TAccountProviderAccount,
     TAccountHub,
     TAccountProviderAuthority
   >,
   config?: { programAddress?: TProgramAddress },
-): UpdateCourseStatusInstruction<
+): CloseProviderInstruction<
   TProgramAddress,
-  TAccountCourse,
-  TAccountProvider,
+  TAccountProviderAccount,
   TAccountHub,
   TAccountProviderAuthority
 > {
@@ -283,8 +219,7 @@ export function getUpdateCourseStatusInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    course: { value: input.course ?? null, isWritable: true },
-    provider: { value: input.provider ?? null, isWritable: false },
+    providerAccount: { value: input.providerAccount ?? null, isWritable: true },
     hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
@@ -296,53 +231,45 @@ export function getUpdateCourseStatusInstruction<
     ResolvedAccount
   >;
 
-  // Original args.
-  const args = { ...input };
-
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta(accounts.course),
-      getAccountMeta(accounts.provider),
+      getAccountMeta(accounts.providerAccount),
       getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
     ],
-    data: getUpdateCourseStatusInstructionDataEncoder().encode(
-      args as UpdateCourseStatusInstructionDataArgs,
-    ),
+    data: getCloseProviderInstructionDataEncoder().encode({}),
     programAddress,
-  } as UpdateCourseStatusInstruction<
+  } as CloseProviderInstruction<
     TProgramAddress,
-    TAccountCourse,
-    TAccountProvider,
+    TAccountProviderAccount,
     TAccountHub,
     TAccountProviderAuthority
   >);
 }
 
-export type ParsedUpdateCourseStatusInstruction<
+export type ParsedCloseProviderInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    course: TAccountMetas[0];
-    provider: TAccountMetas[1];
-    hub: TAccountMetas[2];
-    providerAuthority: TAccountMetas[3];
+    providerAccount: TAccountMetas[0];
+    hub: TAccountMetas[1];
+    providerAuthority: TAccountMetas[2];
   };
-  data: UpdateCourseStatusInstructionData;
+  data: CloseProviderInstructionData;
 };
 
-export function parseUpdateCourseStatusInstruction<
+export function parseCloseProviderInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedUpdateCourseStatusInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 4) {
+): ParsedCloseProviderInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 3) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -355,13 +282,10 @@ export function parseUpdateCourseStatusInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
-      course: getNextAccount(),
-      provider: getNextAccount(),
+      providerAccount: getNextAccount(),
       hub: getNextAccount(),
       providerAuthority: getNextAccount(),
     },
-    data: getUpdateCourseStatusInstructionDataDecoder().decode(
-      instruction.data,
-    ),
+    data: getCloseProviderInstructionDataDecoder().decode(instruction.data),
   };
 }

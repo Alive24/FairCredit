@@ -23,40 +23,28 @@ import {
 export type HubConfig = {
   /** Whether new providers need approval */
   requireProviderApproval: boolean;
-  /** Whether new endorsers need approval */
-  requireEndorserApproval: boolean;
   /** Minimum reputation score for auto-acceptance */
   minReputationScore: bigint;
-  /** Whether to allow self-endorsement */
-  allowSelfEndorsement: boolean;
 };
 
 export type HubConfigArgs = {
   /** Whether new providers need approval */
   requireProviderApproval: boolean;
-  /** Whether new endorsers need approval */
-  requireEndorserApproval: boolean;
   /** Minimum reputation score for auto-acceptance */
   minReputationScore: number | bigint;
-  /** Whether to allow self-endorsement */
-  allowSelfEndorsement: boolean;
 };
 
 export function getHubConfigEncoder(): FixedSizeEncoder<HubConfigArgs> {
   return getStructEncoder([
     ["requireProviderApproval", getBooleanEncoder()],
-    ["requireEndorserApproval", getBooleanEncoder()],
     ["minReputationScore", getU64Encoder()],
-    ["allowSelfEndorsement", getBooleanEncoder()],
   ]);
 }
 
 export function getHubConfigDecoder(): FixedSizeDecoder<HubConfig> {
   return getStructDecoder([
     ["requireProviderApproval", getBooleanDecoder()],
-    ["requireEndorserApproval", getBooleanDecoder()],
     ["minReputationScore", getU64Decoder()],
-    ["allowSelfEndorsement", getBooleanDecoder()],
   ]);
 }
 

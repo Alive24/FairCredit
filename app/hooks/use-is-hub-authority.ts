@@ -35,9 +35,7 @@ export function useIsHubAuthority(): {
         authority: DEFAULT_PLACEHOLDER_SIGNER,
         config: {
           requireProviderApproval: false,
-          requireEndorserApproval: false,
           minReputationScore: 0,
-          allowSelfEndorsement: false,
         },
       });
       const hubAddress = instruction.accounts[0].address;

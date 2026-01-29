@@ -19,6 +19,8 @@ import {
   fixEncoderSize,
   getAddressDecoder,
   getAddressEncoder,
+  getArrayDecoder,
+  getArrayEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getI64Decoder,
@@ -67,6 +69,8 @@ export type Provider = {
   providerType: string;
   /** Registration timestamp */
   registeredAt: bigint;
+  /** Endorser wallets set by this provider (no Hub acceptance required) */
+  endorsers: Array<Address>;
 };
 
 export type ProviderArgs = {
@@ -84,6 +88,8 @@ export type ProviderArgs = {
   providerType: string;
   /** Registration timestamp */
   registeredAt: number | bigint;
+  /** Endorser wallets set by this provider (no Hub acceptance required) */
+  endorsers: Array<Address>;
 };
 
 /** Gets the encoder for {@link ProviderArgs} account data. */
@@ -98,6 +104,7 @@ export function getProviderEncoder(): Encoder<ProviderArgs> {
       ["email", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
       ["providerType", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
       ["registeredAt", getI64Encoder()],
+      ["endorsers", getArrayEncoder(getAddressEncoder())],
     ]),
     (value) => ({ ...value, discriminator: PROVIDER_DISCRIMINATOR }),
   );
@@ -114,6 +121,7 @@ export function getProviderDecoder(): Decoder<Provider> {
     ["email", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ["providerType", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ["registeredAt", getI64Decoder()],
+    ["endorsers", getArrayDecoder(getAddressDecoder())],
   ]);
 }
 
