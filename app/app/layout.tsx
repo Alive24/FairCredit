@@ -10,6 +10,7 @@ import "nextra-theme-docs/style.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { ClientLayout } from "@/components/client-layout";
+import { WalletProvider } from "@/components/wallet-provider";
 import { NavbarActions } from "@/components/navbar-actions";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -94,15 +95,17 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Layout
-            navbar={navbar}
-            footer={footer}
-            pageMap={pageMap}
-            docsRepositoryBase="https://github.com/Bohemialive/FairCredit/tree/main/app/content"
-          >
-            <ClientLayout>{children}</ClientLayout>
-          </Layout>
-          <Toaster />
+          <WalletProvider>
+            <Layout
+              navbar={navbar}
+              footer={footer}
+              pageMap={pageMap}
+              docsRepositoryBase="https://github.com/Bohemialive/FairCredit/tree/main/app/content"
+            >
+              <ClientLayout>{children}</ClientLayout>
+            </Layout>
+            <Toaster />
+          </WalletProvider>
         </ThemeProvider>
       </body>
     </html>

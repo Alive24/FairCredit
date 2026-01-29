@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -28,125 +28,27 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import { useFairCredit } from "@/hooks/use-fair-credit";
 import { useToast } from "@/hooks/use-toast";
+import { useIsHubAuthority } from "@/hooks/use-is-hub-authority";
 import { HubSettingsDialog } from "@/components/hub/hub-settings-dialog";
 import { AddEntityDialog } from "@/components/hub/add-entity-dialog";
 import { BatchOperationsPanel } from "@/components/hub/batch-operations-panel";
-import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
+import { useAppKitAccount } from "@reown/appkit/react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useBatchRegistry } from "@/hooks/use-batch-registry";
-import { address, type Address } from "@solana/kit";
-import { fetchMaybeHub } from "@/lib/solana/generated/accounts";
-import type { Hub } from "@/lib/solana/generated/accounts";
-import { getUpdateHubConfigInstructionAsync } from "@/lib/solana/generated/instructions/updateHubConfig";
-import { DEFAULT_PLACEHOLDER_SIGNER } from "@/lib/solana/placeholder-signer";
+import { canonicalAddress } from "@/lib/utils/canonical-address";
+import type { Address } from "@solana/kit";
 
 export function HubDashboard() {
-  const { rpcUrl, rpc } = useFairCredit();
   const { toast } = useToast();
   const { address: walletAddress } = useAppKitAccount();
-  const publicKey = walletAddress ? address(walletAddress) : null;
-  const [hubData, setHubData] = useState<Hub | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { isHubAuthority, loading, hubData, refreshHubData } =
+    useIsHubAuthority();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("providers");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addEntityOpen, setAddEntityOpen] = useState(false);
-  const [isHubAuthority, setIsHubAuthority] = useState(false);
   const batchRegistry = useBatchRegistry();
-
-  useEffect(() => {
-    async function fetchHubData() {
-      if (!rpcUrl) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // Get hub address from Codama instruction (it auto-resolves PDA)
-        const instruction = await getUpdateHubConfigInstructionAsync({
-          hub: undefined,
-          authority: DEFAULT_PLACEHOLDER_SIGNER,
-          config: {
-            requireProviderApproval: false,
-            requireEndorserApproval: false,
-            minReputationScore: 0,
-            allowSelfEndorsement: false,
-          },
-        });
-        const hubAddress = instruction.accounts[0].address;
-        const hubAccount = await fetchMaybeHub(rpc, hubAddress);
-        const hub = hubAccount.exists ? hubAccount.data : null;
-        setHubData(hub);
-
-        // Check if current wallet is hub authority
-        if (walletAddress && hub?.authority) {
-          const authorityAddress =
-            typeof hub.authority === "string"
-              ? hub.authority
-              : String(hub.authority);
-          setIsHubAuthority(walletAddress === authorityAddress);
-        }
-      } catch (error) {
-        console.error("Failed to fetch hub data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch hub data. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchHubData();
-  }, [rpcUrl, publicKey, toast]);
-
-  const refreshHubData = async () => {
-    if (!rpcUrl) return;
-    setLoading(true);
-    try {
-      // Get hub address from Codama instruction (it auto-resolves PDA)
-      const instruction = await getUpdateHubConfigInstructionAsync({
-        hub: undefined,
-        authority: DEFAULT_PLACEHOLDER_SIGNER,
-        config: {
-          requireProviderApproval: false,
-          requireEndorserApproval: false,
-          minReputationScore: 0,
-          allowSelfEndorsement: false,
-        },
-      });
-      const hubAddress = instruction.accounts[0].address;
-      const hubAccount = await fetchMaybeHub(rpc, hubAddress);
-      const hub = hubAccount.exists ? hubAccount.data : null;
-      setHubData(hub);
-
-      // Check authority again
-      if (walletAddress && hub?.authority) {
-        const authorityAddress =
-          typeof hub.authority === "string"
-            ? hub.authority
-            : String(hub.authority);
-        setIsHubAuthority(walletAddress === authorityAddress);
-      }
-
-      toast({
-        title: "Success",
-        description: "Hub data refreshed successfully",
-      });
-    } catch (error) {
-      console.error("Failed to refresh hub data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to refresh hub data. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleRemoveEntity = (
     entityType: string,
@@ -234,6 +136,47 @@ export function HubDashboard() {
     );
   }
 
+  /* Non–hub authority: only show the info card + prompt that only admin can see the full page */
+  if (!isHubAuthority) {
+    return (
+      <div className="space-y-6 max-w-2xl">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Only Hub administrators can view the full page. You are seeing a
+            limited view.
+          </AlertDescription>
+        </Alert>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Authority & Wallet</CardTitle>
+            <CardDescription>
+              Hub authority (on-chain) vs connected wallet — must match to
+              manage
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm font-mono">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-muted-foreground">Hub authority:</span>
+              <span className="break-all">
+                {canonicalAddress(hubData?.authority) ?? "—"}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-muted-foreground">Connected wallet:</span>
+              <span className="break-all">
+                {canonicalAddress(walletAddress) ?? "—"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Badge variant="secondary">Read-only</Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Batch Operations Panel */}
@@ -257,26 +200,12 @@ export function HubDashboard() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button
-            onClick={() => setSettingsOpen(true)}
-            disabled={!isHubAuthority}
-          >
+          <Button onClick={() => setSettingsOpen(true)}>
             <Settings className="h-4 w-4 mr-2" />
             Hub Settings
           </Button>
         </div>
       </div>
-
-      {/* Authority Alert */}
-      {!isHubAuthority && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            You are viewing the hub in read-only mode. To manage hub settings
-            and entities, connect with the hub authority wallet.
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -358,11 +287,7 @@ export function HubDashboard() {
                   className="pl-8 w-[200px]"
                 />
               </div>
-              <Button
-                size="sm"
-                onClick={() => setAddEntityOpen(true)}
-                disabled={!isHubAuthority}
-              >
+              <Button size="sm" onClick={() => setAddEntityOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add New
               </Button>

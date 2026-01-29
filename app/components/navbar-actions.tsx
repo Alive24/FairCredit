@@ -5,6 +5,7 @@ import Link from "next/link";
 import { User, Shield } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useAppKit, AppKitButton, useAppKitAccount } from "@reown/appkit/react";
+import { useIsHubAuthority } from "@/hooks/use-is-hub-authority";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,6 +27,7 @@ type UserType = "provider" | "student" | "supervisor" | "verifier" | null;
 export function NavbarActions() {
   const { address } = useAppKitAccount();
   const { open } = useAppKit();
+  const { isHubAuthority } = useIsHubAuthority();
   const [userType, setUserType] = useState<UserType>(null);
 
   const connected = !!address;
@@ -83,12 +85,14 @@ export function NavbarActions() {
                   <Link href="/courses">Courses</Link>
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem asChild>
-                <Link href="/hub" className="flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Hub Administration
-                </Link>
-              </DropdownMenuItem>
+              {isHubAuthority && (
+                <DropdownMenuItem asChild>
+                  <Link href="/hub" className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Hub Administration
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={() => {
                   localStorage.removeItem("userType");

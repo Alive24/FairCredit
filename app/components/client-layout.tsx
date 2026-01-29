@@ -1,11 +1,5 @@
-"use client"
-
-import { WalletProvider } from "@/components/wallet-provider"
+"use client";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <WalletProvider>
-      {children}
-    </WalletProvider>
-  )
+  return <>{children}</>;
 }
