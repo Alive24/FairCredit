@@ -3,24 +3,25 @@
 import { createSolanaRpc } from "@solana/kit";
 import { address } from "@solana/kit";
 import { getAddAcceptedProviderInstructionAsync } from "../app/lib/solana/generated/instructions";
-import { createSignerFromSecretKey } from "./utils/keypair-signer";
 import { sendInstructions } from "./utils/transaction-helper";
-import { getHubPDA, getProviderPDA } from "./utils/pda";
-
-const HUB_AUTHORITY_SECRET =
-  "5mdcUteXC3qhj8pvNQx765xuXPbU9KutBZabqsmn36YuKzf3wZDECSVAN3XyhuAfhQbGENS3MUUKiZimncdm4t8q";
+import {
+  getHubAddress,
+  getProviderAddress,
+  createPlaceholderSigner,
+} from "./utils/pda";
+import { getHubAuthoritySigner } from "./utils/hub-authority-signer";
 
 async function addProviderToHub(providerWallet: string) {
-  const bs58 = require("bs58");
-  const secretKey = bs58.decode(HUB_AUTHORITY_SECRET);
-  const hubAuthoritySigner = await createSignerFromSecretKey(secretKey);
+  const hubAuthoritySigner = await getHubAuthoritySigner();
 
   console.log("Hub authority:", hubAuthoritySigner.address);
 
   const rpcUrl = "https://api.devnet.solana.com";
   const providerWalletAddr = address(providerWallet);
-  const [hubPDA] = await getHubPDA();
-  const [providerPDA] = await getProviderPDA(providerWallet);
+  const hubPDA = await getHubAddress();
+  const providerPDA = await getProviderAddress(
+    createPlaceholderSigner(providerWallet),
+  );
 
   console.log("Adding provider to hub:");
   console.log("- Provider wallet:", providerWallet);

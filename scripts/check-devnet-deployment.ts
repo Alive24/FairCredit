@@ -2,9 +2,7 @@
 
 import { createSolanaRpc } from "@solana/kit";
 import { address } from "@solana/kit";
-import * as fs from "fs";
-import * as path from "path";
-import { getHubPDA } from "./utils/pda";
+import { getHubAddress } from "./utils/pda";
 import { fetchMaybeHub } from "../app/lib/solana/generated/accounts";
 
 const PROGRAM_ID = "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk";
@@ -31,7 +29,7 @@ async function checkDevnetDeployment() {
   }
 
   console.log("\n2️⃣ Checking Hub Account...");
-  const [hubPDA] = await getHubPDA();
+  const hubPDA = await getHubAddress();
 
   console.log(`   Hub PDA: ${hubPDA}`);
   const hubInfo = await fetchMaybeHub(rpc, hubPDA);
@@ -49,26 +47,6 @@ async function checkDevnetDeployment() {
   } else {
     console.log(`❌ Hub account NOT initialized!`);
     console.log(`   You need to initialize the hub first.`);
-  }
-
-  console.log("\n3️⃣ Checking Local Deployment Info...");
-  const deploymentPath = path.join(__dirname, "../deployment.json");
-
-  if (fs.existsSync(deploymentPath)) {
-    const deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf-8"));
-    console.log("📋 Local deployment.json:");
-    console.log(`   Network: ${deployment.network}`);
-    console.log(`   Hub Authority: ${deployment.hub.authority}`);
-    if (deployment.provider) {
-      console.log(`   Provider: ${deployment.provider.wallet}`);
-    }
-
-    if (deployment.network === "localnet") {
-      console.log(
-        "\n⚠️  WARNING: deployment.json is for localnet, not devnet!",
-      );
-      console.log("   You need to deploy to devnet and update deployment.json");
-    }
   }
 
   console.log("\n📝 Next Steps:");

@@ -1,14 +1,13 @@
 #!/usr/bin/env npx tsx
 
 import { createSolanaRpc } from "@solana/kit";
-import { address } from "@solana/kit";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { getInitializeHubInstructionAsync } from "../app/lib/solana/generated/instructions";
 import { createSignerFromSecretKey } from "./utils/keypair-signer";
 import { sendInstructions } from "./utils/transaction-helper";
-import { getHubPDA } from "./utils/pda";
+import { getHubAddress } from "./utils/pda";
 import { fetchMaybeHub } from "../app/lib/solana/generated/accounts";
 
 process.env.ANCHOR_PROVIDER_URL = "https://api.devnet.solana.com";
@@ -33,7 +32,7 @@ async function initHubDevnet() {
   console.log("Program ID:", "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk");
   console.log("Authority:", authoritySigner.address);
 
-  const [hubPDA] = await getHubPDA();
+  const hubPDA = await getHubAddress();
   console.log("Hub PDA:", hubPDA);
 
   try {
@@ -46,7 +45,7 @@ async function initHubDevnet() {
     console.log("\n📝 Initializing hub...");
     const instruction = await getInitializeHubInstructionAsync(
       {
-        hub: address(hubPDA),
+        hub: hubPDA,
         authority: authoritySigner,
         systemProgram: undefined,
       },

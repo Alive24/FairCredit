@@ -1,44 +1,62 @@
-import { getProgramDerivedAddress, address } from "@solana/kit";
-import {
-  getBytesEncoder,
-  getAddressEncoder,
-  getUtf8Encoder,
-} from "@solana/kit";
-import type { Address } from "@solana/kit";
-import { FAIR_CREDIT_PROGRAM_ADDRESS } from "../../app/lib/solana/generated/programs";
+/**
+ * Resolve PDA addresses via Codama-generated instructions only (no hardcoded seeds).
+ * Same pattern as app: use instruction Async builders with placeholder/real signer to get addresses.
+ */
 
-export async function getHubPDA(): Promise<[Address, number]> {
-  const pda = await getProgramDerivedAddress({
-    programAddress: FAIR_CREDIT_PROGRAM_ADDRESS,
-    seeds: [getBytesEncoder().encode(new Uint8Array([104, 117, 98]))],
+import type { Address, TransactionSigner } from "@solana/kit";
+import { getUpdateHubConfigInstructionAsync } from "../../app/lib/solana/generated/instructions/updateHubConfig";
+import { getInitializeProviderInstructionAsync } from "../../app/lib/solana/generated/instructions/initializeProvider";
+import { getCreateCourseInstructionAsync } from "../../app/lib/solana/generated/instructions/createCourse";
+import { DEFAULT_PLACEHOLDER_SIGNER } from "../../app/lib/solana/placeholder-signer";
+
+/** Re-export for scripts that need to resolve PDA from address string (e.g. getProviderAddress(createPlaceholderSigner(addr))). */
+export { createPlaceholderSigner } from "../../app/lib/solana/placeholder-signer";
+
+/** Resolve Hub PDA using Codama UpdateHubConfig instruction (hub: undefined → auto-derived). */
+export async function getHubAddress(): Promise<Address> {
+  const instruction = await getUpdateHubConfigInstructionAsync({
+    hub: undefined,
+    authority: DEFAULT_PLACEHOLDER_SIGNER,
+    config: {
+      requireProviderApproval: false,
+      requireEndorserApproval: false,
+      minReputationScore: 0,
+      allowSelfEndorsement: false,
+    },
   });
-  return [pda[0], pda[1]];
+  return instruction.accounts[0].address;
 }
 
-export async function getProviderPDA(
-  providerWallet: string,
-): Promise<[Address, number]> {
-  const pda = await getProgramDerivedAddress({
-    programAddress: FAIR_CREDIT_PROGRAM_ADDRESS,
-    seeds: [
-      getBytesEncoder().encode(
-        new Uint8Array([112, 114, 111, 118, 105, 100, 101, 114]),
-      ),
-      getAddressEncoder().encode(address(providerWallet)),
-    ],
+/** Resolve Provider PDA using Codama InitializeProvider instruction; authority signer can be real or placeholder. */
+export async function getProviderAddress(
+  authoritySigner: TransactionSigner,
+): Promise<Address> {
+  const instruction = await getInitializeProviderInstructionAsync({
+    providerAccount: undefined,
+    providerAuthority: authoritySigner,
+    name: "",
+    description: "",
+    website: "",
+    email: "",
+    providerType: "",
   });
-  return [pda[0], pda[1]];
+  return instruction.accounts[0].address;
 }
 
-export async function getCoursePDA(
+/** Resolve Course PDA using Codama CreateCourse instruction; providerAuthority signer can be real or placeholder. */
+export async function getCourseAddress(
   courseId: string,
-): Promise<[Address, number]> {
-  const pda = await getProgramDerivedAddress({
-    programAddress: FAIR_CREDIT_PROGRAM_ADDRESS,
-    seeds: [
-      getBytesEncoder().encode(new Uint8Array([99, 111, 117, 114, 115, 101])),
-      getUtf8Encoder().encode(courseId),
-    ],
+  providerAuthoritySigner: TransactionSigner,
+): Promise<Address> {
+  const instruction = await getCreateCourseInstructionAsync({
+    course: undefined,
+    provider: undefined,
+    providerAuthority: providerAuthoritySigner,
+    courseId,
+    name: "",
+    description: "",
+    workloadRequired: 0,
+    degreeId: null,
   });
-  return [pda[0], pda[1]];
+  return instruction.accounts[0].address;
 }

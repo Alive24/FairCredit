@@ -1,0 +1,16 @@
+# Netlify configuration (repo root)
+# App lives in app/; functions in netlify/functions
+
+[build]
+base = "app"
+command = "pnpm run build"
+publish = ".next"
+functions = "netlify/functions"
+
+[dev]
+# 从根目录用 -C app 在 app 下跑 next dev，避免 cd 子进程提前退出
+command = "pnpm -C app run dev"
+port = 8888
+targetPort = 3000
+framework = "next"
+autoLaunch = true

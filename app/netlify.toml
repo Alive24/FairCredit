@@ -1,0 +1,14 @@
+# Netlify configuration (in app directory)
+# Functions are in netlify/functions (relative to app/)
+
+[build]
+command = "pnpm run build"
+publish = ".next"
+functions = "netlify/functions"
+
+[dev]
+command = "pnpm run dev"
+port = 8888
+targetPort = 3000
+framework = "next"
+autoLaunch = true

@@ -6,7 +6,7 @@ import { generateKeyPairSigner } from "@solana/signers";
 import { getInitializeProviderInstructionAsync } from "../app/lib/solana/generated/instructions";
 import { createSignerFromSecretKey } from "./utils/keypair-signer";
 import { sendInstructions } from "./utils/transaction-helper";
-import { getProviderPDA } from "./utils/pda";
+import { getProviderAddress } from "./utils/pda";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -37,7 +37,7 @@ async function createTestProvider() {
     console.log("📝 Creating new provider:");
     console.log("  Wallet:", providerWalletSigner.address);
 
-    const [providerPDA] = await getProviderPDA(providerWalletSigner.address);
+    const providerPDA = await getProviderAddress(providerWalletSigner);
     console.log("  PDA:", providerPDA);
 
     console.log(
@@ -46,7 +46,7 @@ async function createTestProvider() {
 
     const initInstruction = await getInitializeProviderInstructionAsync(
       {
-        providerAccount: address(providerPDA),
+        providerAccount: providerPDA,
         providerAuthority: providerWalletSigner,
         systemProgram: undefined,
         name: "Test Provider " + Date.now(),

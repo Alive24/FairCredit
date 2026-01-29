@@ -47,7 +47,7 @@ The FairCredit smart contract has been successfully deployed to local Solana net
 ### Provider Authority
 
 - **Address**: `8NY4S4qwomeR791SRvFrj51vEayN3V4TLq37uBzEj5pn`
-- **Source**: Generated during deployment (see `deployment.json` for private key)
+- **Source**: Generated during deployment (use your own keypair for testing)
 - **Role**: Controls the "Solana Academy" provider account
 - **Permissions**: Can create courses, manage course content, and issue credentials
 
@@ -124,7 +124,7 @@ The dapp will be available at `http://localhost:3000`
 
 - `/scripts/deploy-minimal.ts` - Deployment script for minimal setup
 - `/scripts/dapp-integration.ts` - Integration helper for dapps
-- `/deployment.json` - Deployment addresses and configuration
+- PDA addresses are derived from Program ID via Codama (no deployment config file)
 - `/app/lib/solana/config.ts` - Solana configuration for dapp
 - `/app/lib/solana/simple-client.ts` - Simplified Solana client
 - `/app/lib/solana/context.tsx` - React context for FairCredit
@@ -134,7 +134,7 @@ The dapp will be available at `http://localhost:3000`
 
 - The Hub account size was reduced from 1000/2000 to 50/100 items for local deployment
 - The simple client uses mocked data for now - full Anchor integration can be added later
-- Provider private key is stored in deployment.json for testing only - never commit real keys!
+- Use local keypairs for testing only; never commit real keys.
 
 ## Authority Summary
 

@@ -3,23 +3,20 @@
 import { createSolanaRpc } from "@solana/kit";
 import { address } from "@solana/kit";
 import { getInitializeProviderInstructionAsync } from "../app/lib/solana/generated/instructions";
-import { createSignerFromSecretKey } from "./utils/keypair-signer";
 import { sendInstructions } from "./utils/transaction-helper";
-import { getProviderPDA } from "./utils/pda";
+import { getProviderAddress, createPlaceholderSigner } from "./utils/pda";
+import { getHubAuthoritySigner } from "./utils/hub-authority-signer";
 import { fetchMaybeProvider } from "../app/lib/solana/generated/accounts";
 
-const HUB_AUTHORITY_SECRET =
-  "5mdcUteXC3qhj8pvNQx765xuXPbU9KutBZabqsmn36YuKzf3wZDECSVAN3XyhuAfhQbGENS3MUUKiZimncdm4t8q";
-
 async function createProviderForWallet(walletAddress: string) {
-  const bs58 = require("bs58");
-  const secretKey = bs58.decode(HUB_AUTHORITY_SECRET);
-  const hubAuthoritySigner = await createSignerFromSecretKey(secretKey);
+  const hubAuthoritySigner = await getHubAuthoritySigner();
 
   const rpcUrl = "https://api.devnet.solana.com";
   const rpc = createSolanaRpc(rpcUrl);
   const providerWalletAddr = address(walletAddress);
-  const [providerPDA] = await getProviderPDA(walletAddress);
+  const providerPDA = await getProviderAddress(
+    createPlaceholderSigner(walletAddress),
+  );
 
   console.log("Creating provider for wallet:", walletAddress);
   console.log("Provider PDA:", providerPDA);
@@ -33,7 +30,7 @@ async function createProviderForWallet(walletAddress: string) {
 
     const instruction = await getInitializeProviderInstructionAsync(
       {
-        providerAccount: address(providerPDA),
+        providerAccount: providerPDA,
         providerAuthority: hubAuthoritySigner,
         systemProgram: undefined,
         name: "FairCredit Hub Authority",
@@ -54,7 +51,7 @@ async function createProviderForWallet(walletAddress: string) {
     console.log("Provider created successfully!");
     console.log("Transaction signature:", signature);
 
-    const accountInfo = await rpc.getAccountInfo(address(providerPDA)).send();
+    const accountInfo = await rpc.getAccountInfo(providerPDA).send();
     if (accountInfo.value) {
       console.log("\nProvider created successfully!");
       console.log(

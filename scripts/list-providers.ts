@@ -1,11 +1,8 @@
 #!/usr/bin/env npx tsx
 
 import { createSolanaRpc } from "@solana/kit";
-import { address } from "@solana/kit";
-import { getProviderPDA } from "./utils/pda";
+import { getProviderAddress, createPlaceholderSigner } from "./utils/pda";
 import { fetchMaybeProvider } from "../app/lib/solana/generated/accounts";
-
-const PROGRAM_ID = "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk";
 
 async function listProviders() {
   console.log("🔍 Looking for Existing Providers on Devnet");
@@ -18,7 +15,9 @@ async function listProviders() {
 
   console.log("Checking known test wallets:");
   for (const wallet of testWallets) {
-    const [providerPDA] = await getProviderPDA(wallet);
+    const providerPDA = await getProviderAddress(
+      createPlaceholderSigner(wallet),
+    );
 
     const account = await fetchMaybeProvider(rpc, providerPDA);
     console.log(`\nWallet: ${wallet}`);

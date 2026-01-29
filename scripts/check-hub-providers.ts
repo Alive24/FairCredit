@@ -2,7 +2,7 @@
 
 import { createSolanaRpc } from "@solana/kit";
 import { address } from "@solana/kit";
-import { getHubPDA } from "./utils/pda";
+import { getHubAddress } from "./utils/pda";
 import { fetchMaybeHub } from "../app/lib/solana/generated/accounts";
 
 process.env.ANCHOR_PROVIDER_URL = "https://api.devnet.solana.com";
@@ -15,7 +15,7 @@ async function checkHubProviders() {
   const rpcUrl = "https://api.devnet.solana.com";
   const rpc = createSolanaRpc(rpcUrl);
 
-  const [hubPDA] = await getHubPDA();
+  const hubPDA = await getHubAddress();
 
   try {
     const hub = await fetchMaybeHub(rpc, hubPDA);

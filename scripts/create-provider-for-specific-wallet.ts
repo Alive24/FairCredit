@@ -1,11 +1,10 @@
 #!/usr/bin/env npx tsx
 
 import { createSolanaRpc } from "@solana/kit";
-import { address } from "@solana/kit";
 import { getInitializeProviderInstructionAsync } from "../app/lib/solana/generated/instructions";
 import { createSignerFromSecretKey } from "./utils/keypair-signer";
 import { sendInstructions } from "./utils/transaction-helper";
-import { getProviderPDA } from "./utils/pda";
+import { getProviderAddress, createPlaceholderSigner } from "./utils/pda";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -27,12 +26,12 @@ async function createProviderForWallet() {
   const hubAuthoritySigner = await createSignerFromSecretKey(secretKey);
 
   const rpcUrl = "https://api.devnet.solana.com";
-  const specificWalletAddr = address(
-    "F7xXsyVCTieJssPccJTt2x8nr5A81YM7cMizS5SL16bs",
-  );
+  const specificWalletAddr = "F7xXsyVCTieJssPccJTt2x8nr5A81YM7cMizS5SL16bs";
   console.log("📝 Creating provider for wallet:", specificWalletAddr);
 
-  const [providerPDA] = await getProviderPDA(specificWalletAddr);
+  const providerPDA = await getProviderAddress(
+    createPlaceholderSigner(specificWalletAddr),
+  );
   console.log("  Provider PDA:", providerPDA);
 
   console.log("\n🔧 Initializing provider account...");
@@ -40,7 +39,7 @@ async function createProviderForWallet() {
   try {
     const instruction = await getInitializeProviderInstructionAsync(
       {
-        providerAccount: address(providerPDA),
+        providerAccount: providerPDA,
         providerAuthority: hubAuthoritySigner,
         systemProgram: undefined,
         name: "FairCredit Test Provider",
