@@ -7,10 +7,12 @@ The FairCredit smart contract has been successfully deployed to local Solana net
 ### Deployed Components
 
 1. **Smart Contract**
+
    - Program ID: `BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk`
    - Network: Localnet (`http://localhost:8899`)
 
 2. **Hub Account** (Curated Registry)
+
    - Address: `GPftMStJZ5h7uvM5FwZXHwxm7DBv6YdPtDDWRYcnpqKf`
    - Authority: `F7xXsyVCTieJssPccJTt2x8nr5A81YM7cMizS5SL16bs`
    - Features:
@@ -19,6 +21,7 @@ The FairCredit smart contract has been successfully deployed to local Solana net
      - Maintains list of accepted courses
 
 3. **Provider Account**
+
    - Address: `7xRZhV7pcQtE96nU8ookpEfxkw957t3NofGe87nCkr1M`
    - Wallet: `8NY4S4qwomeR791SRvFrj51vEayN3V4TLq37uBzEj5pn`
    - Name: "Solana Academy"
@@ -35,18 +38,21 @@ The FairCredit smart contract has been successfully deployed to local Solana net
 ## Authority Addresses Explained
 
 ### Hub Authority
+
 - **Address**: `F7xXsyVCTieJssPccJTt2x8nr5A81YM7cMizS5SL16bs`
 - **Source**: This is the default Solana CLI wallet (`~/.config/solana/id.json`)
 - **Role**: Has full control over the Hub - can add/remove providers, endorsers, and courses
 - **Usage**: Used when running deployment scripts and admin operations
 
 ### Provider Authority
+
 - **Address**: `8NY4S4qwomeR791SRvFrj51vEayN3V4TLq37uBzEj5pn`
 - **Source**: Generated during deployment (see `deployment.json` for private key)
 - **Role**: Controls the "Solana Academy" provider account
 - **Permissions**: Can create courses, manage course content, and issue credentials
 
 ### Key Relationships
+
 - The Hub Authority is different from Provider Authority for separation of concerns
 - Hub Authority manages the curated registry (quality control)
 - Provider Authority manages educational content (courses and credentials)
@@ -67,7 +73,6 @@ solana-test-validator --reset --quiet
 anchor deploy
 
 # Run the minimal deployment script
-npx ts-node scripts/deploy-minimal.ts
 ```
 
 ### 3. Start the DApp
@@ -133,12 +138,13 @@ The dapp will be available at `http://localhost:3000`
 
 ## Authority Summary
 
-| Account Type | Authority Address | Description | Source |
-|-------------|------------------|-------------|---------|
-| Hub | `F7xXsyVCTieJssPccJTt2x8nr5A81YM7cMizS5SL16bs` | Controls the curated registry | Default Solana CLI wallet |
-| Provider | `8NY4S4qwomeR791SRvFrj51vEayN3V4TLq37uBzEj5pn` | Controls "Solana Academy" provider | Generated during deployment |
+| Account Type | Authority Address                              | Description                        | Source                      |
+| ------------ | ---------------------------------------------- | ---------------------------------- | --------------------------- |
+| Hub          | `F7xXsyVCTieJssPccJTt2x8nr5A81YM7cMizS5SL16bs` | Controls the curated registry      | Default Solana CLI wallet   |
+| Provider     | `8NY4S4qwomeR791SRvFrj51vEayN3V4TLq37uBzEj5pn` | Controls "Solana Academy" provider | Generated during deployment |
 
 In a production environment:
+
 - **Hub Authority** would typically be a DAO or governance body responsible for quality control
 - **Provider Authorities** would be individual educational institutions with their own wallets
 - **Students and Endorsers** would have their own wallets for interacting with the system

@@ -1,40 +1,48 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { 
-  Check, 
-  X, 
-  Clock, 
-  AlertTriangle, 
-  Trash2, 
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Check,
+  X,
+  Clock,
+  AlertTriangle,
+  Trash2,
   DollarSign,
   Zap,
-  Hash
-} from "lucide-react"
-import { BatchOperation, useBatchRegistry } from "@/hooks/use-batch-registry"
-import { BatchRegistryManager } from "@/lib/solana/batch-registry"
-import { useFairCredit } from "@/lib/solana/context"
-import { useWallet } from "@solana/wallet-adapter-react"
-import { useToast } from "@/hooks/use-toast"
+  Hash,
+} from "lucide-react";
+import { BatchOperation, useBatchRegistry } from "@/hooks/use-batch-registry";
+import { BatchRegistryManager } from "@/lib/solana/batch-registry";
+import { useToast } from "@/hooks/use-toast";
+import { useSendTransaction, useWallet } from "@solana/react-hooks";
 
 interface BatchOperationsPanelProps {
-  batchRegistry: ReturnType<typeof useBatchRegistry>
-  onBatchComplete: () => void
+  batchRegistry: ReturnType<typeof useBatchRegistry>;
+  onBatchComplete: () => void;
 }
 
-export function BatchOperationsPanel({ batchRegistry, onBatchComplete }: BatchOperationsPanelProps) {
-  const { connection } = useFairCredit()
-  const { wallet } = useWallet()
-  const { toast } = useToast()
+export function BatchOperationsPanel({
+  batchRegistry,
+  onBatchComplete,
+}: BatchOperationsPanelProps) {
+  const { toast } = useToast();
+  const wallet = useWallet();
+  const { send, isSending } = useSendTransaction();
   const [costEstimate, setCostEstimate] = useState<{
     estimatedFee: number;
     computeUnits: number;
     instructionCount: number;
-  } | null>(null)
+  } | null>(null);
 
   const {
     pendingOperations,
@@ -43,84 +51,94 @@ export function BatchOperationsPanel({ batchRegistry, onBatchComplete }: BatchOp
     removeOperation,
     clearOperations,
     getOperationSummary,
-    hasPendingOperations
-  } = batchRegistry
+    hasPendingOperations,
+  } = batchRegistry;
 
-  const summary = getOperationSummary()
+  const summary = getOperationSummary();
 
   // Update cost estimate when operations change
   useEffect(() => {
-    if (hasPendingOperations && connection && wallet && wallet.publicKey) {
-      const walletAdapter = {
-        publicKey: wallet.publicKey,
-        sendTransaction: wallet.sendTransaction.bind(wallet)
-      };
-      const batchManager = new BatchRegistryManager(connection, walletAdapter);
-      batchManager.estimateBatchCost(pendingOperations)
-        .then(setCostEstimate)
-        .catch(console.error);
+    if (hasPendingOperations) {
+      const estimate =
+        BatchRegistryManager.estimateBatchCost(pendingOperations);
+      setCostEstimate(estimate);
     } else {
       setCostEstimate(null);
     }
-  }, [pendingOperations, connection, wallet, hasPendingOperations])
+  }, [pendingOperations, hasPendingOperations]);
 
   const executeBatch = async () => {
-    if (!connection || !wallet || !wallet.publicKey || !hasPendingOperations) return
+    if (
+      !hasPendingOperations ||
+      wallet.status !== "connected" ||
+      !wallet.session?.account
+    ) {
+      toast({
+        title: "Error",
+        description: "Wallet not connected",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setIsProcessing(true)
+    setIsProcessing(true);
     try {
-      const walletAdapter = {
-        publicKey: wallet.publicKey,
-        sendTransaction: wallet.sendTransaction.bind(wallet)
-      };
-      const batchManager = new BatchRegistryManager(connection, walletAdapter);
-      const signature = await batchManager.executeBatchOperations(pendingOperations);
-      
+      const instructions = await BatchRegistryManager.createBatchInstructions(
+        pendingOperations,
+        wallet.session.account as any,
+      );
+
+      const signature = await send({ instructions });
+
       toast({
         title: "Batch Complete",
-        description: `${pendingOperations.length} operations executed successfully. Tx: ${signature.slice(0, 8)}...`,
-      })
-      
-      clearOperations()
-      onBatchComplete()
+        description: `${
+          pendingOperations.length
+        } operations executed successfully. Tx: ${signature.slice(0, 8)}...`,
+      });
+
+      clearOperations();
+      onBatchComplete();
     } catch (error) {
-      console.error("Batch execution failed:", error)
+      console.error("Batch execution failed:", error);
       toast({
-        title: "Batch Failed", 
-        description: `Failed to execute batch operations. ${error instanceof Error ? error.message : "Please try again."}`,
-        variant: "destructive"
-      })
+        title: "Batch Failed",
+        description: `Failed to execute batch operations. ${
+          error instanceof Error ? error.message : "Please try again."
+        }`,
+        variant: "destructive",
+      });
     } finally {
-      setIsProcessing(false)
+      setIsProcessing(false);
     }
-  }
+  };
 
   const getOperationIcon = (operation: BatchOperation) => {
     if (operation.type === "add") {
-      return <Check className="h-4 w-4 text-green-600" />
+      return <Check className="h-4 w-4 text-green-600" />;
     } else {
-      return <X className="h-4 w-4 text-red-600" />
+      return <X className="h-4 w-4 text-red-600" />;
     }
-  }
+  };
 
   const getOperationColor = (operation: BatchOperation) => {
     if (operation.type === "add") {
-      return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+      return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
     } else {
-      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
     }
-  }
+  };
 
   const formatEntityKey = (key: string, type: string) => {
     if (type === "course") {
-      return key
+      return key;
     }
     // For public keys, show first 4 and last 4 characters
-    return `${key.slice(0, 4)}...${key.slice(-4)}`
-  }
+    return `${key.slice(0, 4)}...${key.slice(-4)}`;
+  };
 
   if (!hasPendingOperations) {
-    return null
+    return null;
   }
 
   return (
@@ -136,7 +154,10 @@ export function BatchOperationsPanel({ batchRegistry, onBatchComplete }: BatchOp
               Review and confirm your registry changes before execution
             </CardDescription>
           </div>
-          <Badge variant="outline" className="text-orange-600 border-orange-600">
+          <Badge
+            variant="outline"
+            className="text-orange-600 border-orange-600"
+          >
             {summary.total} operations
           </Badge>
         </div>
@@ -147,13 +168,19 @@ export function BatchOperationsPanel({ batchRegistry, onBatchComplete }: BatchOp
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-white dark:bg-gray-950 rounded-lg">
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">
-              +{summary.adds.providers + summary.adds.courses + summary.adds.endorsers}
+              +
+              {summary.adds.providers +
+                summary.adds.courses +
+                summary.adds.endorsers}
             </div>
             <div className="text-sm text-muted-foreground">Additions</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-red-600">
-              -{summary.removes.providers + summary.removes.courses + summary.removes.endorsers}
+              -
+              {summary.removes.providers +
+                summary.removes.courses +
+                summary.removes.endorsers}
             </div>
             <div className="text-sm text-muted-foreground">Removals</div>
           </div>
@@ -172,7 +199,9 @@ export function BatchOperationsPanel({ batchRegistry, onBatchComplete }: BatchOp
           <div className="flex items-center gap-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-sm">
             <div className="flex items-center gap-1">
               <DollarSign className="h-4 w-4 text-blue-600" />
-              <span>Fee: {(costEstimate.estimatedFee / 1e9).toFixed(4)} SOL</span>
+              <span>
+                Fee: {(costEstimate.estimatedFee / 1e9).toFixed(4)} SOL
+              </span>
             </div>
             <div className="flex items-center gap-1">
               <Zap className="h-4 w-4 text-blue-600" />
@@ -202,7 +231,10 @@ export function BatchOperationsPanel({ batchRegistry, onBatchComplete }: BatchOp
                       {operation.type} {operation.entityType}
                     </Badge>
                     <span className="text-sm font-medium">
-                      {formatEntityKey(operation.entityKey, operation.entityType)}
+                      {formatEntityKey(
+                        operation.entityKey,
+                        operation.entityType,
+                      )}
                     </span>
                   </div>
                   {operation.entityName && (
@@ -238,10 +270,15 @@ export function BatchOperationsPanel({ batchRegistry, onBatchComplete }: BatchOp
           <div className="flex items-center gap-2">
             <Button
               onClick={executeBatch}
-              disabled={!hasPendingOperations || isProcessing}
+              disabled={
+                !hasPendingOperations ||
+                isProcessing ||
+                isSending ||
+                wallet.status !== "connected"
+              }
               className="bg-orange-600 hover:bg-orange-700"
             >
-              {isProcessing ? (
+              {isProcessing || isSending ? (
                 <>
                   <Clock className="mr-2 h-4 w-4 animate-spin" />
                   Processing...
@@ -260,11 +297,11 @@ export function BatchOperationsPanel({ batchRegistry, onBatchComplete }: BatchOp
         <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
           <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
           <div className="text-sm text-amber-800 dark:text-amber-200">
-            All operations will be executed in a single transaction. If any operation fails, 
-            the entire batch will be rolled back.
+            All operations will be executed in a single transaction. If any
+            operation fails, the entire batch will be rolled back.
           </div>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -1,15 +1,18 @@
 #!/usr/bin/env npx tsx
 
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { FairCredit } from "../target/types/fair_credit";
-import { PublicKey, SystemProgram, Keypair, Transaction } from "@solana/web3.js";
+import { createSolanaRpc } from "@solana/kit";
+import { address } from "@solana/kit";
+import { generateKeyPairSigner } from "@solana/signers";
+import { getInitializeProviderInstructionAsync } from "../app/lib/solana/generated/instructions";
+import { createSignerFromSecretKey } from "./utils/keypair-signer";
+import { sendInstructions } from "./utils/transaction-helper";
+import { getProviderPDA } from "./utils/pda";
 import * as fs from "fs";
 import * as path from "path";
-// @ts-ignore - bs58 types not available
-import bs58 from "bs58";
+import * as os from "os";
+import { getTransferSolInstruction } from "@solana-program/system";
+import { lamports } from "@solana/kit";
 
-// Override the cluster to devnet
 process.env.ANCHOR_PROVIDER_URL = "https://api.devnet.solana.com";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
@@ -17,82 +20,77 @@ async function createTestProvider() {
   console.log("🏢 Creating Test Provider on Devnet");
   console.log("==================================\n");
 
-  // Set up provider
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
+  const walletPath = path.join(os.homedir(), ".config/solana/id.json");
+  if (!fs.existsSync(walletPath)) {
+    throw new Error(`Wallet not found at ${walletPath}`);
+  }
 
-  // Load program
-  const program = anchor.workspace.FairCredit as Program<FairCredit>;
-  
+  const keypairData = JSON.parse(fs.readFileSync(walletPath, "utf-8"));
+  const secretKey = Uint8Array.from(keypairData);
+  const hubAuthoritySigner = await createSignerFromSecretKey(secretKey);
+
+  const rpcUrl = "https://api.devnet.solana.com";
+  const rpc = createSolanaRpc(rpcUrl);
+
   try {
-    // Create a new provider wallet
-    const providerWallet = Keypair.generate();
+    const providerWalletSigner = await generateKeyPairSigner();
     console.log("📝 Creating new provider:");
-    console.log("  Wallet:", providerWallet.publicKey.toBase58());
-    console.log("  Secret (Base58):", bs58.encode(providerWallet.secretKey));
+    console.log("  Wallet:", providerWalletSigner.address);
 
-    const [providerPDA] = PublicKey.findProgramAddressSync(
-      [Buffer.from("provider"), providerWallet.publicKey.toBuffer()],
-      program.programId
+    const [providerPDA] = await getProviderPDA(providerWalletSigner.address);
+    console.log("  PDA:", providerPDA);
+
+    console.log(
+      "\n🔧 Initializing provider (hub authority pays for transaction)...",
     );
-    console.log("  PDA:", providerPDA.toBase58());
 
-    console.log("\n🔧 Initializing provider (hub authority pays for transaction)...");
-    
-    // Create the instruction
-    const initIx = await program.methods
-      .initializeProvider(
-        "Test Provider " + Date.now(),
-        "A test provider for hub management testing",
-        "https://test-provider.com",
-        "test@provider.com",
-        "educational"
-      )
-      .accounts({
-        providerAuthority: providerWallet.publicKey,
-      })
-      .instruction();
-
-    // Create transaction and have hub authority pay
-    const tx = new Transaction();
-    
-    // Add transfer to give provider some SOL for future transactions (optional)
-    tx.add(
-      SystemProgram.transfer({
-        fromPubkey: provider.wallet.publicKey,
-        toPubkey: providerWallet.publicKey,
-        lamports: 0.01 * 1e9, // 0.01 SOL
-      })
+    const initInstruction = await getInitializeProviderInstructionAsync(
+      {
+        providerAccount: address(providerPDA),
+        providerAuthority: providerWalletSigner,
+        systemProgram: undefined,
+        name: "Test Provider " + Date.now(),
+        description: "A test provider for hub management testing",
+        website: "https://test-provider.com",
+        email: "test@provider.com",
+        providerType: "educational",
+      },
+      {},
     );
-    
-    // Add the initialize instruction
-    tx.add(initIx);
 
-    // Send transaction with both signers
-    const signature = await provider.sendAndConfirm(tx, [providerWallet]);
-    
+    const transferInstruction = getTransferSolInstruction({
+      source: hubAuthoritySigner,
+      destination: providerWalletSigner.address,
+      amount: lamports(BigInt(0.01 * 1e9)),
+    });
+
+    const signature = await sendInstructions(
+      rpcUrl,
+      [transferInstruction, initInstruction],
+      hubAuthoritySigner,
+    );
+
     console.log("✅ Provider initialized!");
     console.log("  Transaction:", signature);
 
-    // Save provider info
+    const bs58 = require("bs58");
     const providerInfo = {
-      wallet: providerWallet.publicKey.toBase58(),
-      pda: providerPDA.toBase58(),
-      secret: bs58.encode(providerWallet.secretKey),
-      secretBase64: Buffer.from(providerWallet.secretKey).toString('base64'),
-      created: new Date().toISOString()
+      wallet: providerWalletSigner.address,
+      pda: providerPDA,
+      created: new Date().toISOString(),
     };
 
-    const outputPath = path.join(__dirname, `../test-provider-${Date.now()}.json`);
+    const outputPath = path.join(
+      __dirname,
+      `../test-provider-${Date.now()}.json`,
+    );
     fs.writeFileSync(outputPath, JSON.stringify(providerInfo, null, 2));
-    
+
     console.log("\n📄 Provider info saved to:", outputPath);
     console.log("\n🎯 Next Steps:");
     console.log("1. Use the hub management UI to add this provider");
-    console.log("2. Provider wallet address:", providerWallet.publicKey.toBase58());
-    console.log("3. Or run: npx tsx scripts/test-add-provider-simple.ts", providerWallet.publicKey.toBase58());
-
-  } catch (error) {
+    console.log("2. Provider wallet address:", providerWalletSigner.address);
+  } catch (error: any) {
     console.error("Error:", error);
     throw error;
   }

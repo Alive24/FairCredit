@@ -1,9 +1,3 @@
-// Suppress deprecation warning from Anchor's internal code generation
-// This warning comes from Anchor 0.31.1's #[program] macro using the deprecated
-// AccountInfo::realloc instead of AccountInfo::resize. This will be fixed in a
-// future Anchor release.
-#![allow(deprecated)]
-
 use anchor_lang::prelude::*;
 
 pub mod events;

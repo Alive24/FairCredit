@@ -1,0 +1,10 @@
+{
+  "idl": "target/idl/fair_credit.json",
+  "before": [],
+  "scripts": {
+    "js": {
+      "from": "@codama/renderers-js",
+      "args": ["app/lib/solana/generated"]
+    }
+  }
+}

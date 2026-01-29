@@ -1,47 +1,62 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { User, Shield } from "lucide-react"
-import { useWallet } from "@solana/wallet-adapter-react"
-import { ModeToggle } from "@/components/mode-toggle"
-import { WalletButton } from "@/components/wallet-button"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { GraduationCap, Users, UserCheck, Search } from "lucide-react"
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { User, Shield } from "lucide-react";
+import { ModeToggle } from "@/components/mode-toggle";
+import { useAppKit, AppKitButton, useAppKitAccount } from "@reown/appkit/react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { GraduationCap, Users, UserCheck, Search } from "lucide-react";
 
-type UserType = "provider" | "student" | "supervisor" | "verifier" | null
+type UserType = "provider" | "student" | "supervisor" | "verifier" | null;
 
 export function NavbarActions() {
-  const { connected, publicKey } = useWallet()
-  const [userType, setUserType] = useState<UserType>(null)
+  const { address } = useAppKitAccount();
+  const { open } = useAppKit();
+  const [userType, setUserType] = useState<UserType>(null);
 
-  const walletAddress = publicKey
-    ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
-    : ""
+  const connected = !!address;
+  const walletAddress = address
+    ? `${String(address).slice(0, 4)}...${String(address).slice(-4)}`
+    : "";
 
   useEffect(() => {
-    const savedUserType = localStorage.getItem("userType") as UserType
+    const savedUserType = localStorage.getItem("userType") as UserType;
     if (savedUserType) {
-      setUserType(savedUserType)
+      setUserType(savedUserType);
     }
-  }, [])
+  }, []);
 
   const handleUserTypeSelection = (type: Exclude<UserType, null>) => {
-    setUserType(type)
-    localStorage.setItem("userType", type)
-  }
+    setUserType(type);
+    localStorage.setItem("userType", type);
+  };
 
   return (
     <>
       <div className="flex items-center gap-4">
         <ModeToggle />
-        <WalletButton />
+        <AppKitButton />
         {connected && userType && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 bg-transparent"
+              >
                 <User className="h-4 w-4" />
                 {walletAddress}
               </Button>
@@ -52,10 +67,10 @@ export function NavbarActions() {
                   {userType === "student"
                     ? "My Applications"
                     : userType === "provider"
-                      ? "Dashboard"
-                      : userType === "supervisor"
-                        ? "Endorsements"
-                        : "Verifications"}
+                    ? "Dashboard"
+                    : userType === "supervisor"
+                    ? "Endorsements"
+                    : "Verifications"}
                 </Link>
               </DropdownMenuItem>
               {userType === "student" && (
@@ -76,8 +91,8 @@ export function NavbarActions() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  localStorage.removeItem("userType")
-                  setUserType(null)
+                  localStorage.removeItem("userType");
+                  setUserType(null);
                 }}
                 className="cursor-pointer"
               >
@@ -94,8 +109,12 @@ export function NavbarActions() {
         <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <Card className="mx-auto w-full max-w-md border-2 shadow-2xl">
             <CardHeader className="text-center pb-4">
-              <CardTitle className="text-xl font-bold">Select Your Role</CardTitle>
-              <CardDescription className="text-sm">Choose how you'll be using FairCredit</CardDescription>
+              <CardTitle className="text-xl font-bold">
+                Select Your Role
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Choose how you'll be using FairCredit
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 pb-6">
               <Button
@@ -106,7 +125,9 @@ export function NavbarActions() {
                 <GraduationCap className="mr-3 h-5 w-5 text-green-600" />
                 <div>
                   <div className="font-medium">Student</div>
-                  <div className="text-xs text-muted-foreground">Apply for credentials</div>
+                  <div className="text-xs text-muted-foreground">
+                    Apply for credentials
+                  </div>
                 </div>
               </Button>
               <Button
@@ -117,7 +138,9 @@ export function NavbarActions() {
                 <Users className="mr-3 h-5 w-5 text-blue-600" />
                 <div>
                   <div className="font-medium">Provider</div>
-                  <div className="text-xs text-muted-foreground">Manage courses & review applications</div>
+                  <div className="text-xs text-muted-foreground">
+                    Manage courses & review applications
+                  </div>
                 </div>
               </Button>
               <Button
@@ -128,7 +151,9 @@ export function NavbarActions() {
                 <UserCheck className="mr-3 h-5 w-5 text-purple-600" />
                 <div>
                   <div className="font-medium">Supervisor</div>
-                  <div className="text-xs text-muted-foreground">Endorse student work</div>
+                  <div className="text-xs text-muted-foreground">
+                    Endorse student work
+                  </div>
                 </div>
               </Button>
               <Button
@@ -139,7 +164,9 @@ export function NavbarActions() {
                 <Search className="mr-3 h-5 w-5 text-orange-600" />
                 <div>
                   <div className="font-medium">Verifier</div>
-                  <div className="text-xs text-muted-foreground">Verify credentials</div>
+                  <div className="text-xs text-muted-foreground">
+                    Verify credentials
+                  </div>
                 </div>
               </Button>
             </CardContent>
@@ -147,5 +174,5 @@ export function NavbarActions() {
         </div>
       )}
     </>
-  )
+  );
 }

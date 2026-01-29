@@ -1,36 +1,53 @@
-"use client"
+"use client";
 
-import { Header } from "@/components/header"
-import { CourseList } from "@/components/courses/course-list"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useFairCredit } from "@/lib/solana/context"
-import { useEffect, useState } from "react"
-import { FileText, Users, Award, Loader2 } from "lucide-react"
+import { Header } from "@/components/header";
+import { CourseList } from "@/components/courses/course-list";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useFairCredit } from "@/hooks/use-fair-credit";
+import { useEffect, useState } from "react";
+import { FileText, Users, Award, Loader2 } from "lucide-react";
+import { fetchMaybeHub } from "@/lib/solana/generated/accounts";
+import type { Hub } from "@/lib/solana/generated/accounts";
+import { getUpdateHubConfigInstructionAsync } from "@/lib/solana/generated/instructions/updateHubConfig";
+import { DEFAULT_PLACEHOLDER_SIGNER } from "@/lib/solana/placeholder-signer";
 
 export default function ProgramsPage() {
-  const { client } = useFairCredit()
-  const [hubData, setHubData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { rpcUrl, rpc } = useFairCredit();
+  const [hubData, setHubData] = useState<Hub | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchHubData() {
-      if (!client) {
-        setLoading(false)
-        return
+      if (!rpcUrl) {
+        setLoading(false);
+        return;
       }
 
       try {
-        const hub = await client.getHub()
-        setHubData(hub)
+        // Get hub address from Codama instruction (it auto-resolves PDA)
+        const instruction = await getUpdateHubConfigInstructionAsync({
+          hub: undefined,
+          authority: DEFAULT_PLACEHOLDER_SIGNER,
+          config: {
+            requireProviderApproval: false,
+            requireEndorserApproval: false,
+            minReputationScore: 0,
+            allowSelfEndorsement: false,
+          },
+        });
+        const hubAddress = instruction.accounts[0].address;
+        const hubAccount = await fetchMaybeHub(rpc, hubAddress);
+        const hub = hubAccount.exists ? hubAccount.data : null;
+        setHubData(hub);
       } catch (error) {
-        console.error("Failed to fetch hub data:", error)
+        console.error("Failed to fetch hub data:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
 
-    fetchHubData()
-  }, [client])
+    fetchHubData();
+  }, [rpcUrl]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -39,7 +56,8 @@ export default function ProgramsPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold">FairCredit Courses</h1>
           <p className="text-muted-foreground">
-            Browse available courses from accepted providers on the FairCredit platform
+            Browse available courses from accepted providers on the FairCredit
+            platform
           </p>
         </div>
 
@@ -47,7 +65,9 @@ export default function ProgramsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Accepted Courses</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Accepted Courses
+              </CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -64,7 +84,9 @@ export default function ProgramsPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Accepted Providers</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Accepted Providers
+              </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -75,13 +97,17 @@ export default function ProgramsPage() {
                   {hubData?.acceptedProviders?.length || 0}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Verified educators</p>
+              <p className="text-xs text-muted-foreground">
+                Verified educators
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Accepted Endorsers</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Accepted Endorsers
+              </CardTitle>
               <Award className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -104,5 +130,5 @@ export default function ProgramsPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

@@ -24,20 +24,29 @@ import {
   Award,
 } from "lucide-react";
 import Link from "next/link";
-import { useFairCredit } from "@/lib/solana/context";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useFairCredit } from "@/hooks/use-fair-credit";
+import { useAppKitAccount } from "@reown/appkit/react";
 import { useToast } from "@/hooks/use-toast";
 import { ProviderRegistrationCard } from "@/components/provider/provider-registration-card";
 import { WalletDebug } from "@/components/wallet-debug";
-import { PublicKey } from "@solana/web3.js";
+import { address } from "@solana/kit";
+import type { Address } from "@solana/kit";
+import {
+  fetchMaybeHub,
+  fetchMaybeProvider,
+  fetchMaybeCourse,
+} from "@/lib/solana/generated/accounts";
+import type { Hub, Provider, Course } from "@/lib/solana/generated/accounts";
+import { getUpdateHubConfigInstructionAsync } from "@/lib/solana/generated/instructions/updateHubConfig";
+import { getAddAcceptedProviderInstructionAsync } from "@/lib/solana/generated/instructions/addAcceptedProvider";
+import { getAddAcceptedCourseInstructionAsync } from "@/lib/solana/generated/instructions/addAcceptedCourse";
+import { DEFAULT_PLACEHOLDER_SIGNER } from "@/lib/solana/placeholder-signer";
 
 export function ProviderDashboard() {
-  const { client, providerClient } = useFairCredit();
-  const wallet = useWallet();
-  const { publicKey, connected } = wallet;
-
-  // More flexible connection check
-  const isWalletConnected = connected || wallet.wallet?.adapter?.connected;
+  const { rpcUrl, rpc } = useFairCredit();
+  const { address: walletAddress, isConnected: connected } = useAppKitAccount();
+  const publicKey = walletAddress ? address(walletAddress) : null;
+  const isWalletConnected = connected;
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [providerData, setProviderData] = useState<any>(null);
@@ -46,14 +55,27 @@ export function ProviderDashboard() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!client || !isWalletConnected || !publicKey) {
+      if (!rpcUrl || !isWalletConnected || !publicKey || !walletAddress) {
         setLoading(false);
         return;
       }
 
       try {
         // Fetch hub data to check if provider is accepted
-        const hub = await client.getHub();
+        // Get hub address from Codama instruction (it auto-resolves PDA)
+        const hubInstruction = await getUpdateHubConfigInstructionAsync({
+          hub: undefined,
+          authority: DEFAULT_PLACEHOLDER_SIGNER,
+          config: {
+            requireProviderApproval: false,
+            requireEndorserApproval: false,
+            minReputationScore: 0,
+            allowSelfEndorsement: false,
+          },
+        });
+        const hubAddress = hubInstruction.accounts[0].address;
+        const hubAccount = await fetchMaybeHub(rpc, hubAddress);
+        const hub = hubAccount.exists ? hubAccount.data : null;
         if (!hub) {
           setHubData(null);
           setLoading(false);
@@ -61,28 +83,65 @@ export function ProviderDashboard() {
         }
         console.log("Hub data:", hub);
         console.log("Accepted providers:", hub?.acceptedProviders);
-        console.log("Current wallet:", publicKey.toBase58());
+        console.log("Current wallet:", walletAddress);
         setHubData(hub);
 
         // First check if provider exists (not necessarily accepted)
         try {
-          const providerInfo = await client.getProvider(publicKey);
-          if (providerInfo) {
+          // Get provider address from Codama instruction (it auto-resolves PDA)
+          const providerInstruction =
+            await getAddAcceptedProviderInstructionAsync({
+              hub: undefined,
+              authority: DEFAULT_PLACEHOLDER_SIGNER,
+              provider: undefined,
+              providerWallet: address(walletAddress),
+            });
+          const providerAddress = providerInstruction.accounts[2].address;
+          const providerAccount = await fetchMaybeProvider(
+            rpc,
+            providerAddress,
+          );
+          if (providerAccount.exists) {
+            const providerInfo = providerAccount.data;
             console.log("Provider exists:", providerInfo);
             setProviderData(providerInfo);
 
             // Check if current wallet is an accepted provider
             const isAcceptedProvider =
-              hub.acceptedProviders?.some(
-                (p) => p.toBase58() === publicKey.toBase58()
-              ) ?? false;
+              hub.acceptedProviders?.some((p) => {
+                const providerAddress = typeof p === "string" ? p : String(p);
+                return providerAddress === walletAddress;
+              }) ?? false;
             console.log("Is accepted provider:", isAcceptedProvider);
 
             if (isAcceptedProvider) {
               // Fetch courses by this provider
-              const providerCourses = await client.getCoursesByProvider(
-                publicKey.toBase58()
-              );
+              const providerCourses: Course[] = [];
+              for (const courseId of hub.acceptedCourses ?? []) {
+                // Get course address from Codama instruction (it auto-resolves PDA)
+                const courseInstruction =
+                  await getAddAcceptedCourseInstructionAsync({
+                    hub: undefined,
+                    authority: DEFAULT_PLACEHOLDER_SIGNER,
+                    course: undefined,
+                    courseId,
+                  });
+                const courseAddress = courseInstruction.accounts[2].address;
+                const courseAccount = await fetchMaybeCourse(
+                  rpc,
+                  courseAddress,
+                );
+                if (courseAccount.exists) {
+                  const courseData = courseAccount.data;
+                  const courseProviderKey =
+                    typeof courseData.provider === "string"
+                      ? courseData.provider
+                      : String(courseData.provider);
+                  if (courseProviderKey === walletAddress) {
+                    providerCourses.push(courseData);
+                  }
+                }
+              }
               setCourses(providerCourses);
             }
           }
@@ -102,13 +161,14 @@ export function ProviderDashboard() {
     }
 
     fetchData();
-  }, [client, isWalletConnected, publicKey, toast]);
+  }, [rpcUrl, isWalletConnected, publicKey, walletAddress, toast]);
 
   const hasProviderAccount = !!providerData;
   const isAcceptedProvider = Boolean(
-    hubData?.acceptedProviders?.some(
-      (p: PublicKey) => p.toBase58() === publicKey?.toBase58()
-    )
+    hubData?.acceptedProviders?.some((p: Address) => {
+      const providerAddress = typeof p === "string" ? p : String(p);
+      return providerAddress === walletAddress;
+    }),
   );
 
   // Calculate stats based on real data
@@ -263,7 +323,6 @@ export function ProviderDashboard() {
         ) : !hasProviderAccount ? (
           <ProviderRegistrationCard
             publicKey={publicKey}
-            client={providerClient}
             onRegistrationComplete={() => {
               // Refresh the data after registration
               window.location.reload();
@@ -293,7 +352,7 @@ export function ProviderDashboard() {
                   {providerData?.providerType || "Unknown"}
                 </p>
                 <p className="text-sm">
-                  <strong>Wallet:</strong> {publicKey?.toBase58()}
+                  <strong>Wallet:</strong> {walletAddress}
                 </p>
               </div>
               <p className="text-xs text-muted-foreground mt-4">
@@ -306,13 +365,11 @@ export function ProviderDashboard() {
                     Hub accepted providers:{" "}
                     {hubData?.acceptedProviders?.length || 0}
                   </p>
-                  {hubData?.acceptedProviders?.map(
-                    (p: PublicKey, i: number) => (
-                      <p key={i} className="font-mono text-xs">
-                        {i}: {p.toBase58()}
-                      </p>
-                    )
-                  )}
+                  {hubData?.acceptedProviders?.map((p: Address, i: number) => (
+                    <p key={i} className="font-mono text-xs">
+                      {i}: {typeof p === "string" ? p : String(p)}
+                    </p>
+                  ))}
                 </div>
               )}
             </CardContent>

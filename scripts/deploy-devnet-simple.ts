@@ -1,69 +1,64 @@
 #!/usr/bin/env ts-node
 
-import { Connection, PublicKey, Keypair, SystemProgram, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import { createSolanaRpc } from "@solana/kit";
+import { address } from "@solana/kit";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { getHubPDA } from "./utils/pda";
+import { fetchMaybeHub } from "../app/lib/solana/generated/accounts";
+import { createSignerFromSecretKey } from "./utils/keypair-signer";
 
-const PROGRAM_ID = new PublicKey("BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk");
+const PROGRAM_ID = "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk";
 
 async function deployDevnetSimple() {
   console.log("🚀 Initializing FairCredit Hub on Devnet");
   console.log("======================================\n");
 
-  // Load the wallet
-  const walletPath = path.join(os.homedir(), '.config/solana/id.json');
-  const keypairData = JSON.parse(fs.readFileSync(walletPath, 'utf-8'));
-  const wallet = Keypair.fromSecretKey(Uint8Array.from(keypairData));
-  
-  console.log("Wallet:", wallet.publicKey.toBase58());
-
-  // Connect to devnet
-  const connection = new Connection("https://api.devnet.solana.com", "confirmed");
-  
-  // Check balance
-  const balance = await connection.getBalance(wallet.publicKey);
-  console.log("Balance:", balance / 1e9, "SOL");
-
-  // Check if hub is already initialized
-  const [hubPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from("hub")],
-    PROGRAM_ID
-  );
-  
-  console.log("\n🔍 Checking Hub Status...");
-  console.log("Hub PDA:", hubPDA.toBase58());
-  
-  const hubAccount = await connection.getAccountInfo(hubPDA);
-  if (hubAccount) {
-    console.log("✅ Hub already initialized!");
-    
-    // Try to decode authority from hub data
-    if (hubAccount.data.length >= 40) {
-      const authority = new PublicKey(hubAccount.data.slice(8, 40));
-      console.log("Hub Authority:", authority.toBase58());
-    }
-  } else {
-    console.log("❌ Hub not initialized. You need to run the initialization through Anchor.");
-    console.log("\nTo initialize the hub:");
-    console.log("1. Run: anchor run init-hub --provider.cluster devnet");
-    console.log("2. Or create an initialization script using the Anchor framework");
+  const walletPath = path.join(os.homedir(), ".config/solana/id.json");
+  if (!fs.existsSync(walletPath)) {
+    throw new Error(`Wallet not found at ${walletPath}`);
   }
 
-  // Save the configuration
+  const keypairData = JSON.parse(fs.readFileSync(walletPath, "utf-8"));
+  const secretKey = Uint8Array.from(keypairData);
+  const walletSigner = await createSignerFromSecretKey(secretKey);
+  const walletAddress = walletSigner.address;
+
+  const rpcUrl = "https://api.devnet.solana.com";
+  const rpc = createSolanaRpc(rpcUrl);
+
+  const balanceResponse = await rpc.getBalance(walletAddress).send();
+  console.log("Balance:", Number(balanceResponse.value) / 1e9, "SOL");
+
+  const [hubPDA] = await getHubPDA();
+
+  console.log("\n🔍 Checking Hub Status...");
+  console.log("Hub PDA:", hubPDA);
+
+  const hubAccount = await fetchMaybeHub(rpc, hubPDA);
+  if (hubAccount.exists && hubAccount.data) {
+    console.log("✅ Hub already initialized!");
+    console.log("Hub Authority:", hubAccount.data.authority);
+  } else {
+    console.log("❌ Hub not initialized. You need to run the initialization.");
+    console.log("\nTo initialize the hub:");
+    console.log("1. Run: npx tsx scripts/init-hub-devnet.ts");
+  }
+
   const devnetConfig = {
     network: "devnet",
-    programId: PROGRAM_ID.toBase58(),
+    programId: PROGRAM_ID,
     hub: {
-      pda: hubPDA.toBase58(),
-      authority: wallet.publicKey.toBase58(),
+      pda: hubPDA,
+      authority: walletAddress,
     },
     timestamp: new Date().toISOString(),
   };
 
   fs.writeFileSync(
     path.join(__dirname, "../devnet-config.json"),
-    JSON.stringify(devnetConfig, null, 2)
+    JSON.stringify(devnetConfig, null, 2),
   );
 
   console.log("\n📄 Configuration saved to devnet-config.json");

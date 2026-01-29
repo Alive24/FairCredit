@@ -1,72 +1,64 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/hooks/use-toast"
-import { useFairCredit } from "@/lib/solana/context"
-import { Loader2 } from "lucide-react"
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useFairCredit } from "@/hooks/use-fair-credit";
+import { Loader2 } from "lucide-react";
 
 interface HubSettingsDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  hubData: any
-  onUpdate: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  hubData: any;
+  onUpdate: () => void;
 }
 
-export function HubSettingsDialog({ open, onOpenChange, hubData, onUpdate }: HubSettingsDialogProps) {
-  const { hubClient } = useFairCredit()
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(false)
-  
+export function HubSettingsDialog({
+  open,
+  onOpenChange,
+  hubData,
+  onUpdate,
+}: HubSettingsDialogProps) {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+
   // Form state
-  const [minEndorsements, setMinEndorsements] = useState(hubData?.minEndorsements || 2)
-  const [autoApproveProviders, setAutoApproveProviders] = useState(hubData?.autoApproveProviders || false)
-  const [autoApproveCourses, setAutoApproveCourses] = useState(hubData?.autoApproveCourses || false)
-  const [hubDescription, setHubDescription] = useState(hubData?.description || "")
-  const [maintenanceMode, setMaintenanceMode] = useState(hubData?.maintenanceMode || false)
+  const [minEndorsements, setMinEndorsements] = useState(
+    hubData?.minEndorsements || 2,
+  );
+  const [autoApproveProviders, setAutoApproveProviders] = useState(
+    hubData?.autoApproveProviders || false,
+  );
+  const [autoApproveCourses, setAutoApproveCourses] = useState(
+    hubData?.autoApproveCourses || false,
+  );
+  const [hubDescription, setHubDescription] = useState(
+    hubData?.description || "",
+  );
+  const [maintenanceMode, setMaintenanceMode] = useState(
+    hubData?.maintenanceMode || false,
+  );
 
   const handleSave = async () => {
-    if (!hubClient) {
-      toast({
-        title: "Error",
-        description: "Wallet not connected",
-        variant: "destructive"
-      })
-      return
-    }
-
-    setLoading(true)
-    try {
-      // Call the hub update method
-      const txSignature = await hubClient.updateHubSettings({
-        minEndorsements,
-        autoApproveProviders,
-        autoApproveCourses,
-      })
-      
-      toast({
-        title: "Success",
-        description: `Hub settings updated successfully. Tx: ${txSignature.slice(0, 8)}...`,
-      })
-      
-      onUpdate()
-      onOpenChange(false)
-    } catch (error) {
-      console.error("Failed to update hub settings:", error)
-      toast({
-        title: "Error",
-        description: "Failed to update hub settings. Please try again.",
-        variant: "destructive"
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
+    toast({
+      title: "Not Implemented",
+      description:
+        "Hub settings update is not yet implemented. Please use batch operations instead.",
+      variant: "destructive",
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -77,7 +69,7 @@ export function HubSettingsDialog({ open, onOpenChange, hubData, onUpdate }: Hub
             Configure global settings for the FairCredit hub
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="description">Hub Description</Label>
@@ -89,9 +81,11 @@ export function HubSettingsDialog({ open, onOpenChange, hubData, onUpdate }: Hub
               className="min-h-[80px]"
             />
           </div>
-          
+
           <div className="space-y-2">
-            <Label htmlFor="min-endorsements">Minimum Endorsements Required</Label>
+            <Label htmlFor="min-endorsements">
+              Minimum Endorsements Required
+            </Label>
             <Input
               id="min-endorsements"
               type="number"
@@ -101,16 +95,18 @@ export function HubSettingsDialog({ open, onOpenChange, hubData, onUpdate }: Hub
               onChange={(e) => setMinEndorsements(parseInt(e.target.value))}
             />
           </div>
-          
+
           <div className="flex items-center justify-between">
-            <Label htmlFor="auto-approve-providers">Auto-approve Providers</Label>
+            <Label htmlFor="auto-approve-providers">
+              Auto-approve Providers
+            </Label>
             <Switch
               id="auto-approve-providers"
               checked={autoApproveProviders}
               onCheckedChange={setAutoApproveProviders}
             />
           </div>
-          
+
           <div className="flex items-center justify-between">
             <Label htmlFor="auto-approve-courses">Auto-approve Courses</Label>
             <Switch
@@ -119,7 +115,7 @@ export function HubSettingsDialog({ open, onOpenChange, hubData, onUpdate }: Hub
               onCheckedChange={setAutoApproveCourses}
             />
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label htmlFor="maintenance-mode">Maintenance Mode</Label>
@@ -134,7 +130,7 @@ export function HubSettingsDialog({ open, onOpenChange, hubData, onUpdate }: Hub
             />
           </div>
         </div>
-        
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
@@ -146,5 +142,5 @@ export function HubSettingsDialog({ open, onOpenChange, hubData, onUpdate }: Hub
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

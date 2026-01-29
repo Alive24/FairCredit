@@ -1,11 +1,16 @@
 #!/usr/bin/env npx tsx
 
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { FairCredit } from "../target/types/fair_credit";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { createSolanaRpc } from "@solana/kit";
+import { address } from "@solana/kit";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import { getInitializeHubInstructionAsync } from "../app/lib/solana/generated/instructions";
+import { createSignerFromSecretKey } from "./utils/keypair-signer";
+import { sendInstructions } from "./utils/transaction-helper";
+import { getHubPDA } from "./utils/pda";
+import { fetchMaybeHub } from "../app/lib/solana/generated/accounts";
 
-// Override the cluster to devnet
 process.env.ANCHOR_PROVIDER_URL = "https://api.devnet.solana.com";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
@@ -13,53 +18,59 @@ async function initHubDevnet() {
   console.log("🚀 Initializing Hub on Devnet");
   console.log("===========================\n");
 
-  // Set up provider
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
+  const walletPath = path.join(os.homedir(), ".config/solana/id.json");
+  if (!fs.existsSync(walletPath)) {
+    throw new Error(`Wallet not found at ${walletPath}`);
+  }
 
-  // Load program
-  const program = anchor.workspace.FairCredit as Program<FairCredit>;
-  
-  console.log("Program ID:", program.programId.toBase58());
-  console.log("Authority:", provider.wallet.publicKey.toBase58());
+  const keypairData = JSON.parse(fs.readFileSync(walletPath, "utf-8"));
+  const secretKey = Uint8Array.from(keypairData);
+  const authoritySigner = await createSignerFromSecretKey(secretKey);
 
-  const [hubPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from("hub")],
-    program.programId
-  );
+  const rpcUrl = "https://api.devnet.solana.com";
+  const rpc = createSolanaRpc(rpcUrl);
 
-  console.log("Hub PDA:", hubPDA.toBase58());
+  console.log("Program ID:", "BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk");
+  console.log("Authority:", authoritySigner.address);
+
+  const [hubPDA] = await getHubPDA();
+  console.log("Hub PDA:", hubPDA);
 
   try {
-    // Check if already initialized
-    const hubAccount = await provider.connection.getAccountInfo(hubPDA);
-    if (hubAccount) {
+    const hubAccount = await fetchMaybeHub(rpc, hubPDA);
+    if (hubAccount.exists && hubAccount.data) {
       console.log("✅ Hub already initialized!");
       return;
     }
 
-    // Initialize hub
     console.log("\n📝 Initializing hub...");
-    const tx = await program.methods
-      .initializeHub()
-      .accounts({
-        authority: provider.wallet.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .rpc();
+    const instruction = await getInitializeHubInstructionAsync(
+      {
+        hub: address(hubPDA),
+        authority: authoritySigner,
+        systemProgram: undefined,
+      },
+      {},
+    );
+
+    const signature = await sendInstructions(
+      rpcUrl,
+      [instruction],
+      authoritySigner,
+    );
 
     console.log("✅ Hub initialized!");
-    console.log("Transaction:", tx);
+    console.log("Transaction:", signature);
 
-    // Verify
-    const hub = await program.account.hub.fetch(hubPDA);
-    console.log("\n📊 Hub Details:");
-    console.log("  Authority:", hub.authority.toBase58());
-    console.log("  Accepted Providers:", hub.acceptedProviders.length);
-    console.log("  Accepted Courses:", hub.acceptedCourses.length);
-    console.log("  Accepted Endorsers:", hub.acceptedEndorsers.length);
-
-  } catch (error) {
+    const hub = await fetchMaybeHub(rpc, hubPDA);
+    if (hub.exists && hub.data) {
+      console.log("\n📊 Hub Details:");
+      console.log("  Authority:", hub.data.authority);
+      console.log("  Accepted Providers:", hub.data.acceptedProviders.length);
+      console.log("  Accepted Courses:", hub.data.acceptedCourses.length);
+      console.log("  Accepted Endorsers:", hub.data.acceptedEndorsers.length);
+    }
+  } catch (error: any) {
     console.error("Error:", error);
     throw error;
   }

@@ -1,57 +1,73 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Clock, Loader2, Building2, CheckCircle } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { PublicKey } from "@solana/web3.js"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ErrorBoundary } from "@/components/error-boundary"
-import { TestTransactionButton } from "./test-transaction-button"
-import type { FairCreditProviderClient } from "@/lib/solana/fairCreditClient"
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Clock, Loader2, Building2, CheckCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { TestTransactionButton } from "./test-transaction-button";
+import { useSendTransaction, useWallet } from "@solana/react-hooks";
+import { address, type Address } from "@solana/kit";
+import { getInitializeProviderInstructionAsync } from "@/lib/solana/generated/instructions";
 
 interface ProviderRegistrationCardProps {
-  publicKey: PublicKey | null
-  client: FairCreditProviderClient | null
-  onRegistrationComplete: () => void
+  publicKey: Address | string | null;
+  onRegistrationComplete: () => void;
 }
 
-export function ProviderRegistrationCard({ 
-  publicKey, 
-  client, 
-  onRegistrationComplete 
+export function ProviderRegistrationCard({
+  publicKey,
+  onRegistrationComplete,
 }: ProviderRegistrationCardProps) {
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState<'info' | 'form' | 'submitted'>('info')
-  
+  const { toast } = useToast();
+  const wallet = useWallet();
+  const { send, isSending } = useSendTransaction();
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<"info" | "form" | "submitted">("info");
+
   // Form state
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    website: '',
-    email: '',
-    providerType: 'educational'
-  })
+    name: "",
+    description: "",
+    website: "",
+    email: "",
+    providerType: "educational",
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    console.log("Debug - client:", client)
-    console.log("Debug - publicKey:", publicKey?.toBase58())
-    
-    if (!client || !publicKey) {
+    e.preventDefault();
+
+    console.log("Debug - publicKey:", publicKey);
+
+    if (
+      !publicKey ||
+      wallet.status !== "connected" ||
+      !wallet.session?.account
+    ) {
       toast({
         title: "Error",
-        description: `Wallet not connected. Client: ${!!client}, PublicKey: ${!!publicKey}`,
-        variant: "destructive"
-      })
-      return
+        description: "Wallet not connected",
+        variant: "destructive",
+      });
+      return;
     }
 
     // Validate form
@@ -59,78 +75,92 @@ export function ProviderRegistrationCard({
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
-        variant: "destructive"
-      })
-      return
+        variant: "destructive",
+      });
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
-      console.log("Initializing provider with data:", formData)
-      
-      const signature = await client.initializeProvider({
-        name: formData.name,
-        description: formData.description,
-        website: formData.website || "https://example.com",
-        email: formData.email,
-        providerType: formData.providerType,
-      })
-      
-      console.log("Provider initialized successfully:", signature)
-      
+      console.log("Initializing provider with data:", formData);
+
+      const ix = await getInitializeProviderInstructionAsync(
+        {
+          providerAccount: undefined,
+          providerAuthority: wallet.session.account,
+          systemProgram: undefined,
+          name: formData.name,
+          description: formData.description,
+          website: formData.website || "https://example.com",
+          email: formData.email,
+          providerType: formData.providerType,
+        },
+        {},
+      );
+
+      const signature = await send({ instructions: [ix] });
+
+      console.log("Provider initialized successfully:", signature);
+
       toast({
         title: "Provider Registration Submitted",
-        description: `Your provider account has been created successfully! Transaction: ${signature.slice(0, 8)}...`,
-      })
-      
-      setStep('submitted')
-      
+        description: `Your provider account has been created successfully! Transaction: ${signature.slice(
+          0,
+          8,
+        )}...`,
+      });
+
+      setStep("submitted");
+
       // Wait a moment then trigger refresh
       setTimeout(() => {
-        onRegistrationComplete()
-      }, 2000)
-      
+        onRegistrationComplete();
+      }, 2000);
     } catch (error) {
-      console.error("Failed to register provider:", error)
-      
-      let errorMessage = "Failed to register provider. Please try again."
+      console.error("Failed to register provider:", error);
+
+      let errorMessage = "Failed to register provider. Please try again.";
       if (error instanceof Error) {
         if (error.message.includes("already in use")) {
-          errorMessage = "Provider account already exists for this wallet."
+          errorMessage = "Provider account already exists for this wallet.";
         } else if (error.message.includes("insufficient funds")) {
-          errorMessage = "Insufficient funds for transaction. Please add SOL to your wallet."
+          errorMessage =
+            "Insufficient funds for transaction. Please add SOL to your wallet.";
         } else {
-          errorMessage = error.message
+          errorMessage = error.message;
         }
       }
-      
+
       toast({
         title: "Registration Failed",
         description: errorMessage,
-        variant: "destructive"
-      })
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
-    }))
-  }
+      [field]: value,
+    }));
+  };
 
-  if (step === 'submitted') {
+  if (step === "submitted") {
     return (
       <Card className="p-8">
         <CardContent className="text-center">
           <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
-          <h2 className="text-2xl font-semibold mb-4">Registration Submitted!</h2>
+          <h2 className="text-2xl font-semibold mb-4">
+            Registration Submitted!
+          </h2>
           <p className="text-muted-foreground mb-6">
-            Your provider account has been created successfully. The page will refresh automatically.
+            Your provider account has been created successfully. The page will
+            refresh automatically.
           </p>
           <div className="p-4 bg-muted rounded-lg text-sm">
             <p className="font-medium mb-1">Your Wallet Address:</p>
@@ -138,10 +168,10 @@ export function ProviderRegistrationCard({
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
-  if (step === 'form') {
+  if (step === "form") {
     return (
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
@@ -160,7 +190,7 @@ export function ProviderRegistrationCard({
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
+                onChange={(e) => handleInputChange("name", e.target.value)}
                 placeholder="Enter your organization name"
                 required
               />
@@ -171,7 +201,9 @@ export function ProviderRegistrationCard({
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("description", e.target.value)
+                }
                 placeholder="Describe your organization and educational offerings"
                 className="min-h-[100px]"
                 required
@@ -184,7 +216,7 @@ export function ProviderRegistrationCard({
                 id="website"
                 type="url"
                 value={formData.website}
-                onChange={(e) => handleInputChange('website', e.target.value)}
+                onChange={(e) => handleInputChange("website", e.target.value)}
                 placeholder="https://your-organization.com"
               />
             </div>
@@ -195,7 +227,7 @@ export function ProviderRegistrationCard({
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
+                onChange={(e) => handleInputChange("email", e.target.value)}
                 placeholder="contact@your-organization.com"
                 required
               />
@@ -203,35 +235,43 @@ export function ProviderRegistrationCard({
 
             <div className="space-y-2">
               <Label htmlFor="providerType">Provider Type</Label>
-              <Select 
-                value={formData.providerType} 
-                onValueChange={(value) => handleInputChange('providerType', value)}
+              <Select
+                value={formData.providerType}
+                onValueChange={(value) =>
+                  handleInputChange("providerType", value)
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="educational">Educational Institution</SelectItem>
+                  <SelectItem value="educational">
+                    Educational Institution
+                  </SelectItem>
                   <SelectItem value="corporate">Corporate Training</SelectItem>
                   <SelectItem value="government">Government Agency</SelectItem>
-                  <SelectItem value="nonprofit">Non-Profit Organization</SelectItem>
-                  <SelectItem value="individual">Individual Educator</SelectItem>
+                  <SelectItem value="nonprofit">
+                    Non-Profit Organization
+                  </SelectItem>
+                  <SelectItem value="individual">
+                    Individual Educator
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <Alert>
               <AlertDescription>
-                After registration, your provider status will need to be approved by the Hub administrator 
-                before you can create courses.
+                After registration, your provider status will need to be
+                approved by the Hub administrator before you can create courses.
               </AlertDescription>
             </Alert>
 
             <div className="flex gap-4">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setStep('info')}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep("info")}
                 disabled={loading}
               >
                 Back
@@ -244,7 +284,7 @@ export function ProviderRegistrationCard({
           </form>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   // Default info step
@@ -254,21 +294,23 @@ export function ProviderRegistrationCard({
         <div className="h-16 w-16 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center mx-auto mb-4">
           <Clock className="h-8 w-8 text-yellow-600" />
         </div>
-        <h2 className="text-2xl font-semibold mb-4">Provider Registration Required</h2>
+        <h2 className="text-2xl font-semibold mb-4">
+          Provider Registration Required
+        </h2>
         <p className="text-muted-foreground mb-6">
-          To become a course provider on FairCredit, you need to register your organization 
-          and get approved by the Hub administrator.
+          To become a course provider on FairCredit, you need to register your
+          organization and get approved by the Hub administrator.
         </p>
         <div className="p-4 bg-muted rounded-lg text-sm mb-6">
           <p className="font-medium mb-1">Your Wallet Address:</p>
           <p className="font-mono text-xs">{publicKey?.toBase58()}</p>
           <p className="text-xs text-muted-foreground mt-2">
-            Debug: Client ready: {!!client ? 'Yes' : 'No'}
+            Debug: Client ready: {!!client ? "Yes" : "No"}
           </p>
         </div>
         <div className="space-y-3">
-          <Button 
-            onClick={() => setStep('form')} 
+          <Button
+            onClick={() => setStep("form")}
             size="lg"
             className="w-full"
             disabled={!client || !publicKey || !client?.initializeProvider}
@@ -285,15 +327,18 @@ export function ProviderRegistrationCard({
           )}
           {client && publicKey && !client?.initializeProvider && (
             <p className="text-xs text-red-500">
-              Provider registration requires the full client. Please refresh to reconnect.
+              Provider registration requires the full client. Please refresh to
+              reconnect.
             </p>
           )}
           <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-            <p className="text-sm font-medium mb-2">Test your wallet connection:</p>
+            <p className="text-sm font-medium mb-2">
+              Test your wallet connection:
+            </p>
             <TestTransactionButton />
           </div>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

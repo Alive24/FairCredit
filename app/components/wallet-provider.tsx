@@ -1,59 +1,47 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { ConnectionProvider, WalletProvider as SolanaWalletProvider } from "@solana/wallet-adapter-react"
-import { WalletModalProvider } from "@solana/wallet-adapter-react-ui"
-import { 
-  PhantomWalletAdapter, 
-  SolflareWalletAdapter
-} from "@solana/wallet-adapter-wallets"
-import { useMemo } from "react"
-import { FairCreditProvider } from "@/lib/solana/context"
+import type React from "react";
+import { useMemo } from "react";
+import { createAppKit } from "@reown/appkit/react";
+import { SolanaAdapter } from "@reown/appkit-adapter-solana/react";
+import { solanaDevnet } from "@reown/appkit/networks";
+import { FairCreditProvider } from "@/hooks/use-fair-credit";
 
-// Import wallet adapter CSS
-import "@solana/wallet-adapter-react-ui/styles.css"
+// Get projectId from environment or use a default for localhost
+const projectId =
+  process.env.NEXT_PUBLIC_PROJECT_ID || "b56e18d47c72ab683b10814fe9495694"; // public projectId for localhost
+
+// Set up Solana Adapter
+const solanaAdapter = new SolanaAdapter();
+
+// Create metadata
+const metadata = {
+  name: "FairCredit",
+  description: "FairCredit Application",
+  url:
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://faircredit.com",
+  icons: ["https://faircredit.com/icon.png"],
+};
+
+// Initialize AppKit (must be called outside component)
+createAppKit({
+  adapters: [solanaAdapter],
+  networks: [solanaDevnet],
+  metadata,
+  projectId,
+  features: {
+    analytics: true,
+  },
+});
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const endpoint = useMemo(() => {
-    if (process.env.NEXT_PUBLIC_SOLANA_RPC_URL) {
-      return process.env.NEXT_PUBLIC_SOLANA_RPC_URL
-    }
-    return "https://api.devnet.solana.com"
-  }, [])
+  const rpcUrl = useMemo(() => {
+    return (
+      process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.devnet.solana.com"
+    );
+  }, []);
 
-  const wallets = useMemo(() => {
-    // Only include specific, well-tested Solana wallets to avoid conflicts
-    const walletAdapters = [
-      new PhantomWalletAdapter({ network: 'devnet' }),
-      new SolflareWalletAdapter({ network: 'devnet' }),
-    ]
-    
-    // Debug logging to see what wallets we're actually using
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔧 Wallet adapters loaded:', walletAdapters.map(w => w.name))
-    }
-    
-    return walletAdapters
-  }, [])
-
-  return (
-    <ConnectionProvider endpoint={endpoint}>
-      <SolanaWalletProvider 
-        wallets={wallets} 
-        autoConnect={false}
-        localStorageKey="wallet-adapter"
-        onError={(error) => {
-          console.error('Wallet error:', error)
-        }}
-      >
-        <WalletModalProvider
-          featuredWallets={[]}
-        >
-          <FairCreditProvider>
-            {children}
-          </FairCreditProvider>
-        </WalletModalProvider>
-      </SolanaWalletProvider>
-    </ConnectionProvider>
-  )
+  return <FairCreditProvider rpcUrl={rpcUrl}>{children}</FairCreditProvider>;
 }
