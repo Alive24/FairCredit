@@ -2,14 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
-import { useFairCredit } from "@/hooks/use-fair-credit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export function WalletDebugEnhanced() {
   const { address, isConnected: connected } = useAppKitAccount();
   const { open } = useAppKit();
-  const { rpcUrl } = useFairCredit();
   // Map AppKit to legacy interface for compatibility
   const wallet = {
     connected,

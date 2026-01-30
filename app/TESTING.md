@@ -13,14 +13,14 @@ cp .env.example .env
 ```
 
 The development environment includes:
+
 - **DEV_MNEMONIC**: Development wallet seed phrase (12 words)
 - **PLAYWRIGHT_TEST_MODE**: Enable testing mode
-- **SOLANA_NETWORK**: Network configuration (devnet for testing)
-- **SOLANA_RPC_URL**: Solana RPC endpoint
 
 ### 2. Development Wallet
 
 The development wallet is configured with a test mnemonic for consistent testing:
+
 ```
 uniform utility suffer dirt object turtle digital false tail lion elegant sword
 ```
@@ -41,21 +41,25 @@ npx playwright install
 ### Running Tests
 
 Start the development server:
+
 ```bash
 npm run dev
 ```
 
 Run Playwright tests:
+
 ```bash
 npx playwright test
 ```
 
 Run tests with UI mode:
+
 ```bash
 npx playwright test --ui
 ```
 
 Run specific test file:
+
 ```bash
 npx playwright test tests/wallet-connection.spec.ts
 ```
@@ -63,6 +67,7 @@ npx playwright test tests/wallet-connection.spec.ts
 ### Test Structure
 
 Tests are organized in the `tests/` directory:
+
 - `wallet-connection.spec.ts`: Wallet connection and role selection tests
 - Additional test files can be added as needed
 
@@ -91,16 +96,20 @@ For full wallet integration testing, you'll need to:
 The `test-utils/dev-wallet.ts` file provides utilities for working with the development wallet:
 
 ```typescript
-import { getDevWallet, getDevWalletPublicKey, isTestMode } from '../test-utils/dev-wallet'
+import {
+  getDevWallet,
+  getDevWalletPublicKey,
+  isTestMode,
+} from "../test-utils/dev-wallet";
 
 // Get development wallet keypair
-const wallet = getDevWallet()
+const wallet = getDevWallet();
 
 // Get public key as string
-const publicKey = getDevWalletPublicKey()
+const publicKey = getDevWalletPublicKey();
 
 // Check if in test mode
-const testMode = isTestMode()
+const testMode = isTestMode();
 ```
 
 ## Security Notes
@@ -113,21 +122,25 @@ const testMode = isTestMode()
 ## Common Test Scenarios
 
 ### 1. Basic Navigation Tests
+
 - Homepage loading
 - Navigation links functionality
 - Hub dashboard access
 
 ### 2. Wallet Connection Tests
+
 - Connect wallet button functionality
 - Wallet selection modal display
 - Role selection persistence
 
 ### 3. Dashboard Tests
+
 - Provider dashboard functionality
 - Hub administration features
 - Student/Supervisor dashboards
 
 ### 4. Integration Tests
+
 - End-to-end user workflows
 - Cross-component functionality
 - Data persistence testing
@@ -143,11 +156,13 @@ const testMode = isTestMode()
 ### Debug Mode
 
 Run tests with debug information:
+
 ```bash
 npx playwright test --debug
 ```
 
 Generate test report:
+
 ```bash
 npx playwright show-report
 ```
@@ -155,6 +170,7 @@ npx playwright show-report
 ## Contributing
 
 When adding new tests:
+
 1. Follow the existing test structure
 2. Use descriptive test names
 3. Add appropriate assertions

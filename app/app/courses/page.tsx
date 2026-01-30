@@ -12,17 +12,12 @@ import { getUpdateHubConfigInstructionAsync } from "@/lib/solana/generated/instr
 import { DEFAULT_PLACEHOLDER_SIGNER } from "@/lib/solana/placeholder-signer";
 
 export default function ProgramsPage() {
-  const { rpcUrl, rpc } = useFairCredit();
+  const { rpc } = useFairCredit();
   const [hubData, setHubData] = useState<Hub | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchHubData() {
-      if (!rpcUrl) {
-        setLoading(false);
-        return;
-      }
-
       try {
         // Get hub address from Codama instruction (it auto-resolves PDA)
         const instruction = await getUpdateHubConfigInstructionAsync({
@@ -45,7 +40,7 @@ export default function ProgramsPage() {
     }
 
     fetchHubData();
-  }, [rpcUrl]);
+  }, [rpc]);
 
   return (
     <div className="min-h-screen bg-background">

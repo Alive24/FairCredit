@@ -39,18 +39,13 @@ interface Course {
 }
 
 export function CourseList() {
-  const { rpcUrl, rpc } = useFairCredit();
+  const { rpc } = useFairCredit();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchCourses() {
-      if (!rpcUrl) {
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
         setError(null);
@@ -147,7 +142,7 @@ export function CourseList() {
     }
 
     fetchCourses();
-  }, [rpcUrl]);
+  }, [rpc]);
 
   if (loading) {
     return (
@@ -172,18 +167,6 @@ export function CourseList() {
       <Card>
         <CardContent className="py-8 text-center">
           <p className="text-muted-foreground">{error}</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!rpcUrl) {
-    return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground">
-            Unable to connect to FairCredit program
-          </p>
         </CardContent>
       </Card>
     );

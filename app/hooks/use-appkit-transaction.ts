@@ -19,19 +19,60 @@ export function useAppKitTransaction() {
         throw new Error("Wallet not connected");
       }
 
+      // Verify connection is available
+      if (typeof connection.getLatestBlockhash !== "function") {
+        throw new Error("Connection object is invalid or not initialized");
+      }
+
       setIsSending(true);
       try {
-        const { blockhash } = await connection.getLatestBlockhash();
+        // Get latest blockhash - web3.js Connection.getLatestBlockhash() returns
+        // { blockhash: string, lastValidBlockHeight: number }
+        // Per AppKit docs: https://docs.reown.com/appkit/recipes/solana-send-transaction
+        let latestBlockhash;
+        try {
+          latestBlockhash = await connection.getLatestBlockhash();
+        } catch (blockhashError) {
+          console.error("getLatestBlockhash error:", blockhashError);
+          throw new Error(
+            `Failed to get latest blockhash: ${
+              blockhashError instanceof Error
+                ? blockhashError.message
+                : String(blockhashError)
+            }`,
+          );
+        }
+
+        if (!latestBlockhash || !latestBlockhash.blockhash) {
+          console.error("Invalid blockhash result:", latestBlockhash);
+          throw new Error(
+            `Invalid blockhash result: ${JSON.stringify(latestBlockhash)}`,
+          );
+        }
+
         const transaction = buildTransactionForAppKit(
           instructions,
           address,
-          blockhash,
+          latestBlockhash.blockhash,
         );
+
+        // Verify transaction has blockhash before sending
+        if (!transaction.recentBlockhash) {
+          throw new Error("Transaction missing blockhash after build");
+        }
+
         const signature = await walletProvider.sendTransaction(
           transaction,
           connection,
         );
         return signature;
+      } catch (error) {
+        console.error("Transaction send error:", error);
+        // Re-throw with more context if needed
+        if (error instanceof Error) {
+          throw error;
+        }
+        throw new Error(`Transaction failed: ${String(error)}`);
       } finally {
         setIsSending(false);
       }

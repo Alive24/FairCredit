@@ -44,7 +44,7 @@ import { getAddAcceptedCourseInstructionAsync } from "@/lib/solana/generated/ins
 import { DEFAULT_PLACEHOLDER_SIGNER } from "@/lib/solana/placeholder-signer";
 
 export function ProviderDashboard() {
-  const { rpcUrl, rpc } = useFairCredit();
+  const { rpc } = useFairCredit();
   const { address: walletAddress, isConnected: connected } = useAppKitAccount();
   const publicKey = walletAddress ? address(walletAddress) : null;
   const isWalletConnected = connected;
@@ -56,7 +56,7 @@ export function ProviderDashboard() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!rpcUrl || !isWalletConnected || !publicKey || !walletAddress) {
+      if (!isWalletConnected || !publicKey || !walletAddress) {
         setLoading(false);
         return;
       }
@@ -152,7 +152,7 @@ export function ProviderDashboard() {
     }
 
     fetchData();
-  }, [rpcUrl, isWalletConnected, publicKey, walletAddress, toast]);
+  }, [rpc, isWalletConnected, publicKey, walletAddress, toast]);
 
   const hasProviderAccount = !!providerData;
   const isAcceptedProvider = Boolean(

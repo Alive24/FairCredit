@@ -16,7 +16,7 @@ export function useIsHubAuthority(): {
   hubData: Hub | null;
   refreshHubData: () => Promise<void>;
 } {
-  const { rpcUrl, rpc } = useFairCredit();
+  const { rpc } = useFairCredit();
   const { address: walletAddress } = useAppKitAccount();
   const { toast } = useToast();
   const [hubData, setHubData] = useState<Hub | null>(null);
@@ -24,10 +24,6 @@ export function useIsHubAuthority(): {
   const [isHubAuthority, setIsHubAuthority] = useState(false);
 
   const fetchHub = useCallback(async () => {
-    if (!rpcUrl) {
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     try {
       const instruction = await getUpdateHubConfigInstructionAsync({
@@ -54,7 +50,7 @@ export function useIsHubAuthority(): {
     } finally {
       setLoading(false);
     }
-  }, [rpcUrl, rpc, walletAddress]);
+  }, [rpc, walletAddress]);
 
   useEffect(() => {
     fetchHub().catch(() =>
@@ -67,7 +63,6 @@ export function useIsHubAuthority(): {
   }, [fetchHub, toast]);
 
   const refreshHubData = useCallback(async () => {
-    if (!rpcUrl) return;
     try {
       await fetchHub();
       toast({
@@ -81,7 +76,7 @@ export function useIsHubAuthority(): {
         variant: "destructive",
       });
     }
-  }, [rpcUrl, fetchHub, toast]);
+  }, [fetchHub, toast]);
 
   return { isHubAuthority, loading, hubData, refreshHubData };
 }

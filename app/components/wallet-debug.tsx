@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
-import { useFairCredit } from "@/hooks/use-fair-credit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function WalletDebug() {
@@ -16,7 +15,6 @@ export function WalletDebug() {
     connecting: false,
     wallets: [],
   };
-  const { rpcUrl } = useFairCredit();
   const [hasMounted, setHasMounted] = useState(false);
   const [availableWalletNames, setAvailableWalletNames] = useState<string[]>(
     [],

@@ -37,11 +37,5 @@ createAppKit({
 });
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const rpcUrl = useMemo(() => {
-    return (
-      process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.devnet.solana.com"
-    );
-  }, []);
-
-  return <FairCreditProvider rpcUrl={rpcUrl}>{children}</FairCreditProvider>;
+  return <FairCreditProvider>{children}</FairCreditProvider>;
 }
