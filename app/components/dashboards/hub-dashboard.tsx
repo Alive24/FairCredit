@@ -31,11 +31,13 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useIsHubAuthority } from "@/hooks/use-is-hub-authority";
 import { HubSettingsDialog } from "@/components/hub/hub-settings-dialog";
-import { AddEntityDialog } from "@/components/hub/add-entity-dialog";
+import { ReviewProviderDialog } from "@/components/hub/review-provider-dialog";
 import { BatchOperationsPanel } from "@/components/hub/batch-operations-panel";
+import { ReviewCoursesPanel } from "@/components/hub/review-courses-panel";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useBatchRegistry } from "@/hooks/use-batch-registry";
+import { useProviders } from "@/hooks/use-providers";
 import { canonicalAddress } from "@/lib/utils/canonical-address";
 import { InitializeHubCard } from "@/components/hub/initialize-hub-card";
 import type { Address } from "@solana/kit";
@@ -45,11 +47,25 @@ export function HubDashboard() {
   const { address: walletAddress } = useAppKitAccount();
   const { isHubAuthority, loading, hubData, refreshHubData } =
     useIsHubAuthority();
+  const { providers } = useProviders();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("providers");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addEntityOpen, setAddEntityOpen] = useState(false);
   const batchRegistry = useBatchRegistry();
+
+  const isAccepted = (wallet: string) =>
+    hubData?.acceptedProviders?.some((p: Address) => {
+      const a = typeof p === "string" ? p : String(p);
+      return a === wallet;
+    });
+  const pendingProviderCount = providers.filter(({ provider }) => {
+    const w =
+      typeof provider.wallet === "string"
+        ? provider.wallet
+        : String(provider.wallet);
+    return !isAccepted(w);
+  }).length;
 
   const handleRemoveEntity = (
     entityType: "provider" | "course",
@@ -283,9 +299,20 @@ export function HubDashboard() {
                   className="pl-8 w-[200px]"
                 />
               </div>
-              <Button size="sm" onClick={() => setAddEntityOpen(true)}>
+              <Button
+                size="sm"
+                onClick={() => setAddEntityOpen(true)}
+                disabled={pendingProviderCount === 0}
+                title={
+                  pendingProviderCount === 0
+                    ? "No pending providers to review"
+                    : `Review ${pendingProviderCount} pending provider(s)`
+                }
+              >
                 <Plus className="h-4 w-4 mr-2" />
-                Add New
+                {pendingProviderCount === 0
+                  ? "No Pending Provider"
+                  : `Review Providers (${pendingProviderCount})`}
               </Button>
             </div>
           </div>
@@ -296,9 +323,7 @@ export function HubDashboard() {
               <TabsTrigger value="providers">
                 Providers ({hubData?.acceptedProviders?.length || 0})
               </TabsTrigger>
-              <TabsTrigger value="courses">
-                Courses ({hubData?.acceptedCourses?.length || 0})
-              </TabsTrigger>
+              <TabsTrigger value="courses">Courses</TabsTrigger>
             </TabsList>
 
             <TabsContent value="providers" className="space-y-4">
@@ -351,52 +376,7 @@ export function HubDashboard() {
             </TabsContent>
 
             <TabsContent value="courses" className="space-y-4">
-              <div className="space-y-2">
-                {filterData(hubData?.acceptedCourses || [], searchTerm).map(
-                  (course, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 border rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                          <FileText className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Course ID</p>
-                          <p className="text-xs text-muted-foreground">
-                            {course.toString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">Active</Badge>
-                        {isHubAuthority && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              handleRemoveEntity(
-                                "course",
-                                course.toString(),
-                                course.toString(),
-                              )
-                            }
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ),
-                )}
-                {(!hubData?.acceptedCourses ||
-                  hubData.acceptedCourses.length === 0) && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No accepted courses yet
-                  </div>
-                )}
-              </div>
+              <ReviewCoursesPanel />
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -455,7 +435,7 @@ export function HubDashboard() {
         onUpdate={refreshHubData}
       />
 
-      <AddEntityDialog
+      <ReviewProviderDialog
         open={addEntityOpen}
         onOpenChange={setAddEntityOpen}
         onSuccess={refreshHubData}

@@ -166,7 +166,9 @@ export function ProviderRegistrationCard({
           </p>
           <div className="p-4 bg-muted rounded-lg text-sm">
             <p className="font-medium mb-1">Your Wallet Address:</p>
-            <p className="font-mono text-xs">{publicKey?.toBase58()}</p>
+            <p className="font-mono text-xs">
+              {walletAddress || publicKey || "N/A"}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -305,7 +307,9 @@ export function ProviderRegistrationCard({
         </p>
         <div className="p-4 bg-muted rounded-lg text-sm mb-6">
           <p className="font-medium mb-1">Your Wallet Address:</p>
-          <p className="font-mono text-xs">{publicKey?.toBase58()}</p>
+          <p className="font-mono text-xs">
+            {walletAddress || publicKey || "N/A"}
+          </p>
           <p className="text-xs text-muted-foreground mt-2">
             Debug: Wallet ready: {!!walletProvider ? "Yes" : "No"}
           </p>
