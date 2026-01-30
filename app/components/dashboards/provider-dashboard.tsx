@@ -22,7 +22,14 @@ import {
   Loader2,
   TrendingUp,
   Award,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import Link from "next/link";
 import { useFairCredit } from "@/hooks/use-fair-credit";
 import { useAppKitAccount } from "@reown/appkit/react";
@@ -359,14 +366,12 @@ export function ProviderDashboard() {
               <p className="text-xs text-muted-foreground mt-4">
                 Once approved, you'll be able to create and manage courses.
               </p>
-              <div className="mt-6 pt-4 border-t">
-                <CloseProviderCard
-                  onClose={() => {
-                    setProviderData(null);
-                    window.location.reload();
-                  }}
-                />
-              </div>
+              <DangerZoneCloseProvider
+                onClose={() => {
+                  setProviderData(null);
+                  window.location.reload();
+                }}
+              />
               {process.env.NODE_ENV === "development" && (
                 <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded text-xs">
                   <p className="font-mono">Debug Info:</p>
@@ -385,24 +390,6 @@ export function ProviderDashboard() {
           </Card>
         ) : (
           <>
-            {/* Close / Re-initialize: close account in-app first */}
-            <CloseProviderCard
-              onClose={() => {
-                setProviderData(null);
-                window.location.reload();
-              }}
-            />
-            <Card className="mb-6 mt-6">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">
-                  Re-initialize Provider
-                </CardTitle>
-                <CardDescription>
-                  To re-initialize, close the provider account first using the
-                  button above, then register again from the registration form.
-                </CardDescription>
-              </CardHeader>
-            </Card>
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {stats.map((stat, index) => (
@@ -574,9 +561,58 @@ export function ProviderDashboard() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Danger zone: Close account at bottom, collapsed */}
+            <DangerZoneCloseProvider
+              onClose={() => {
+                setProviderData(null);
+                window.location.reload();
+              }}
+            />
           </>
         )}
       </main>
     </div>
+  );
+}
+
+function DangerZoneCloseProvider({ onClose }: { onClose: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="mt-8 border border-destructive/30 rounded-lg overflow-hidden"
+    >
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-destructive hover:bg-destructive/5 transition-colors"
+        >
+          <span>Danger zone</span>
+          {open ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="border-t border-destructive/30 p-4 space-y-4 bg-muted/30">
+          <CloseProviderCard onClose={onClose} />
+          <Card className="border-destructive/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">
+                Re-initialize Provider
+              </CardTitle>
+              <CardDescription>
+                To re-initialize, close the provider account first using the
+                button above, then register again from the registration form.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

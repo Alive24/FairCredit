@@ -28,7 +28,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAppKitTransaction } from "@/hooks/use-appkit-transaction";
 import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 import { getCloseHubInstructionAsync } from "@/lib/solana/generated/instructions/closeHub";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface HubSettingsDialogProps {
   open: boolean;
@@ -49,6 +54,7 @@ export function HubSettingsDialog({
   const [loading, setLoading] = useState(false);
   const [closeHubConfirmOpen, setCloseHubConfirmOpen] = useState(false);
   const [closeHubLoading, setCloseHubLoading] = useState(false);
+  const [dangerZoneOpen, setDangerZoneOpen] = useState(false);
 
   // Form state
   const [minEndorsements, setMinEndorsements] = useState(
@@ -182,27 +188,43 @@ export function HubSettingsDialog({
             />
           </div>
 
-          {/* Danger zone: Close Hub */}
-          <div className="border-t pt-4 mt-4 space-y-2">
-            <h4 className="text-sm font-medium text-destructive">
-              Danger zone
-            </h4>
-            <p className="text-xs text-muted-foreground">
-              Closing the Hub will permanently remove the account and reclaim
-              rent. Only the Hub authority can do this. This action cannot be
-              undone.
-            </p>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              disabled={!isConnected || closeHubLoading || isSending}
-              onClick={() => setCloseHubConfirmOpen(true)}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Close Hub
-            </Button>
-          </div>
+          {/* Danger zone: Close Hub — collapsed by default */}
+          <Collapsible
+            open={dangerZoneOpen}
+            onOpenChange={setDangerZoneOpen}
+            className="border-t pt-4 mt-4"
+          >
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between py-2 text-left text-sm font-medium text-destructive hover:opacity-80"
+              >
+                <span>Danger zone</span>
+                {dangerZoneOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2 pt-2">
+              <p className="text-xs text-muted-foreground">
+                Closing the Hub will permanently remove the account and reclaim
+                rent. Only the Hub authority can do this. This action cannot be
+                undone.
+              </p>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={!isConnected || closeHubLoading || isSending}
+                onClick={() => setCloseHubConfirmOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Close Hub
+              </Button>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         <AlertDialog
