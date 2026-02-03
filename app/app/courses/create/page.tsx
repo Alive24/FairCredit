@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,12 +21,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, X, Save, Eye, CheckCircle } from "lucide-react";
+import { ArrowLeft, Plus, X, Eye, CheckCircle, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { useAppKitAccount } from "@reown/appkit/react";
+import { useAppKitTransaction } from "@/hooks/use-appkit-transaction";
+import {
+  createPlaceholderSigner,
+  DEFAULT_PLACEHOLDER_SIGNER,
+} from "@/lib/solana/placeholder-signer";
+import { getUpdateHubConfigInstructionAsync } from "@/lib/solana/generated/instructions/updateHubConfig";
+import { getInitializeProviderInstructionAsync } from "@/lib/solana/generated/instructions/initializeProvider";
+import { getCreateCourseInstructionAsync } from "@/lib/solana/generated/instructions/createCourse";
+import type { Address } from "@solana/kit";
 
 export default function CreateCourse() {
   const { toast } = useToast();
+  const { address: walletAddress, isConnected } = useAppKitAccount();
+  const { sendTransaction, isSending } = useAppKitTransaction();
   const [currentStep, setCurrentStep] = useState(1);
   const [skills, setSkills] = useState<string[]>([]);
   const [requirements, setRequirements] = useState<string[]>([]);
@@ -34,6 +46,12 @@ export default function CreateCourse() {
   const [newRequirement, setNewRequirement] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [programCreated, setProgramCreated] = useState(false);
+  const [createdCourseAddress, setCreatedCourseAddress] = useState<
+    string | null
+  >(null);
+  const [hubAddress, setHubAddress] = useState<Address | null>(null);
+  const [providerPda, setProviderPda] = useState<Address | null>(null);
+  const [resolvingProvider, setResolvingProvider] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -82,22 +100,159 @@ export default function CreateCourse() {
   };
 
   const handleSubmit = async (isDraft = false) => {
-    setIsSubmitting(true);
+    if (!walletAddress || !hubAddress || !providerPda) {
+      toast({
+        title: "Wallet or provider not ready",
+        description:
+          "Connect your provider wallet and make sure the provider account exists on-chain.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Simulate course creation
-    setTimeout(() => {
-      setIsSubmitting(false);
+    if (!formData.title || !formData.description) {
+      toast({
+        title: "Missing required fields",
+        description: "Please provide at least a course title and description.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const creationTimestamp = BigInt(Math.floor(Date.now() / 1000));
+      const workloadRequired = Number(formData.durationValue) || 0;
+      const ix = await getCreateCourseInstructionAsync({
+        course: undefined,
+        provider: providerPda,
+        hub: hubAddress,
+        providerAuthority: createPlaceholderSigner(walletAddress),
+        creationTimestamp,
+        name: formData.title,
+        description: formData.description,
+        workloadRequired,
+        degreeId: null,
+      });
+
+      await sendTransaction([ix]);
+      setCreatedCourseAddress(ix.accounts[0].address);
       setProgramCreated(true);
       toast({
-        title: `Course ${
-          isDraft ? "Saved as Draft" : "Published"
-        } Successfully!`,
-        description: isDraft
-          ? "You can continue editing and publish when ready."
-          : "Students can now discover and apply to your course.",
+        title: `Course ${isDraft ? "saved" : "published"} on-chain`,
+        description: "Submit it to the hub so students can enroll.",
       });
-    }, 2000);
+    } catch (error) {
+      console.error("Create course failed:", error);
+      toast({
+        title: "Failed to create course",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const fillTestData = () => {
+    const prefix = `[${formatTimestamp(new Date())}]`;
+    setFormData({
+      title: `${prefix} Quantum Research Fellowship`,
+      description:
+        "Immersive mentorship-driven fellowship focusing on advanced quantum computing research and reproducible experiments.",
+      category: "research",
+      durationValue: "12",
+      durationUnit: "weeks",
+      supervisorName: "Dr. Hannah Watanabe",
+      supervisorEmail: "h.watanabe@faircredit.dev",
+      supervisorInstitution: "FairCredit Institute of Technology",
+      learningObjectives:
+        "Guide fellows through literature review, proposal creation, and small-scale experiments to reproduce a known quantum algorithm.",
+      methodology:
+        "Weekly seminars, async lab time, peer feedback, and supervisor office hours logged as on-chain resources.",
+      assessmentCriteria:
+        "Attendance, research logs, demo of reproduced algorithm, reflective write-up.",
+      deliverables:
+        "Research summary, reproducibility notebook, recorded presentation.",
+      status: "draft",
+      prerequisites:
+        "Statement of intent plus prior Rust or TypeScript experience.",
+    });
+    setSkills([
+      "Quantum algorithm analysis",
+      "Reproducible research",
+      "Technical writing",
+    ]);
+    setRequirements(["Supervisor reference", "Motivation letter"]);
+    toast({
+      title: "Test data populated",
+      description: "Fields have been filled with sample content.",
+    });
+  };
+
+  const isActionDisabled =
+    isSubmitting || isSending || resolvingProvider || !isConnected;
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const ix = await getUpdateHubConfigInstructionAsync({
+          hub: undefined,
+          authority: DEFAULT_PLACEHOLDER_SIGNER,
+          config: {
+            requireProviderApproval: false,
+            minReputationScore: 0,
+          },
+        });
+        if (mounted) {
+          setHubAddress(ix.accounts[0].address);
+        }
+      } catch (error) {
+        console.error("Failed to resolve hub PDA", error);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!walletAddress) {
+      setProviderPda(null);
+      return;
+    }
+    let mounted = true;
+    setResolvingProvider(true);
+    (async () => {
+      try {
+        const ix = await getInitializeProviderInstructionAsync({
+          providerAccount: undefined,
+          providerAuthority: createPlaceholderSigner(walletAddress),
+          name: "",
+          description: "",
+          website: "",
+          email: "",
+          providerType: "",
+        });
+        if (mounted) {
+          setProviderPda(ix.accounts[0].address);
+        }
+      } catch (error) {
+        console.error("Failed to resolve provider PDA", error);
+        if (mounted) {
+          setProviderPda(null);
+        }
+      } finally {
+        if (mounted) {
+          setResolvingProvider(false);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [walletAddress]);
 
   const steps = [
     {
@@ -141,8 +296,14 @@ export default function CreateCourse() {
                 </h1>
                 <p className="text-muted-foreground mb-6">
                   Your credential course "<strong>{formData.title}</strong>" has
-                  been created and is now available for student applications.
+                  been created on-chain. Submit it to the hub so students can
+                  enroll once verified.
                 </p>
+                {createdCourseAddress && (
+                  <p className="text-xs text-muted-foreground font-mono mb-4 break-all">
+                    Course Address: {createdCourseAddress}
+                  </p>
+                )}
                 <div className="space-y-4">
                   <div className="p-4 bg-muted rounded-lg">
                     <h3 className="font-semibold mb-2">What happens next:</h3>
@@ -183,19 +344,30 @@ export default function CreateCourse() {
       <Header />
       <main className="container py-8">
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-center gap-4 mb-8">
-            <Link href="/courses">
-              <Button variant="outline" size="icon">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold">Create Credential Course</h1>
-              <p className="text-muted-foreground">
-                Step {currentStep} of {steps.length}:{" "}
-                {steps[currentStep - 1].description}
-              </p>
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-4">
+              <Link href="/courses">
+                <Button variant="outline" size="icon">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Create Credential Course</h1>
+                <p className="text-muted-foreground">
+                  Step {currentStep} of {steps.length}:{" "}
+                  {steps[currentStep - 1].description}
+                </p>
+              </div>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={fillTestData}
+            >
+              <Wand2 className="h-4 w-4 mr-2" />
+              Fill Test Data
+            </Button>
           </div>
 
           {/* Progress Steps */}
@@ -316,30 +488,6 @@ export default function CreateCourse() {
                         </Select>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Status</Label>
-                      <Select
-                        value={formData.status}
-                        onValueChange={(v: "draft" | "published") =>
-                          setFormData((prev) => ({ ...prev, status: v }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="draft">
-                            Draft (inactive)
-                          </SelectItem>
-                          <SelectItem value="published">
-                            Published (active)
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Admin can change to active or pause later.
-                      </p>
-                    </div>
                   </div>
                 </div>
               )}
@@ -380,7 +528,7 @@ export default function CreateCourse() {
                       onChange={(e) =>
                         handleInputChange(
                           "supervisorInstitution",
-                          e.target.value,
+                          e.target.value
                         )
                       }
                       placeholder="Imperial College London"
@@ -557,10 +705,8 @@ export default function CreateCourse() {
                             : "—"}
                         </div>
                         <div>
-                          <strong>Status:</strong>{" "}
-                          {formData.status === "published"
-                            ? "Published (active)"
-                            : "Draft (inactive)"}
+                          <strong>Status:</strong> Draft (default; submit for
+                          Hub review from dashboard after creation)
                         </div>
                       </div>
                       <div>
@@ -620,16 +766,6 @@ export default function CreateCourse() {
                   Previous
                 </Button>
                 <div className="flex gap-2">
-                  {currentStep === 5 && (
-                    <Button
-                      variant="outline"
-                      onClick={() => handleSubmit(true)}
-                      disabled={isSubmitting}
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      Save as Draft
-                    </Button>
-                  )}
                   {currentStep < 5 ? (
                     <Button onClick={() => setCurrentStep(currentStep + 1)}>
                       Next
@@ -637,17 +773,17 @@ export default function CreateCourse() {
                   ) : (
                     <Button
                       onClick={() => handleSubmit(false)}
-                      disabled={isSubmitting}
+                      disabled={isActionDisabled}
                     >
-                      {isSubmitting ? (
+                      {isSubmitting || isSending ? (
                         <>
                           <Eye className="h-4 w-4 mr-2 animate-spin" />
-                          Publishing...
+                          Creating...
                         </>
                       ) : (
                         <>
                           <Eye className="h-4 w-4 mr-2" />
-                          Publish Course
+                          Create Course
                         </>
                       )}
                     </Button>
@@ -660,4 +796,11 @@ export default function CreateCourse() {
       </main>
     </div>
   );
+}
+
+function formatTimestamp(date: Date) {
+  const pad = (value: number) => value.toString().padStart(2, "0");
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
 }

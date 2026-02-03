@@ -12,6 +12,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ClientLayout } from "@/components/client-layout";
 import { WalletProvider } from "@/components/wallet-provider";
 import { NavbarActions } from "@/components/navbar-actions";
+import { TransactionQueueProvider } from "@/hooks/use-transaction-queue";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -97,14 +98,16 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <WalletProvider>
-            <Layout
-              navbar={navbar}
-              footer={footer}
-              pageMap={pageMap}
-              docsRepositoryBase="https://github.com/Alive24/FairCredit/tree/main/app/content"
-            >
-              <ClientLayout>{children}</ClientLayout>
-            </Layout>
+            <TransactionQueueProvider>
+              <Layout
+                navbar={navbar}
+                footer={footer}
+                pageMap={pageMap}
+                docsRepositoryBase="https://github.com/Alive24/FairCredit/tree/main/app/content"
+              >
+                <ClientLayout>{children}</ClientLayout>
+              </Layout>
+            </TransactionQueueProvider>
             <Toaster />
           </WalletProvider>
         </ThemeProvider>

@@ -1,13 +1,25 @@
-"use client"
+"use client";
 
-import { Header } from "@/components/header"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ExternalLink, Search, Download, Share, Eye } from "lucide-react"
-import Link from "next/link"
+import { Header } from "@/components/header";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ExternalLink, Search, Download, Share, Eye } from "lucide-react";
+import Link from "next/link";
 
 export default function MyCredentials() {
   const credentials = [
@@ -20,7 +32,11 @@ export default function MyCredentials() {
       date: "2024-01-15",
       verificationUrl: "https://faircredit.app/verify/qc-research-123",
       verificationCount: 12,
-      skills: ["Quantum Algorithms", "Research Methodology", "Academic Writing"],
+      skills: [
+        "Quantum Algorithms",
+        "Research Methodology",
+        "Academic Writing",
+      ],
     },
     {
       id: "2",
@@ -44,24 +60,36 @@ export default function MyCredentials() {
       verificationCount: 0,
       skills: ["Renewable Energy", "Systems Analysis", "Sustainability"],
     },
-  ]
+  ];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "verified":
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Verified</Badge>
+        return (
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+            Verified
+          </Badge>
+        );
       case "pending":
-        return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Pending</Badge>
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+            Pending
+          </Badge>
+        );
       case "draft":
-        return <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">Draft</Badge>
+        return (
+          <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+            Draft
+          </Badge>
+        );
       default:
-        return <Badge variant="secondary">{status}</Badge>
+        return <Badge variant="secondary">{status}</Badge>;
     }
-  }
+  };
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-  }
+    navigator.clipboard.writeText(text);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -70,7 +98,9 @@ export default function MyCredentials() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">My Credentials</h1>
-            <p className="text-muted-foreground">Manage and share your verified academic achievements</p>
+            <p className="text-muted-foreground">
+              Manage and share your verified academic achievements
+            </p>
           </div>
         </div>
 
@@ -79,7 +109,13 @@ export default function MyCredentials() {
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
-                <Input placeholder="Search credentials..." className="w-full" icon={<Search className="h-4 w-4" />} />
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search credentials..."
+                    className="w-full pl-9"
+                  />
+                </div>
               </div>
               <Select>
                 <SelectTrigger className="w-full md:w-48">
@@ -110,11 +146,16 @@ export default function MyCredentials() {
         {/* Credentials Grid */}
         <div className="grid gap-6">
           {credentials.map((credential) => (
-            <Card key={credential.id} className="hover:shadow-lg transition-shadow">
+            <Card
+              key={credential.id}
+              className="hover:shadow-lg transition-shadow"
+            >
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <CardTitle className="text-xl mb-2">{credential.title}</CardTitle>
+                    <CardTitle className="text-xl mb-2">
+                      {credential.title}
+                    </CardTitle>
                     <CardDescription className="space-y-1">
                       <p>Provider: {credential.provider}</p>
                       <p>Supervisor: {credential.supervisor}</p>
@@ -124,7 +165,9 @@ export default function MyCredentials() {
                   <div className="flex flex-col items-end gap-2">
                     {getStatusBadge(credential.status)}
                     {credential.status === "verified" && (
-                      <p className="text-xs text-muted-foreground">Verified {credential.verificationCount} times</p>
+                      <p className="text-xs text-muted-foreground">
+                        Verified {credential.verificationCount} times
+                      </p>
                     )}
                   </div>
                 </div>
@@ -132,53 +175,69 @@ export default function MyCredentials() {
               <CardContent>
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm font-medium mb-2">Skills Demonstrated:</p>
+                    <p className="text-sm font-medium mb-2">
+                      Skills Demonstrated:
+                    </p>
                     <div className="flex flex-wrap gap-1">
                       {credential.skills.map((skill, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
+                        <Badge
+                          key={index}
+                          variant="secondary"
+                          className="text-xs"
+                        >
                           {skill}
                         </Badge>
                       ))}
                     </div>
                   </div>
 
-                  {credential.status === "verified" && credential.verificationUrl && (
-                    <div className="p-3 bg-muted rounded-lg">
-                      <p className="text-sm font-medium mb-2">Verification URL:</p>
-                      <div className="flex items-center gap-2">
-                        <code className="text-xs bg-background px-2 py-1 rounded flex-1 truncate">
-                          {credential.verificationUrl}
-                        </code>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => copyToClipboard(credential.verificationUrl!)}
-                        >
-                          <Share className="h-3 w-3" />
-                        </Button>
+                  {credential.status === "verified" &&
+                    credential.verificationUrl && (
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-2">
+                          Verification URL:
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs bg-background px-2 py-1 rounded flex-1 truncate">
+                            {credential.verificationUrl}
+                          </code>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              copyToClipboard(credential.verificationUrl!)
+                            }
+                          >
+                            <Share className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   <div className="flex flex-wrap gap-2">
-                    {credential.status === "verified" && credential.verificationUrl && (
-                      <>
-                        <Link href={`/verify?url=${encodeURIComponent(credential.verificationUrl)}`}>
+                    {credential.status === "verified" &&
+                      credential.verificationUrl && (
+                        <>
+                          <Link
+                            href={`/verify?url=${encodeURIComponent(
+                              credential.verificationUrl
+                            )}`}
+                          >
+                            <Button size="sm" variant="outline">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Public Page
+                            </Button>
+                          </Link>
                           <Button size="sm" variant="outline">
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Public Page
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            View on Blockchain
                           </Button>
-                        </Link>
-                        <Button size="sm" variant="outline">
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          View on Blockchain
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Certificate
-                        </Button>
-                      </>
-                    )}
+                          <Button size="sm" variant="outline">
+                            <Download className="h-4 w-4 mr-2" />
+                            Download Certificate
+                          </Button>
+                        </>
+                      )}
                     {credential.status === "pending" && (
                       <Badge variant="outline" className="text-xs">
                         Awaiting supervisor endorsement
@@ -194,9 +253,12 @@ export default function MyCredentials() {
         {credentials.length === 0 && (
           <Card>
             <CardContent className="text-center py-12">
-              <h3 className="text-lg font-semibold mb-2">No Credentials Found</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                No Credentials Found
+              </h3>
               <p className="text-muted-foreground mb-4">
-                You don't have any credentials yet. Contact your educational provider to get started.
+                You don't have any credentials yet. Contact your educational
+                provider to get started.
               </p>
               <Link href="/">
                 <Button>Learn More</Button>
@@ -206,5 +268,5 @@ export default function MyCredentials() {
         )}
       </main>
     </div>
-  )
+  );
 }

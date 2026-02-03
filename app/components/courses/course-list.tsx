@@ -12,30 +12,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFairCredit } from "@/hooks/use-fair-credit";
-import { Calendar, Clock, User } from "lucide-react";
-import { address } from "@solana/kit";
-import {
-  fetchMaybeHub,
-  fetchMaybeProvider,
-  fetchMaybeCourse,
-} from "@/lib/solana/generated/accounts";
+import { Award, Calendar, Clock } from "lucide-react";
+import { fetchMaybeHub } from "@/lib/solana/generated/accounts";
 import { getUpdateHubConfigInstructionAsync } from "@/lib/solana/generated/instructions/updateHubConfig";
-import { getAddAcceptedCourseInstructionAsync } from "@/lib/solana/generated/instructions/addAcceptedCourse";
-import { getAddAcceptedProviderInstructionAsync } from "@/lib/solana/generated/instructions/addAcceptedProvider";
 import { DEFAULT_PLACEHOLDER_SIGNER } from "@/lib/solana/placeholder-signer";
-import type { Course as CourseAccount } from "@/lib/solana/generated/accounts";
+import { CourseStatus } from "@/lib/solana/generated/types/courseStatus";
+import { resolveAcceptedCourses } from "@/lib/solana/course-ref-resolver";
 
 interface Course {
-  id: string;
+  address: string;
   name: string;
   description: string;
-  status: any;
+  status: CourseStatus;
   workloadRequired: number;
   provider: string;
-  providerName: string;
-  providerEmail: string;
   created: Date;
   updated: Date;
+  approvedCredentialsCount: number;
 }
 
 export function CourseList() {
@@ -67,72 +60,23 @@ export function CourseList() {
           return;
         }
 
-        // Fetch and enrich courses with provider data.
-        // Hub stores acceptedCourses as courseIds only; course PDA is (provider, courseId).
-        // Try each (providerWallet, courseId) for accepted providers until we find the course.
-        const enrichedCourses = await Promise.all(
-          (hub.acceptedCourses ?? []).map(async (courseId) => {
-            const providers = hub.acceptedProviders ?? [];
-            for (const prov of providers) {
-              const providerWallet =
-                typeof prov === "string" ? prov : String(prov);
-              const courseInstruction =
-                await getAddAcceptedCourseInstructionAsync({
-                  hub: undefined,
-                  authority: DEFAULT_PLACEHOLDER_SIGNER,
-                  course: undefined,
-                  courseId,
-                  providerWallet: address(providerWallet),
-                });
-              const courseAddress = courseInstruction.accounts[3].address;
-              const courseAccount = await fetchMaybeCourse(rpc, courseAddress);
-              if (!courseAccount.exists) continue;
-              const courseData = courseAccount.data;
-
-              const providerAddress =
-                typeof courseData.provider === "string"
-                  ? courseData.provider
-                  : String(courseData.provider);
-              const providerInstruction =
-                await getAddAcceptedProviderInstructionAsync({
-                  hub: undefined,
-                  authority: DEFAULT_PLACEHOLDER_SIGNER,
-                  provider: undefined,
-                  providerWallet: address(providerAddress),
-                });
-              const providerAddressPDA =
-                providerInstruction.accounts[2].address;
-              const providerAccount = await fetchMaybeProvider(
-                rpc,
-                providerAddressPDA,
-              );
-              const provider = providerAccount.exists
-                ? providerAccount.data
-                : null;
-
-              return {
-                id: courseId,
-                name: courseData.name,
-                description: courseData.description,
-                status: courseData.status,
-                workloadRequired: courseData.workloadRequired,
-                provider:
-                  typeof courseData.provider === "string"
-                    ? courseData.provider
-                    : String(courseData.provider),
-                providerName: provider?.name ?? "Unknown Provider",
-                providerEmail: provider?.email ?? "",
-                created: new Date(Number(courseData.created) * 1000),
-                updated: new Date(Number(courseData.updated) * 1000),
-              };
-            }
-            return null;
-          }),
+        const resolvedCourses = await resolveAcceptedCourses(
+          rpc,
+          hub.acceptedCourses ?? []
         );
+        const enrichedCourses = resolvedCourses.map(({ address, course }) => ({
+          address: String(address),
+          name: course.name,
+          description: course.description,
+          status: course.status,
+          workloadRequired: course.workloadRequired,
+          provider: String(course.provider),
+          created: new Date(Number(course.created) * 1000),
+          updated: new Date(Number(course.updated) * 1000),
+          approvedCredentialsCount: course.approvedCredentials?.length ?? 0,
+        }));
 
-        setCourses(
-          enrichedCourses.filter((c): c is NonNullable<typeof c> => c !== null),
-        );
+        setCourses(enrichedCourses);
       } catch (err) {
         console.error("Failed to fetch courses:", err);
         setError("Failed to load courses. Please try again later.");
@@ -187,19 +131,26 @@ export function CourseList() {
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {courses.map((course) => (
-        <Card key={course.id} className="hover:shadow-lg transition-shadow">
+        <Card
+          key={course.address}
+          className="hover:shadow-lg transition-shadow"
+        >
           <CardHeader>
             <div className="flex justify-between items-start">
               <div>
                 <CardTitle className="text-xl">{course.name}</CardTitle>
-                <CardDescription className="mt-1">{course.id}</CardDescription>
+                <CardDescription className="mt-1">
+                  {course.address.slice(0, 8)}…
+                </CardDescription>
               </div>
               <Badge variant="secondary">
-                {course.status?.draft
+                {course.status === CourseStatus.Draft
                   ? "Draft"
-                  : course.status?.published
-                  ? "Published"
-                  : course.status?.archived
+                  : course.status === CourseStatus.Verified
+                  ? "Verified"
+                  : course.status === CourseStatus.Rejected
+                  ? "Rejected"
+                  : course.status === CourseStatus.Archived
                   ? "Archived"
                   : "Unknown"}
               </Badge>
@@ -212,11 +163,6 @@ export function CourseList() {
 
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span>{course.providerName}</span>
-              </div>
-
-              <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <span>{course.workloadRequired} hours workload</span>
               </div>
@@ -225,6 +171,16 @@ export function CourseList() {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span>Created {course.created.toLocaleDateString()}</span>
               </div>
+
+              {typeof course.approvedCredentialsCount === "number" &&
+                course.approvedCredentialsCount > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Award className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      {course.approvedCredentialsCount} credential(s) approved
+                    </span>
+                  </div>
+                )}
             </div>
 
             <div className="mt-4 flex gap-2">

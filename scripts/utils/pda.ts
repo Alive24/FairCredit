@@ -19,9 +19,7 @@ export async function getHubAddress(): Promise<Address> {
     authority: DEFAULT_PLACEHOLDER_SIGNER,
     config: {
       requireProviderApproval: false,
-      requireEndorserApproval: false,
       minReputationScore: 0,
-      allowSelfEndorsement: false,
     },
   });
   return instruction.accounts[0].address;
@@ -29,7 +27,7 @@ export async function getHubAddress(): Promise<Address> {
 
 /** Resolve Provider PDA using Codama InitializeProvider instruction; authority signer can be real or placeholder. */
 export async function getProviderAddress(
-  authoritySigner: TransactionSigner,
+  authoritySigner: TransactionSigner
 ): Promise<Address> {
   const instruction = await getInitializeProviderInstructionAsync({
     providerAccount: undefined,
@@ -45,14 +43,15 @@ export async function getProviderAddress(
 
 /** Resolve Course PDA using Codama CreateCourse instruction; providerAuthority signer can be real or placeholder. */
 export async function getCourseAddress(
-  courseId: string,
-  providerAuthoritySigner: TransactionSigner,
+  creationTimestamp: number | bigint,
+  providerAuthoritySigner: TransactionSigner
 ): Promise<Address> {
   const instruction = await getCreateCourseInstructionAsync({
     course: undefined,
     provider: undefined,
+    hub: undefined,
     providerAuthority: providerAuthoritySigner,
-    courseId,
+    creationTimestamp,
     name: "",
     description: "",
     workloadRequired: 0,

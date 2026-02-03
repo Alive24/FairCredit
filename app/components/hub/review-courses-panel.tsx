@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Card,
   CardContent,
@@ -24,7 +24,6 @@ import { useProviders } from "@/hooks/use-providers";
 import { useCourses } from "@/hooks/use-courses";
 import { useIsHubAuthority } from "@/hooks/use-is-hub-authority";
 import { useAppKitTransaction } from "@/hooks/use-appkit-transaction";
-import { address } from "@solana/kit";
 import { getAddAcceptedCourseInstructionAsync } from "@/lib/solana/generated/instructions/addAcceptedCourse";
 import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 import {
@@ -37,6 +36,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type { CourseEntry } from "@/hooks/use-courses";
+import { CourseStatus } from "@/lib/solana/generated/types/courseStatus";
+import { resolveAcceptedCourses } from "@/lib/solana/course-ref-resolver";
 
 export function ReviewCoursesPanel() {
   const { toast } = useToast();
@@ -46,7 +47,7 @@ export function ReviewCoursesPanel() {
   const acceptedProviderWallets =
     hubData?.acceptedProviders?.map((p: unknown) => String(p)) ?? [];
   const { courses, loading, refetch } = useCourses(
-    acceptedProviderWallets.length > 0 ? acceptedProviderWallets : null,
+    acceptedProviderWallets.length > 0 ? acceptedProviderWallets : null
   );
   const {
     address: walletAddress,
@@ -55,18 +56,46 @@ export function ReviewCoursesPanel() {
     isSending,
   } = useAppKitTransaction();
   const [selectedCourse, setSelectedCourse] = useState<CourseEntry | null>(
-    null,
+    null
   );
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [acceptingCourseId, setAcceptingCourseId] = useState<string | null>(
-    null,
+    null
+  );
+  const [acceptedCourseSet, setAcceptedCourseSet] = useState<Set<string>>(
+    new Set()
   );
 
-  const isCourseAccepted = (courseId: string) =>
-    hubData?.acceptedCourses?.includes(courseId) ?? false;
+  useEffect(() => {
+    let cancelled = false;
+    async function syncAcceptedCourses() {
+      if (!hubData) {
+        setAcceptedCourseSet(new Set());
+        return;
+      }
+      const resolved = await resolveAcceptedCourses(
+        rpc,
+        hubData.acceptedCourses ?? []
+      );
+      if (!cancelled) {
+        setAcceptedCourseSet(
+          new Set(resolved.map(({ address }) => String(address)))
+        );
+      }
+    }
+    syncAcceptedCourses();
+    return () => {
+      cancelled = true;
+    };
+  }, [hubData, rpc]);
+
+  const isCourseAccepted = (courseAddress: string) =>
+    acceptedCourseSet.has(courseAddress);
 
   const pendingCourses = courses.filter(
-    (entry) => !isCourseAccepted(entry.course.id),
+    (entry) =>
+      !isCourseAccepted(String(entry.address)) &&
+      entry.course.status !== CourseStatus.Draft
   );
 
   const getProviderName = (providerWallet: string) => {
@@ -92,19 +121,12 @@ export function ReviewCoursesPanel() {
     }
 
     const course = entry.course;
-    const providerWallet =
-      typeof course.provider === "string"
-        ? course.provider
-        : String(course.provider);
-
-    setAcceptingCourseId(course.id);
+    setAcceptingCourseId(String(entry.address));
     try {
       const ix = await getAddAcceptedCourseInstructionAsync({
         hub: undefined,
         authority: createPlaceholderSigner(walletAddress),
-        course: undefined,
-        courseId: course.id,
-        providerWallet: address(providerWallet),
+        course: entry.address,
       });
 
       const signature = await sendTransaction([ix]);
@@ -132,22 +154,28 @@ export function ReviewCoursesPanel() {
 
   const getStatusBadge = (status: unknown) => {
     switch (status) {
-      case "Draft":
+      case CourseStatus.Draft:
         return (
           <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
             Draft
           </Badge>
         );
-      case "Published":
+      case CourseStatus.Verified:
         return (
           <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-            Published
+            Verified
           </Badge>
         );
-      case "Archived":
+      case CourseStatus.Archived:
         return (
           <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
             Archived
+          </Badge>
+        );
+      case CourseStatus.Rejected:
+        return (
+          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+            Rejected
           </Badge>
         );
       default:
@@ -215,7 +243,7 @@ export function ReviewCoursesPanel() {
                     : String(course.provider);
                 const providerName = getProviderName(providerWallet);
                 return (
-                  <Card key={course.id} className="p-4">
+                  <Card key={String(entry.address)} className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -237,10 +265,10 @@ export function ReviewCoursesPanel() {
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
                             {new Date(
-                              Number(course.created) * 1000,
+                              Number(course.created) * 1000
                             ).toLocaleDateString()}
                           </span>
-                          <span>ID: {course.id}</span>
+                          <span>ts={String(course.creationTimestamp)}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 ml-4 shrink-0">
@@ -259,10 +287,11 @@ export function ReviewCoursesPanel() {
                           size="sm"
                           onClick={() => handleAcceptCourse(entry)}
                           disabled={
-                            isSending || acceptingCourseId === course.id
+                            isSending ||
+                            acceptingCourseId === String(entry.address)
                           }
                         >
-                          {acceptingCourseId === course.id ? (
+                          {acceptingCourseId === String(entry.address) ? (
                             <>
                               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                               Accepting...
@@ -325,7 +354,7 @@ function CourseDetailContent({
   entry: CourseEntry;
   getProviderName: (w: string) => string;
   getStatusBadge: (status: unknown) => ReactNode;
-  isCourseAccepted: (id: string) => boolean;
+  isCourseAccepted: (addr: string) => boolean;
   onAccept: () => void;
   onClose: () => void;
   isSending: boolean;
@@ -353,8 +382,10 @@ function CourseDetailContent({
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label className="text-sm font-medium">Course ID</Label>
-          <p className="mt-1 text-sm font-mono">{course.id}</p>
+          <Label className="text-sm font-medium">Creation Timestamp</Label>
+          <p className="mt-1 text-sm font-mono">
+            {String(course.creationTimestamp)}
+          </p>
         </div>
         <div>
           <Label className="text-sm font-medium">Workload Required</Label>
@@ -388,30 +419,6 @@ function CourseDetailContent({
           <p className="mt-1 text-sm">{course.collegeId}</p>
         </div>
       </div>
-      {course.weightIds.length > 0 && (
-        <div>
-          <Label className="text-sm font-medium">Weight IDs</Label>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {course.weightIds.map((wid) => (
-              <Badge key={wid} variant="outline">
-                {wid}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-      {course.resourceIds.length > 0 && (
-        <div>
-          <Label className="text-sm font-medium">Resource IDs</Label>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {course.resourceIds.map((rid) => (
-              <Badge key={rid} variant="outline">
-                {rid}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
       {course.rejectionReason &&
         typeof course.rejectionReason === "object" &&
         "__option" in course.rejectionReason &&
@@ -428,12 +435,12 @@ function CourseDetailContent({
         <Button variant="outline" onClick={onClose}>
           Close
         </Button>
-        {!isCourseAccepted(course.id) && (
+        {!isCourseAccepted(String(entry.address)) && (
           <Button
             onClick={onAccept}
-            disabled={isSending || acceptingCourseId === course.id}
+            disabled={isSending || acceptingCourseId === String(entry.address)}
           >
-            {acceptingCourseId === course.id ? (
+            {acceptingCourseId === String(entry.address) ? (
               <>
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                 Accepting...

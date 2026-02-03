@@ -10,11 +10,13 @@ import { fetchMaybeHub } from "@/lib/solana/generated/accounts";
 import type { Hub } from "@/lib/solana/generated/accounts";
 import { getUpdateHubConfigInstructionAsync } from "@/lib/solana/generated/instructions/updateHubConfig";
 import { DEFAULT_PLACEHOLDER_SIGNER } from "@/lib/solana/placeholder-signer";
+import { resolveAcceptedCourses } from "@/lib/solana/course-ref-resolver";
 
-export default function ProgramsPage() {
+export default function CoursesPage() {
   const { rpc } = useFairCredit();
   const [hubData, setHubData] = useState<Hub | null>(null);
   const [loading, setLoading] = useState(true);
+  const [acceptedCourseCount, setAcceptedCourseCount] = useState(0);
 
   useEffect(() => {
     async function fetchHubData() {
@@ -32,6 +34,15 @@ export default function ProgramsPage() {
         const hubAccount = await fetchMaybeHub(rpc, hubAddress);
         const hub = hubAccount.exists ? hubAccount.data : null;
         setHubData(hub);
+        if (hub) {
+          const resolved = await resolveAcceptedCourses(
+            rpc,
+            hub.acceptedCourses ?? []
+          );
+          setAcceptedCourseCount(resolved.length);
+        } else {
+          setAcceptedCourseCount(0);
+        }
       } catch (error) {
         console.error("Failed to fetch hub data:", error);
       } finally {
@@ -67,9 +78,7 @@ export default function ProgramsPage() {
               {loading ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
               ) : (
-                <div className="text-2xl font-bold">
-                  {hubData?.acceptedCourses?.length || 0}
-                </div>
+                <div className="text-2xl font-bold">{acceptedCourseCount}</div>
               )}
               <p className="text-xs text-muted-foreground">
                 Hub-accepted; available for credentials

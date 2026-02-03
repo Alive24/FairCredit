@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { test, expect } from "@playwright/test";
 import type { Page, BrowserContext } from "@playwright/test";
 import { createSolanaRpc } from "@solana/kit";
@@ -17,7 +18,7 @@ test.describe("Hub Management", () => {
     // Check that hub authority is displayed
     await expect(page.locator("text=Hub Authority")).toBeVisible();
     await expect(
-      page.locator(`text=${testConfig.hubAuthority.publicKey}`),
+      page.locator(`text=${testConfig.hubAuthority.publicKey}`)
     ).toBeVisible();
 
     // Check for provider section
@@ -43,7 +44,7 @@ test.describe("Hub Management", () => {
 
     // Enter the base64 encoded keypair
     const base64Keypair = Buffer.from(
-      testConfig.hubAuthority.getKeypair().secretKey,
+      testConfig.hubAuthority.getKeypair().secretKey
     ).toString("base64");
     await page.fill('textarea[placeholder*="base64"]', base64Keypair);
 
@@ -52,7 +53,7 @@ test.describe("Hub Management", () => {
 
     // Wait for success message
     await expect(
-      page.locator("text=Keypair imported successfully"),
+      page.locator("text=Keypair imported successfully")
     ).toBeVisible();
 
     // Close dialog
@@ -60,7 +61,7 @@ test.describe("Hub Management", () => {
 
     // Verify wallet is connected
     await expect(
-      page.locator(`text=${testConfig.hubAuthority.publicKey.slice(0, 4)}`),
+      page.locator(`text=${testConfig.hubAuthority.publicKey.slice(0, 4)}`)
     ).toBeVisible();
   });
 
@@ -80,7 +81,7 @@ test.describe("Hub Management", () => {
     await page.click('button:has-text("Import Dev Key")');
     await page.waitForSelector("text=Import Development Keypair");
     const base64Keypair = Buffer.from(
-      testConfig.hubAuthority.getKeypair().secretKey,
+      testConfig.hubAuthority.getKeypair().secretKey
     ).toString("base64");
     await page.fill('textarea[placeholder*="base64"]', base64Keypair);
     await page.click('button:has-text("Import Keypair")');
@@ -95,7 +96,7 @@ test.describe("Hub Management", () => {
 
     // Check for provider wallet input
     await expect(
-      page.locator('input[placeholder*="Provider wallet address"]'),
+      page.locator('input[placeholder*="Provider wallet address"]')
     ).toBeVisible();
   });
 

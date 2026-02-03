@@ -1,25 +1,60 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Header } from "@/components/header"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Plus, X, Send, CheckCircle } from "lucide-react"
-import Link from "next/link"
-import { useToast } from "@/hooks/use-toast"
+import { useState } from "react";
+import { Header } from "@/components/header";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Plus, X, Send, CheckCircle, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
+import { useAppKitAccount } from "@reown/appkit/react";
+import { useCourses } from "@/hooks/use-courses";
+import { useAppKitTransaction } from "@/hooks/use-appkit-transaction";
+import { useIsHubAuthority } from "@/hooks/use-is-hub-authority";
+import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
+import { getCreateCredentialInstructionAsync } from "@/lib/solana/generated/instructions/createCredential";
+import type { CourseEntry } from "@/hooks/use-courses";
+import { CourseStatus } from "@/lib/solana/generated/types/courseStatus";
 
 export default function CreateCredential() {
-  const { toast } = useToast()
-  const [currentStep, setCurrentStep] = useState(1)
-  const [skills, setSkills] = useState<string[]>([])
-  const [newSkill, setNewSkill] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [credentialCreated, setCredentialCreated] = useState(false)
+  const { toast } = useToast();
+  const { address: walletAddress, isConnected } = useAppKitAccount();
+  const { sendTransaction, isSending } = useAppKitTransaction();
+  const { hubData } = useIsHubAuthority();
+  const acceptedProviderWallets =
+    hubData?.acceptedProviders?.map((p: unknown) => String(p)) ?? [];
+  const { courses, loading: coursesLoading } = useCourses(
+    acceptedProviderWallets.length > 0 ? acceptedProviderWallets : null
+  );
+  const verifiedCourses = courses.filter(
+    (c) => c.course.status === CourseStatus.Verified
+  );
+
+  const [currentStep, setCurrentStep] = useState(1);
+  const [skills, setSkills] = useState<string[]>([]);
+  const [newSkill, setNewSkill] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [credentialCreated, setCredentialCreated] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<CourseEntry | null>(
+    null
+  );
 
   const [formData, setFormData] = useState({
     // Student Information
@@ -32,6 +67,7 @@ export default function CreateCredential() {
     supervisorEmail: "",
     supervisorInstitution: "",
     supervisorTitle: "",
+    mentorWallet: "",
 
     // Credential Details
     credentialTitle: "",
@@ -45,44 +81,82 @@ export default function CreateCredential() {
     methodology: "",
     outcomes: "",
     publications: "",
-  })
+  });
 
   const addSkill = () => {
     if (newSkill.trim() && !skills.includes(newSkill.trim())) {
-      setSkills([...skills, newSkill.trim()])
-      setNewSkill("")
+      setSkills([...skills, newSkill.trim()]);
+      setNewSkill("");
     }
-  }
+  };
 
   const removeSkill = (skillToRemove: string) => {
-    setSkills(skills.filter((skill) => skill !== skillToRemove))
-  }
+    setSkills(skills.filter((skill) => skill !== skillToRemove));
+  };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = async () => {
-    setIsSubmitting(true)
+    if (!walletAddress || !selectedCourse) {
+      toast({
+        title: "Missing required fields",
+        description: "Connect your wallet and select a verified course.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Simulate credential creation and supervisor notification
-    setTimeout(() => {
-      setIsSubmitting(false)
-      setCredentialCreated(true)
+    setIsSubmitting(true);
+    try {
+      const ix = await getCreateCredentialInstructionAsync({
+        credential: undefined,
+        course: selectedCourse.address,
+        provider: selectedCourse.course.provider,
+        hub: undefined,
+        student: createPlaceholderSigner(walletAddress),
+        systemProgram: undefined,
+      });
+
+      await sendTransaction([ix]);
+      setCredentialCreated(true);
       toast({
         title: "Credential Created Successfully!",
-        description: "Academic supervisor has been notified for endorsement.",
-      })
-    }, 2000)
-  }
+        description:
+          "Your credential request has been created. Next: mentor endorsement → provider approval → you can mint the NFT.",
+      });
+    } catch (e) {
+      console.error("Create credential failed:", e);
+      toast({
+        title: "Failed to create credential",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const steps = [
-    { number: 1, title: "Student Information", description: "Basic student details" },
-    { number: 2, title: "Academic Supervisor", description: "Supervisor information" },
-    { number: 3, title: "Credential Details", description: "Achievement information" },
+    {
+      number: 1,
+      title: "Student Information",
+      description: "Basic student details",
+    },
+    {
+      number: 2,
+      title: "Academic Supervisor",
+      description: "Supervisor information",
+    },
+    {
+      number: 3,
+      title: "Credential Details",
+      description: "Achievement information",
+    },
     { number: 4, title: "Research Details", description: "Research specifics" },
     { number: 5, title: "Review & Submit", description: "Final review" },
-  ]
+  ];
 
   if (credentialCreated) {
     return (
@@ -93,19 +167,26 @@ export default function CreateCredential() {
             <Card>
               <CardContent className="pt-8">
                 <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
-                <h1 className="text-2xl font-bold mb-4">Credential Created Successfully!</h1>
+                <h1 className="text-2xl font-bold mb-4">
+                  Credential Created Successfully!
+                </h1>
                 <p className="text-muted-foreground mb-6">
-                  The academic credential has been created and a secure endorsement link has been sent to{" "}
+                  The academic credential has been created and a secure
+                  endorsement link has been sent to{" "}
                   <strong>{formData.supervisorEmail}</strong> for verification.
                 </p>
                 <div className="space-y-4">
                   <div className="p-4 bg-muted rounded-lg">
                     <h3 className="font-semibold mb-2">Next Steps:</h3>
                     <ul className="text-sm text-left space-y-1">
-                      <li>• Academic supervisor will receive an email with endorsement link</li>
-                      <li>• Supervisor reviews and provides cryptographic signature</li>
-                      <li>• NFT credential is automatically minted upon approval</li>
-                      <li>• Student receives credential in their wallet</li>
+                      <li>• Mentor endorses the credential on-chain</li>
+                      <li>
+                        • Provider approves the endorsed credential (Verified)
+                      </li>
+                      <li>
+                        • Student mints an NFT after the credential is Verified
+                      </li>
+                      <li>• Mint address is written back to the credential</li>
                     </ul>
                   </div>
                   <div className="flex gap-4 justify-center">
@@ -122,7 +203,7 @@ export default function CreateCredential() {
           </div>
         </main>
       </div>
-    )
+    );
   }
 
   return (
@@ -139,7 +220,8 @@ export default function CreateCredential() {
             <div>
               <h1 className="text-3xl font-bold">Create Academic Credential</h1>
               <p className="text-muted-foreground">
-                Step {currentStep} of {steps.length}: {steps[currentStep - 1].description}
+                Step {currentStep} of {steps.length}:{" "}
+                {steps[currentStep - 1].description}
               </p>
             </div>
           </div>
@@ -150,12 +232,16 @@ export default function CreateCredential() {
               <div key={step.number} className="flex flex-col items-center">
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step.number <= currentStep ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    step.number <= currentStep
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {step.number}
                 </div>
-                <p className="text-xs mt-2 text-center max-w-20">{step.title}</p>
+                <p className="text-xs mt-2 text-center max-w-20">
+                  {step.title}
+                </p>
               </div>
             ))}
           </div>
@@ -163,7 +249,9 @@ export default function CreateCredential() {
           <Card>
             <CardHeader>
               <CardTitle>{steps[currentStep - 1].title}</CardTitle>
-              <CardDescription>{steps[currentStep - 1].description}</CardDescription>
+              <CardDescription>
+                {steps[currentStep - 1].description}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Step 1: Student Information */}
@@ -174,7 +262,9 @@ export default function CreateCredential() {
                     <Input
                       id="studentName"
                       value={formData.studentName}
-                      onChange={(e) => handleInputChange("studentName", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("studentName", e.target.value)
+                      }
                       placeholder="Alex Kingsley"
                     />
                   </div>
@@ -184,16 +274,22 @@ export default function CreateCredential() {
                       id="studentEmail"
                       type="email"
                       value={formData.studentEmail}
-                      onChange={(e) => handleInputChange("studentEmail", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("studentEmail", e.target.value)
+                      }
                       placeholder="alex.kingsley@email.com"
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="studentWallet">Student Wallet Address *</Label>
+                    <Label htmlFor="studentWallet">
+                      Student Wallet Address *
+                    </Label>
                     <Input
                       id="studentWallet"
                       value={formData.studentWallet}
-                      onChange={(e) => handleInputChange("studentWallet", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("studentWallet", e.target.value)
+                      }
                       placeholder="7xKXtg2CW9to3QyvkstNQtUTdLBqkF9vamLhTukF9mNp"
                     />
                   </div>
@@ -204,11 +300,15 @@ export default function CreateCredential() {
               {currentStep === 2 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="supervisorName">Supervisor Full Name *</Label>
+                    <Label htmlFor="supervisorName">
+                      Supervisor Full Name *
+                    </Label>
                     <Input
                       id="supervisorName"
                       value={formData.supervisorName}
-                      onChange={(e) => handleInputChange("supervisorName", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("supervisorName", e.target.value)
+                      }
                       placeholder="Dr. Sarah Chen"
                     />
                   </div>
@@ -218,7 +318,9 @@ export default function CreateCredential() {
                       id="supervisorEmail"
                       type="email"
                       value={formData.supervisorEmail}
-                      onChange={(e) => handleInputChange("supervisorEmail", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("supervisorEmail", e.target.value)
+                      }
                       placeholder="s.chen@imperial.ac.uk"
                     />
                   </div>
@@ -227,7 +329,12 @@ export default function CreateCredential() {
                     <Input
                       id="supervisorInstitution"
                       value={formData.supervisorInstitution}
-                      onChange={(e) => handleInputChange("supervisorInstitution", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "supervisorInstitution",
+                          e.target.value
+                        )
+                      }
                       placeholder="Imperial College London"
                     />
                   </div>
@@ -236,8 +343,23 @@ export default function CreateCredential() {
                     <Input
                       id="supervisorTitle"
                       value={formData.supervisorTitle}
-                      onChange={(e) => handleInputChange("supervisorTitle", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("supervisorTitle", e.target.value)
+                      }
                       placeholder="Professor of Quantum Computing"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="mentorWallet">
+                      Mentor (Supervisor) Wallet Address *
+                    </Label>
+                    <Input
+                      id="mentorWallet"
+                      value={formData.mentorWallet}
+                      onChange={(e) =>
+                        handleInputChange("mentorWallet", e.target.value)
+                      }
+                      placeholder="Mentor Solana wallet for endorsement"
                     />
                   </div>
                 </div>
@@ -246,13 +368,55 @@ export default function CreateCredential() {
               {/* Step 3: Credential Details */}
               {currentStep === 3 && (
                 <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label>Course *</Label>
+                    <Select
+                      value={selectedCourse?.address ?? ""}
+                      onValueChange={(addr) => {
+                        const c = verifiedCourses.find(
+                          (x) => x.address === addr
+                        );
+                        setSelectedCourse(c ?? null);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            coursesLoading
+                              ? "Loading courses…"
+                              : "Select a verified course"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {verifiedCourses.map((c) => (
+                          <SelectItem key={c.address} value={c.address}>
+                            {c.course.name} (ts=
+                            {String(c.course.creationTimestamp)})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!coursesLoading &&
+                      verifiedCourses.length === 0 &&
+                      isConnected && (
+                        <p className="text-sm text-muted-foreground">
+                          No verified courses. Create and get a course accepted
+                          first.
+                        </p>
+                      )}
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="credentialTitle">Credential Title *</Label>
+                      <Label htmlFor="credentialTitle">
+                        Credential Title *
+                      </Label>
                       <Input
                         id="credentialTitle"
                         value={formData.credentialTitle}
-                        onChange={(e) => handleInputChange("credentialTitle", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("credentialTitle", e.target.value)
+                        }
                         placeholder="Advanced Quantum Computing Research"
                       />
                     </div>
@@ -260,16 +424,26 @@ export default function CreateCredential() {
                       <Label htmlFor="credentialType">Credential Type *</Label>
                       <Select
                         value={formData.credentialType}
-                        onValueChange={(value) => handleInputChange("credentialType", value)}
+                        onValueChange={(value) =>
+                          handleInputChange("credentialType", value)
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select credential type" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="research">Research Project</SelectItem>
-                          <SelectItem value="internship">Academic Internship</SelectItem>
-                          <SelectItem value="publication">Research Publication</SelectItem>
-                          <SelectItem value="conference">Conference Presentation</SelectItem>
+                          <SelectItem value="research">
+                            Research Project
+                          </SelectItem>
+                          <SelectItem value="internship">
+                            Academic Internship
+                          </SelectItem>
+                          <SelectItem value="publication">
+                            Research Publication
+                          </SelectItem>
+                          <SelectItem value="conference">
+                            Conference Presentation
+                          </SelectItem>
                           <SelectItem value="thesis">Thesis Project</SelectItem>
                         </SelectContent>
                       </Select>
@@ -280,7 +454,12 @@ export default function CreateCredential() {
                     <Textarea
                       id="credentialDescription"
                       value={formData.credentialDescription}
-                      onChange={(e) => handleInputChange("credentialDescription", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "credentialDescription",
+                          e.target.value
+                        )
+                      }
                       placeholder="Detailed description of the academic achievement..."
                       rows={4}
                     />
@@ -291,7 +470,9 @@ export default function CreateCredential() {
                       <Input
                         id="researchArea"
                         value={formData.researchArea}
-                        onChange={(e) => handleInputChange("researchArea", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("researchArea", e.target.value)
+                        }
                         placeholder="Quantum Computing, Machine Learning"
                       />
                     </div>
@@ -300,7 +481,9 @@ export default function CreateCredential() {
                       <Input
                         id="duration"
                         value={formData.duration}
-                        onChange={(e) => handleInputChange("duration", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("duration", e.target.value)
+                        }
                         placeholder="6 months"
                       />
                     </div>
@@ -320,9 +503,16 @@ export default function CreateCredential() {
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {skills.map((skill, index) => (
-                        <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                        <Badge
+                          key={index}
+                          variant="secondary"
+                          className="flex items-center gap-1"
+                        >
                           {skill}
-                          <X className="h-3 w-3 cursor-pointer" onClick={() => removeSkill(skill)} />
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => removeSkill(skill)}
+                          />
                         </Badge>
                       ))}
                     </div>
@@ -334,11 +524,15 @@ export default function CreateCredential() {
               {currentStep === 4 && (
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="researchObjectives">Research Objectives *</Label>
+                    <Label htmlFor="researchObjectives">
+                      Research Objectives *
+                    </Label>
                     <Textarea
                       id="researchObjectives"
                       value={formData.researchObjectives}
-                      onChange={(e) => handleInputChange("researchObjectives", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("researchObjectives", e.target.value)
+                      }
                       placeholder="Describe the research objectives and goals..."
                       rows={3}
                     />
@@ -348,7 +542,9 @@ export default function CreateCredential() {
                     <Textarea
                       id="methodology"
                       value={formData.methodology}
-                      onChange={(e) => handleInputChange("methodology", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("methodology", e.target.value)
+                      }
                       placeholder="Describe the research methodology used..."
                       rows={3}
                     />
@@ -358,17 +554,23 @@ export default function CreateCredential() {
                     <Textarea
                       id="outcomes"
                       value={formData.outcomes}
-                      onChange={(e) => handleInputChange("outcomes", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("outcomes", e.target.value)
+                      }
                       placeholder="Describe the key outcomes and achievements..."
                       rows={3}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="publications">Publications/Presentations</Label>
+                    <Label htmlFor="publications">
+                      Publications/Presentations
+                    </Label>
                     <Textarea
                       id="publications"
                       value={formData.publications}
-                      onChange={(e) => handleInputChange("publications", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("publications", e.target.value)
+                      }
                       placeholder="List any publications, presentations, or other outputs..."
                       rows={2}
                     />
@@ -382,7 +584,9 @@ export default function CreateCredential() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-lg">Student Information</CardTitle>
+                        <CardTitle className="text-lg">
+                          Student Information
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2 text-sm">
                         <p>
@@ -398,7 +602,9 @@ export default function CreateCredential() {
                     </Card>
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-lg">Academic Supervisor</CardTitle>
+                        <CardTitle className="text-lg">
+                          Academic Supervisor
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2 text-sm">
                         <p>
@@ -408,7 +614,8 @@ export default function CreateCredential() {
                           <strong>Email:</strong> {formData.supervisorEmail}
                         </p>
                         <p>
-                          <strong>Institution:</strong> {formData.supervisorInstitution}
+                          <strong>Institution:</strong>{" "}
+                          {formData.supervisorInstitution}
                         </p>
                         <p>
                           <strong>Title:</strong> {formData.supervisorTitle}
@@ -418,7 +625,9 @@ export default function CreateCredential() {
                   </div>
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Credential Details</CardTitle>
+                      <CardTitle className="text-lg">
+                        Credential Details
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm">
                       <p>
@@ -428,7 +637,8 @@ export default function CreateCredential() {
                         <strong>Type:</strong> {formData.credentialType}
                       </p>
                       <p>
-                        <strong>Description:</strong> {formData.credentialDescription}
+                        <strong>Description:</strong>{" "}
+                        {formData.credentialDescription}
                       </p>
                       <p>
                         <strong>Research Area:</strong> {formData.researchArea}
@@ -441,7 +651,11 @@ export default function CreateCredential() {
                           <strong>Skills:</strong>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {skills.map((skill, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
+                              <Badge
+                                key={index}
+                                variant="secondary"
+                                className="text-xs"
+                              >
                                 {skill}
                               </Badge>
                             ))}
@@ -463,12 +677,17 @@ export default function CreateCredential() {
                   Previous
                 </Button>
                 {currentStep < 5 ? (
-                  <Button onClick={() => setCurrentStep(currentStep + 1)}>Next</Button>
+                  <Button onClick={() => setCurrentStep(currentStep + 1)}>
+                    Next
+                  </Button>
                 ) : (
-                  <Button onClick={handleSubmit} disabled={isSubmitting}>
-                    {isSubmitting ? (
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || isSending || !selectedCourse}
+                  >
+                    {isSubmitting || isSending ? (
                       <>
-                        <Send className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Creating Credential...
                       </>
                     ) : (
@@ -485,5 +704,5 @@ export default function CreateCredential() {
         </div>
       </main>
     </div>
-  )
+  );
 }

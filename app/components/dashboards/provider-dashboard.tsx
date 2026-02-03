@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,6 @@ import {
   Eye,
   Settings,
   Loader2,
-  TrendingUp,
   Award,
   ChevronDown,
   ChevronRight,
@@ -34,6 +33,7 @@ import Link from "next/link";
 import { useFairCredit } from "@/hooks/use-fair-credit";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useToast } from "@/hooks/use-toast";
+import { useIsHubAuthority } from "@/hooks/use-is-hub-authority";
 import { ProviderRegistrationCard } from "@/components/provider/provider-registration-card";
 import { CloseProviderCard } from "@/components/provider/close-provider-card";
 import { WalletDebug } from "@/components/wallet-debug";
@@ -42,238 +42,325 @@ import type { Address } from "@solana/kit";
 import {
   fetchMaybeHub,
   fetchMaybeProvider,
-  fetchMaybeCourse,
 } from "@/lib/solana/generated/accounts";
-import type { Hub, Provider, Course } from "@/lib/solana/generated/accounts";
+import type { Hub, Provider } from "@/lib/solana/generated/accounts";
 import { getUpdateHubConfigInstructionAsync } from "@/lib/solana/generated/instructions/updateHubConfig";
 import { getAddAcceptedProviderInstructionAsync } from "@/lib/solana/generated/instructions/addAcceptedProvider";
-import { getAddAcceptedCourseInstructionAsync } from "@/lib/solana/generated/instructions/addAcceptedCourse";
+import { getApproveCredentialInstructionAsync } from "@/lib/solana/generated/instructions/approveCredential";
+import { getUpdateCourseStatusInstructionAsync } from "@/lib/solana/generated/instructions/updateCourseStatus";
+import { getAddProviderEndorserInstructionAsync } from "@/lib/solana/generated/instructions/addProviderEndorser";
+import { getRemoveProviderEndorserInstructionAsync } from "@/lib/solana/generated/instructions/removeProviderEndorser";
 import { DEFAULT_PLACEHOLDER_SIGNER } from "@/lib/solana/placeholder-signer";
+import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
+import { useCredentials } from "@/hooks/use-credentials";
+import { useAppKitTransaction } from "@/hooks/use-appkit-transaction";
+import { CredentialStatus } from "@/lib/solana/generated/types/credentialStatus";
+import { CourseStatus } from "@/lib/solana/generated/types/courseStatus";
+import { useCourses } from "@/hooks/use-courses";
+import { Input } from "@/components/ui/input";
 
 export function ProviderDashboard() {
   const { rpc } = useFairCredit();
   const { address: walletAddress, isConnected: connected } = useAppKitAccount();
+  const { isHubAuthority } = useIsHubAuthority();
+  const {
+    credentials,
+    loading: credentialsLoading,
+    refetch: refetchCredentials,
+  } = useCredentials(walletAddress ?? null);
+  const { sendTransaction, isSending } = useAppKitTransaction();
   const publicKey = walletAddress ? address(walletAddress) : null;
   const isWalletConnected = connected;
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [providerData, setProviderData] = useState<any>(null);
-  const [courses, setCourses] = useState<any[]>([]);
   const [hubData, setHubData] = useState<any>(null);
+  const [hubAddress, setHubAddress] = useState<Address | null>(null);
+  const [providerAccountAddress, setProviderAccountAddress] =
+    useState<Address | null>(null);
+  const {
+    courses: providerCourseEntries,
+    loading: coursesLoading,
+    refetch: refetchCourses,
+  } = useCourses(walletAddress ? [walletAddress] : null);
 
-  useEffect(() => {
-    async function fetchData() {
-      if (!isWalletConnected || !publicKey || !walletAddress) {
+  const loadProviderData = useCallback(async () => {
+    if (!isWalletConnected || !publicKey || !walletAddress) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const hubInstruction = await getUpdateHubConfigInstructionAsync({
+        hub: undefined,
+        authority: DEFAULT_PLACEHOLDER_SIGNER,
+        config: {
+          requireProviderApproval: false,
+          minReputationScore: 0,
+        },
+      });
+      const nextHubAddress = hubInstruction.accounts[0].address;
+      setHubAddress(nextHubAddress);
+      const hubAccount = await fetchMaybeHub(rpc, nextHubAddress);
+      const hub = hubAccount.exists ? hubAccount.data : null;
+      if (!hub) {
+        setHubData(null);
         setLoading(false);
         return;
       }
+      setHubData(hub);
 
       try {
-        // Fetch hub data to check if provider is accepted
-        // Get hub address from Codama instruction (it auto-resolves PDA)
-        const hubInstruction = await getUpdateHubConfigInstructionAsync({
-          hub: undefined,
-          authority: DEFAULT_PLACEHOLDER_SIGNER,
-          config: {
-            requireProviderApproval: false,
-            minReputationScore: 0,
-          },
-        });
-        const hubAddress = hubInstruction.accounts[0].address;
-        const hubAccount = await fetchMaybeHub(rpc, hubAddress);
-        const hub = hubAccount.exists ? hubAccount.data : null;
-        if (!hub) {
-          setHubData(null);
-          setLoading(false);
-          return;
-        }
-        console.log("Hub data:", hub);
-        console.log("Accepted providers:", hub?.acceptedProviders);
-        console.log("Current wallet:", walletAddress);
-        setHubData(hub);
-
-        // First check if provider exists (not necessarily accepted)
-        try {
-          // Get provider address from Codama instruction (it auto-resolves PDA)
-          const providerInstruction =
-            await getAddAcceptedProviderInstructionAsync({
-              hub: undefined,
-              authority: DEFAULT_PLACEHOLDER_SIGNER,
-              provider: undefined,
-              providerWallet: address(walletAddress),
-            });
-          const providerAddress = providerInstruction.accounts[2].address;
-          const providerAccount = await fetchMaybeProvider(
-            rpc,
-            providerAddress,
-          );
-          if (providerAccount.exists) {
-            const providerInfo = providerAccount.data;
-            console.log("Provider exists:", providerInfo);
-            setProviderData(providerInfo);
-
-            // Check if current wallet is an accepted provider
-            const isAcceptedProvider =
-              hub.acceptedProviders?.some((p) => {
-                const providerAddress = typeof p === "string" ? p : String(p);
-                return providerAddress === walletAddress;
-              }) ?? false;
-            console.log("Is accepted provider:", isAcceptedProvider);
-
-            if (isAcceptedProvider) {
-              const providerCourses: Course[] = [];
-              for (const courseId of hub.acceptedCourses ?? []) {
-                const ix = await getAddAcceptedCourseInstructionAsync({
-                  hub: undefined,
-                  authority: DEFAULT_PLACEHOLDER_SIGNER,
-                  course: undefined,
-                  courseId,
-                  providerWallet: address(walletAddress),
-                });
-                const courseAddr = ix.accounts[3].address as Address;
-                const acc = await fetchMaybeCourse(rpc, courseAddr);
-                if (!acc.exists) continue;
-                const data: Course = acc.data;
-                const provKey: string =
-                  typeof data.provider === "string"
-                    ? data.provider
-                    : String(data.provider);
-                if (provKey === walletAddress) providerCourses.push(data);
-              }
-              setCourses(providerCourses);
-            }
+        const providerInstruction = await getAddAcceptedProviderInstructionAsync(
+          {
+            hub: undefined,
+            authority: DEFAULT_PLACEHOLDER_SIGNER,
+            provider: undefined,
+            providerWallet: address(walletAddress),
           }
-        } catch (error) {
-          console.log("Provider not found, showing registration");
+        );
+        const providerAddress = providerInstruction.accounts[2].address;
+        setProviderAccountAddress(providerAddress);
+        const providerAccount = await fetchMaybeProvider(rpc, providerAddress);
+        if (providerAccount.exists) {
+          setProviderData(providerAccount.data);
         }
       } catch (error) {
-        console.error("Failed to fetch provider data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load provider data. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
+        console.log("Provider not found, showing registration");
       }
+    } catch (error) {
+      console.error("Failed to fetch provider data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load provider data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
+  }, [isWalletConnected, publicKey, walletAddress, rpc, toast]);
 
-    fetchData();
-  }, [rpc, isWalletConnected, publicKey, walletAddress, toast]);
+  useEffect(() => {
+    loadProviderData();
+  }, [loadProviderData]);
 
   const hasProviderAccount = !!providerData;
   const isAcceptedProvider = Boolean(
     hubData?.acceptedProviders?.some((p: Address) => {
       const providerAddress = typeof p === "string" ? p : String(p);
       return providerAddress === walletAddress;
-    }),
+    })
   );
 
-  // Calculate stats based on real data
+  // Calculate stats based on real data (providerCourseEntries = { course, address }[])
+  const verifiedCourseCount = providerCourseEntries.filter(
+    (entry) => entry.course?.status === CourseStatus.Verified
+  ).length;
+  const draftCourseCount = providerCourseEntries.filter(
+    (entry) => entry.course?.status === CourseStatus.Draft
+  ).length;
+  const issuedCredentialCount = credentials.filter(
+    ({ credential }) =>
+      credential.status === CredentialStatus.Verified ||
+      credential.status === CredentialStatus.Minted
+  ).length;
   const stats = [
     {
-      title: "Active Courses",
-      value: courses.length.toString(),
+      title: "Total Courses",
+      value: providerCourseEntries.length.toString(),
       icon: FileText,
       color: "text-blue-600",
-      change: "+12%",
+      subtitle: "Across all statuses",
     },
     {
-      title: "Pending Applications",
-      value: "12",
+      title: "Verified Courses",
+      value: verifiedCourseCount.toString(),
+      icon: CheckCircle,
+      color: "text-green-600",
+      subtitle: "Ready for hub acceptance",
+    },
+    {
+      title: "Draft Courses",
+      value: draftCourseCount.toString(),
       icon: Clock,
       color: "text-yellow-600",
-      change: "+5%",
+      subtitle: "Still being prepared",
     },
     {
       title: "Credentials Issued",
-      value: providerData?.credentialsIssued || "0",
+      value: issuedCredentialCount.toString(),
       icon: Award,
-      color: "text-green-600",
-      change: "+23%",
-    },
-    {
-      title: "Total Students",
-      value: providerData?.totalStudents || "0",
-      icon: Users,
       color: "text-purple-600",
-      change: "+18%",
+      subtitle: "Verified or minted",
     },
   ];
 
-  const recentApplications = [
-    {
-      id: "1",
-      studentName: "Alex Johnson",
-      course: "Advanced Quantum Computing Research",
-      submittedDate: "2024-01-20",
-      status: "pending-review",
-    },
-    {
-      id: "2",
-      studentName: "Sarah Chen",
-      course: "Machine Learning in Healthcare",
-      submittedDate: "2024-01-19",
-      status: "approved",
-    },
-    {
-      id: "3",
-      studentName: "Michael Roberts",
-      course: "Sustainable Energy Systems",
-      submittedDate: "2024-01-18",
-      status: "pending-review",
-    },
-  ];
+  const [approvingCredential, setApprovingCredential] = useState<string | null>(
+    null
+  );
+  const [submittingForReview, setSubmittingForReview] = useState<string | null>(
+    null
+  );
+  const [newEndorser, setNewEndorser] = useState("");
+  const [addingEndorser, setAddingEndorser] = useState(false);
+  const [removingEndorser, setRemovingEndorser] = useState<string | null>(null);
 
-  const activeCourses = [
-    {
-      id: "1",
-      title: "Advanced Quantum Computing Research",
-      applications: 8,
-      enrolled: 5,
-      completions: 2,
-      status: "active",
-    },
-    {
-      id: "2",
-      title: "Machine Learning in Healthcare",
-      applications: 12,
-      enrolled: 8,
-      completions: 4,
-      status: "active",
-    },
-    {
-      id: "3",
-      title: "Digital Innovation Workshop",
-      applications: 6,
-      enrolled: 4,
-      completions: 3,
-      status: "active",
-    },
-  ];
+  const handleSubmitForHubReview = async (courseAddress: string) => {
+    if (!walletAddress) return;
+    setSubmittingForReview(courseAddress);
+    try {
+      const ix = await getUpdateCourseStatusInstructionAsync({
+        course: address(courseAddress),
+        providerAuthority: createPlaceholderSigner(walletAddress),
+        status: CourseStatus.Verified,
+        rejectionReason: null,
+      });
+      await sendTransaction([ix]);
+      toast({
+        title: "Course submitted for Hub review",
+        description: "Hub can now accept this course.",
+      });
+      refetchCourses();
+    } catch (e) {
+      console.error("Submit for review failed:", e);
+      toast({
+        title: "Submit failed",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingForReview(null);
+    }
+  };
 
-  const getStatusBadge = (status: string) => {
+  const handleAddEndorser = async () => {
+    if (!walletAddress || !hubAddress || !newEndorser) {
+      toast({
+        title: "Missing information",
+        description: "Enter an endorser wallet before adding.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setAddingEndorser(true);
+    try {
+      const ix = await getAddProviderEndorserInstructionAsync({
+        providerAccount: providerAccountAddress ?? undefined,
+        hub: hubAddress,
+        providerAuthority: createPlaceholderSigner(walletAddress),
+        endorserWallet: address(newEndorser),
+      });
+      await sendTransaction([ix]);
+      toast({
+        title: "Endorser added",
+        description: "This wallet can now endorse for you.",
+      });
+      setNewEndorser("");
+      await loadProviderData();
+    } catch (e) {
+      console.error("Add endorser failed:", e);
+      toast({
+        title: "Add endorser failed",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setAddingEndorser(false);
+    }
+  };
+
+  const handleRemoveEndorser = async (endorser: string) => {
+    if (!walletAddress || !hubAddress) return;
+    setRemovingEndorser(endorser);
+    try {
+      const ix = await getRemoveProviderEndorserInstructionAsync({
+        providerAccount: providerAccountAddress ?? undefined,
+        hub: hubAddress,
+        providerAuthority: createPlaceholderSigner(walletAddress),
+        endorserWallet: address(endorser),
+      });
+      await sendTransaction([ix]);
+      toast({
+        title: "Endorser removed",
+        description: "This wallet can no longer endorse for you.",
+      });
+      await loadProviderData();
+    } catch (e) {
+      console.error("Remove endorser failed:", e);
+      toast({
+        title: "Remove endorser failed",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setRemovingEndorser(null);
+    }
+  };
+
+  const handleApproveCredential = async (
+    credentialAddress: string,
+    courseAddress: string
+  ) => {
+    if (!walletAddress) return;
+    setApprovingCredential(credentialAddress);
+    try {
+      const ix = await getApproveCredentialInstructionAsync({
+        credential: address(credentialAddress),
+        course: address(courseAddress),
+        providerAuthority: createPlaceholderSigner(walletAddress),
+      });
+      await sendTransaction([ix]);
+      toast({
+        title: "Credential approved",
+        description: "Credential added to course and set to Verified.",
+      });
+      refetchCredentials();
+    } catch (e) {
+      console.error("Approve credential failed:", e);
+      toast({
+        title: "Approve failed",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setApprovingCredential(null);
+    }
+  };
+
+  const endorsedCredentials = credentials.filter(
+    (e) => e.credential.status === CredentialStatus.Endorsed
+  );
+
+  const getStatusBadge = (status?: CourseStatus | string) => {
     switch (status) {
-      case "pending-review":
+      case CourseStatus.Draft:
         return (
           <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-            Pending Review
+            Draft
           </Badge>
         );
-      case "approved":
+      case CourseStatus.Verified:
         return (
           <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-            Approved
+            Verified
           </Badge>
         );
-      case "active":
+      case CourseStatus.Rejected:
         return (
-          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-            Active
+          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+            Rejected
           </Badge>
+        );
+      case CourseStatus.Archived:
+        return (
+          <Badge className="bg-muted text-muted-foreground">Archived</Badge>
         );
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return (
+          <Badge variant="secondary">
+            {typeof status === "string" ? status : "Unknown"}
+          </Badge>
+        );
     }
   };
 
@@ -303,7 +390,7 @@ export function ProviderDashboard() {
           </div>
         </div>
 
-        {loading ? (
+        {loading || (isAcceptedProvider && coursesLoading) ? (
           <div className="flex items-center justify-center min-h-[400px]">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
@@ -402,118 +489,168 @@ export function ProviderDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{stat.value}</div>
-                    <div className="flex items-center text-xs text-muted-foreground mt-1">
-                      <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
-                      {stat.change} from last month
-                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {stat.subtitle}
+                    </p>
                   </CardContent>
                 </Card>
               ))}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Recent Applications */}
+              {/* Provider Courses */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Applications</CardTitle>
+                  <CardTitle>Your Courses</CardTitle>
                   <CardDescription>
-                    Latest student applications requiring review
+                    Courses created and maintained by your provider account
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {recentApplications.map((application) => (
-                      <div
-                        key={application.id}
-                        className="flex items-center justify-between p-4 border rounded-lg"
-                      >
-                        <div className="flex-1">
-                          <h3 className="font-semibold">
-                            {application.studentName}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {application.course}
+                  {providerCourseEntries.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      You have not created any courses yet. Use the Create
+                      Course action to deploy your first credential experience.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {providerCourseEntries.map(({ course, address }) => (
+                        <div
+                          key={String(address)}
+                          className="border rounded-lg p-4"
+                        >
+                          <div className="flex justify-between items-start gap-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold">
+                                {course.name ||
+                                  String(address).slice(0, 8) + "…"}
+                              </h3>
+                              {getStatusBadge(course.status as CourseStatus)}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Created {formatCourseTimestamp(course.created)}
+                            </p>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                            {course.description || "No description provided."}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            Submitted: {application.submittedDate}
-                          </p>
+                          <div className="grid grid-cols-2 gap-4 text-sm mt-4">
+                            <div>
+                              <p className="text-muted-foreground text-xs">
+                                Modules
+                              </p>
+                              <p className="font-semibold">
+                                {course.modules?.length ?? 0}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground text-xs">
+                                Approved Credentials
+                              </p>
+                              <p className="font-semibold">
+                                {course.approvedCredentials?.length ?? 0}
+                              </p>
+                            </div>
+                          </div>
+                          {course.status === CourseStatus.Draft && (
+                            <div className="mt-4">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={
+                                  isSending ||
+                                  submittingForReview === String(address)
+                                }
+                                onClick={() =>
+                                  handleSubmitForHubReview(String(address))
+                                }
+                              >
+                                {submittingForReview === String(address) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : null}
+                                Submit for Hub Review
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-4">
-                          {getStatusBadge(application.status)}
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4 mr-1" />
-                            Review
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    <Link href="/applications">
-                      <Button
-                        variant="outline"
-                        className="w-full bg-transparent"
-                      >
-                        View All Applications
-                      </Button>
-                    </Link>
-                  </div>
+                      ))}
+                      <Link href="/courses">
+                        <Button
+                          variant="outline"
+                          className="w-full bg-transparent"
+                        >
+                          Manage All Courses
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Active Courses */}
+              {/* Credentials (Endorsed → Approve) */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Active Courses</CardTitle>
+                  <CardTitle>Credentials</CardTitle>
                   <CardDescription>
-                    Your currently running credential courses
+                    Endorsed credentials awaiting your approval to add to course
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {activeCourses.map((course) => (
-                      <div key={course.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold">{course.title}</h3>
-                            {getStatusBadge(course.status)}
+                  {credentialsLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading credentials…
+                    </div>
+                  ) : endorsedCredentials.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No endorsed credentials. Students create credentials;
+                      mentors endorse; you approve here.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {endorsedCredentials.map(
+                        ({ credential, address: credAddr }) => (
+                          <div
+                            key={credAddr}
+                            className="flex items-center justify-between p-3 border rounded-lg"
+                          >
+                            <div>
+                              <p className="font-medium">
+                                {credential.metadata?.title ?? "Credential"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Student:{" "}
+                                {String(credential.studentWallet).slice(0, 8)}…
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              disabled={
+                                isSending || approvingCredential === credAddr
+                              }
+                              onClick={() =>
+                                handleApproveCredential(
+                                  credAddr,
+                                  String(credential.course)
+                                )
+                              }
+                            >
+                              {approvingCredential === credAddr ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                "Approve"
+                              )}
+                            </Button>
                           </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-4 text-center">
-                          <div>
-                            <div className="text-lg font-bold text-blue-600">
-                              {course.applications}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Applications
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-lg font-bold text-green-600">
-                              {course.enrolled}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Enrolled
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-lg font-bold text-purple-600">
-                              {course.completions}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Completed
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    <Link href="/courses">
-                      <Button
-                        variant="outline"
-                        className="w-full bg-transparent"
-                      >
-                        Manage All Courses
-                      </Button>
-                    </Link>
-                  </div>
+                        )
+                      )}
+                    </div>
+                  )}
+                  <Link href="/create-credential" className="mt-4 inline-block">
+                    <Button variant="outline" size="sm">
+                      Create Credential
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
             </div>
@@ -524,20 +661,11 @@ export function ProviderDashboard() {
                 <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <Link href="/courses/create">
                     <Button className="w-full h-20 flex flex-col gap-2">
                       <Plus className="h-6 w-6" />
                       Create Course
-                    </Button>
-                  </Link>
-                  <Link href="/applications">
-                    <Button
-                      variant="outline"
-                      className="w-full h-20 flex flex-col gap-2 bg-transparent"
-                    >
-                      <Clock className="h-6 w-6" />
-                      Review Applications
                     </Button>
                   </Link>
                   <Link href="/courses">
@@ -549,15 +677,26 @@ export function ProviderDashboard() {
                       Manage Courses
                     </Button>
                   </Link>
-                  <Link href="/analytics">
+                  <Link href="/create-credential">
                     <Button
                       variant="outline"
                       className="w-full h-20 flex flex-col gap-2 bg-transparent"
                     >
-                      <Settings className="h-6 w-6" />
-                      Analytics
+                      <Eye className="h-6 w-6" />
+                      Create Credential
                     </Button>
                   </Link>
+                  {isHubAuthority && (
+                    <Link href="/hub">
+                      <Button
+                        variant="outline"
+                        className="w-full h-20 flex flex-col gap-2 bg-transparent"
+                      >
+                        <Settings className="h-6 w-6" />
+                        Hub Dashboard
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -615,4 +754,13 @@ function DangerZoneCloseProvider({ onClose }: { onClose: () => void }) {
       </CollapsibleContent>
     </Collapsible>
   );
+}
+
+function formatCourseTimestamp(value: bigint | number) {
+  const date = new Date(Number(value) * 1000);
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }

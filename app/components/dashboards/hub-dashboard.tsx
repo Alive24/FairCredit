@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -32,18 +32,26 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsHubAuthority } from "@/hooks/use-is-hub-authority";
 import { HubSettingsDialog } from "@/components/hub/hub-settings-dialog";
 import { ReviewProviderDialog } from "@/components/hub/review-provider-dialog";
-import { BatchOperationsPanel } from "@/components/hub/batch-operations-panel";
 import { ReviewCoursesPanel } from "@/components/hub/review-courses-panel";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useBatchRegistry } from "@/hooks/use-batch-registry";
 import { useProviders } from "@/hooks/use-providers";
 import { canonicalAddress } from "@/lib/utils/canonical-address";
 import { InitializeHubCard } from "@/components/hub/initialize-hub-card";
 import type { Address } from "@solana/kit";
+import { useFairCredit } from "@/hooks/use-fair-credit";
+import { resolveAcceptedCourses } from "@/lib/solana/course-ref-resolver";
+import { useTransactionQueue } from "@/hooks/use-transaction-queue";
+import { getAddAcceptedProviderInstructionAsync } from "@/lib/solana/generated/instructions/addAcceptedProvider";
+import { getRemoveAcceptedProviderInstructionAsync } from "@/lib/solana/generated/instructions/removeAcceptedProvider";
+import { getAddAcceptedCourseInstructionAsync } from "@/lib/solana/generated/instructions/addAcceptedCourse";
+import { getRemoveAcceptedCourseInstructionAsync } from "@/lib/solana/generated/instructions/removeAcceptedCourse";
+import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
+import { address } from "@solana/kit";
 
 export function HubDashboard() {
   const { toast } = useToast();
+  const { rpc } = useFairCredit();
   const { address: walletAddress } = useAppKitAccount();
   const { isHubAuthority, loading, hubData, refreshHubData } =
     useIsHubAuthority();
@@ -52,7 +60,29 @@ export function HubDashboard() {
   const [activeTab, setActiveTab] = useState("providers");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addEntityOpen, setAddEntityOpen] = useState(false);
-  const batchRegistry = useBatchRegistry();
+  const transactionQueue = useTransactionQueue();
+  const [acceptedCourseCount, setAcceptedCourseCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function syncAcceptedCourseCount() {
+      if (!hubData) {
+        setAcceptedCourseCount(0);
+        return;
+      }
+      const resolved = await resolveAcceptedCourses(
+        rpc,
+        hubData.acceptedCourses ?? []
+      );
+      if (!cancelled) {
+        setAcceptedCourseCount(resolved.length);
+      }
+    }
+    syncAcceptedCourseCount();
+    return () => {
+      cancelled = true;
+    };
+  }, [hubData, rpc]);
 
   const isAccepted = (wallet: string) =>
     hubData?.acceptedProviders?.some((p: Address) => {
@@ -67,41 +97,92 @@ export function HubDashboard() {
     return !isAccepted(w);
   }).length;
 
+  const queueHubOperation = (
+    action: "add" | "remove",
+    entityType: "provider" | "course",
+    entityKey: string,
+    entityName?: string
+  ) => {
+    if (!isHubAuthority || !walletAddress) {
+      toast({
+        title: "Wallet not connected",
+        description:
+          "Connect with the hub authority wallet to enqueue actions.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const authority = createPlaceholderSigner(walletAddress);
+    const moduleLabel =
+      entityType === "provider" ? "Hub Providers" : "Hub Courses";
+    const label = `${action === "add" ? "Add" : "Remove"} ${
+      entityType === "provider" ? entityName ?? entityKey : "Course"
+    }`;
+
+    transactionQueue.enqueue({
+      module: moduleLabel,
+      label,
+      build: async () => {
+        if (entityType === "provider") {
+          const providerWallet = address(entityKey);
+          if (action === "add") {
+            return getAddAcceptedProviderInstructionAsync({
+              hub: undefined,
+              authority,
+              provider: undefined,
+              providerWallet,
+            });
+          }
+          return getRemoveAcceptedProviderInstructionAsync({
+            hub: undefined,
+            authority,
+            providerWallet,
+          });
+        }
+
+        const courseAddress = address(entityKey);
+        if (action === "add") {
+          return getAddAcceptedCourseInstructionAsync({
+            hub: undefined,
+            authority,
+            course: courseAddress,
+          });
+        }
+        return getRemoveAcceptedCourseInstructionAsync({
+          hub: undefined,
+          authority,
+          course: courseAddress,
+        });
+      },
+    });
+
+    toast({
+      title: "Operation queued",
+      description: `${label} will be submitted shortly.`,
+    });
+  };
+
   const handleRemoveEntity = (
     entityType: "provider" | "course",
     entityKey: string,
-    entityName?: string,
+    entityName?: string
   ) => {
-    if (!isHubAuthority) return;
-
-    batchRegistry.addOperation("remove", entityType, entityKey, entityName);
-
-    toast({
-      title: "Operation Queued",
-      description: `${entityType} removal added to batch operations.`,
-    });
+    queueHubOperation("remove", entityType, entityKey, entityName);
   };
 
   const handleAddEntityToBatch = (
     entityType: "provider" | "course",
     entityKey: string,
     entityName?: string,
-    providerWallet?: string,
+    providerWallet?: string
   ) => {
-    if (!isHubAuthority) return;
-
-    batchRegistry.addOperation(
+    queueHubOperation(
       "add",
       entityType,
       entityKey,
-      entityName,
-      providerWallet,
+      entityName ?? providerWallet
     );
-
-    toast({
-      title: "Operation Queued",
-      description: `${entityType} addition added to batch operations.`,
-    });
   };
 
   const stats = [
@@ -114,7 +195,7 @@ export function HubDashboard() {
     },
     {
       title: "Accepted Courses",
-      value: hubData?.acceptedCourses?.length || 0,
+      value: acceptedCourseCount,
       icon: FileText,
       color: "text-green-600",
       description: "Hub-accepted; available for credentials",
@@ -131,7 +212,7 @@ export function HubDashboard() {
   const filterData = (data: (Address | string)[], term: string) => {
     if (!term) return data;
     return data.filter((item) =>
-      String(item).toLowerCase().includes(term.toLowerCase()),
+      String(item).toLowerCase().includes(term.toLowerCase())
     );
   };
 
@@ -191,14 +272,6 @@ export function HubDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Batch Operations Panel */}
-      {batchRegistry.hasPendingOperations && (
-        <BatchOperationsPanel
-          batchRegistry={batchRegistry}
-          onBatchComplete={refreshHubData}
-        />
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -355,7 +428,7 @@ export function HubDashboard() {
                               handleRemoveEntity(
                                 "provider",
                                 provider.toString(),
-                                `Provider #${index + 1}`,
+                                `Provider #${index + 1}`
                               )
                             }
                           >
@@ -364,7 +437,7 @@ export function HubDashboard() {
                         )}
                       </div>
                     </div>
-                  ),
+                  )
                 )}
                 {(!hubData?.acceptedProviders ||
                   hubData.acceptedProviders.length === 0) && (
@@ -444,7 +517,7 @@ export function HubDashboard() {
             entityType as "provider" | "course",
             entityKey,
             entityName,
-            providerWallet,
+            providerWallet
           )
         }
       />

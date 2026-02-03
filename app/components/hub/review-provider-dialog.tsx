@@ -55,8 +55,8 @@ export function ReviewProviderDialog({
     if (!onAddToBatch) return;
     onAddToBatch("provider", wallet, name);
     toast({
-      title: "已加入批次",
-      description: `Provider "${name}" 已加入待执行列表，请在批次操作中提交。`,
+      title: "Added to batch",
+      description: `Provider "${name}" has been added to the pending batch. Please submit it from the batch operations panel.`,
     });
   };
 
@@ -132,7 +132,7 @@ export function ReviewProviderDialog({
                       className="shrink-0"
                     >
                       <Check className="h-3 w-3 mr-1" />
-                      通过
+                      Approve
                     </Button>
                   </Card>
                 );
