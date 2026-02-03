@@ -10,12 +10,15 @@ import {
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
+  getAddressDecoder,
   getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getProgramDerivedAddress,
   getStructDecoder,
   getStructEncoder,
+  getU8Decoder,
+  getU8Encoder,
   transformEncoder,
   type AccountMeta,
   type AccountSignerMeta,
@@ -39,19 +42,18 @@ import {
   type ResolvedAccount,
 } from "../shared";
 
-export const ARCHIVE_COURSE_PROGRESS_DISCRIMINATOR = new Uint8Array([
-  31, 154, 201, 129, 175, 4, 79, 57,
+export const ADD_COURSE_MODULE_DISCRIMINATOR = new Uint8Array([
+  66, 48, 207, 234, 168, 239, 54, 244,
 ]);
 
-export function getArchiveCourseProgressDiscriminatorBytes() {
+export function getAddCourseModuleDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    ARCHIVE_COURSE_PROGRESS_DISCRIMINATOR,
+    ADD_COURSE_MODULE_DISCRIMINATOR,
   );
 }
 
-export type ArchiveCourseProgressInstruction<
+export type AddCourseModuleInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
-  TAccountCourseStudent extends string | AccountMeta<string> = string,
   TAccountCourse extends string | AccountMeta<string> = string,
   TAccountProvider extends string | AccountMeta<string> = string,
   TAccountHub extends string | AccountMeta<string> = string,
@@ -61,11 +63,8 @@ export type ArchiveCourseProgressInstruction<
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
-      TAccountCourseStudent extends string
-        ? WritableAccount<TAccountCourseStudent>
-        : TAccountCourseStudent,
       TAccountCourse extends string
-        ? ReadonlyAccount<TAccountCourse>
+        ? WritableAccount<TAccountCourse>
         : TAccountCourse,
       TAccountProvider extends string
         ? ReadonlyAccount<TAccountProvider>
@@ -79,62 +78,68 @@ export type ArchiveCourseProgressInstruction<
     ]
   >;
 
-export type ArchiveCourseProgressInstructionData = {
+export type AddCourseModuleInstructionData = {
   discriminator: ReadonlyUint8Array;
+  resource: Address;
+  percentage: number;
 };
 
-export type ArchiveCourseProgressInstructionDataArgs = {};
+export type AddCourseModuleInstructionDataArgs = {
+  resource: Address;
+  percentage: number;
+};
 
-export function getArchiveCourseProgressInstructionDataEncoder(): FixedSizeEncoder<ArchiveCourseProgressInstructionDataArgs> {
+export function getAddCourseModuleInstructionDataEncoder(): FixedSizeEncoder<AddCourseModuleInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
-    (value) => ({
-      ...value,
-      discriminator: ARCHIVE_COURSE_PROGRESS_DISCRIMINATOR,
-    }),
+    getStructEncoder([
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["resource", getAddressEncoder()],
+      ["percentage", getU8Encoder()],
+    ]),
+    (value) => ({ ...value, discriminator: ADD_COURSE_MODULE_DISCRIMINATOR }),
   );
 }
 
-export function getArchiveCourseProgressInstructionDataDecoder(): FixedSizeDecoder<ArchiveCourseProgressInstructionData> {
+export function getAddCourseModuleInstructionDataDecoder(): FixedSizeDecoder<AddCourseModuleInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["resource", getAddressDecoder()],
+    ["percentage", getU8Decoder()],
   ]);
 }
 
-export function getArchiveCourseProgressInstructionDataCodec(): FixedSizeCodec<
-  ArchiveCourseProgressInstructionDataArgs,
-  ArchiveCourseProgressInstructionData
+export function getAddCourseModuleInstructionDataCodec(): FixedSizeCodec<
+  AddCourseModuleInstructionDataArgs,
+  AddCourseModuleInstructionData
 > {
   return combineCodec(
-    getArchiveCourseProgressInstructionDataEncoder(),
-    getArchiveCourseProgressInstructionDataDecoder(),
+    getAddCourseModuleInstructionDataEncoder(),
+    getAddCourseModuleInstructionDataDecoder(),
   );
 }
 
-export type ArchiveCourseProgressAsyncInput<
-  TAccountCourseStudent extends string = string,
+export type AddCourseModuleAsyncInput<
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
   TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
 > = {
-  courseStudent: Address<TAccountCourseStudent>;
   course: Address<TAccountCourse>;
   provider?: Address<TAccountProvider>;
   hub?: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
+  resource: AddCourseModuleInstructionDataArgs["resource"];
+  percentage: AddCourseModuleInstructionDataArgs["percentage"];
 };
 
-export async function getArchiveCourseProgressInstructionAsync<
-  TAccountCourseStudent extends string,
+export async function getAddCourseModuleInstructionAsync<
   TAccountCourse extends string,
   TAccountProvider extends string,
   TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: ArchiveCourseProgressAsyncInput<
-    TAccountCourseStudent,
+  input: AddCourseModuleAsyncInput<
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
@@ -142,9 +147,8 @@ export async function getArchiveCourseProgressInstructionAsync<
   >,
   config?: { programAddress?: TProgramAddress },
 ): Promise<
-  ArchiveCourseProgressInstruction<
+  AddCourseModuleInstruction<
     TProgramAddress,
-    TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
@@ -156,8 +160,7 @@ export async function getArchiveCourseProgressInstructionAsync<
 
   // Original accounts.
   const originalAccounts = {
-    courseStudent: { value: input.courseStudent ?? null, isWritable: true },
-    course: { value: input.course ?? null, isWritable: false },
+    course: { value: input.course ?? null, isWritable: true },
     provider: { value: input.provider ?? null, isWritable: false },
     hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
@@ -169,6 +172,9 @@ export async function getArchiveCourseProgressInstructionAsync<
     keyof typeof originalAccounts,
     ResolvedAccount
   >;
+
+  // Original args.
+  const args = { ...input };
 
   // Resolve default values.
   if (!accounts.hub.value) {
@@ -195,17 +201,17 @@ export async function getArchiveCourseProgressInstructionAsync<
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta(accounts.courseStudent),
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
       getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
     ],
-    data: getArchiveCourseProgressInstructionDataEncoder().encode({}),
+    data: getAddCourseModuleInstructionDataEncoder().encode(
+      args as AddCourseModuleInstructionDataArgs,
+    ),
     programAddress,
-  } as ArchiveCourseProgressInstruction<
+  } as AddCourseModuleInstruction<
     TProgramAddress,
-    TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
@@ -213,39 +219,36 @@ export async function getArchiveCourseProgressInstructionAsync<
   >);
 }
 
-export type ArchiveCourseProgressInput<
-  TAccountCourseStudent extends string = string,
+export type AddCourseModuleInput<
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
   TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
 > = {
-  courseStudent: Address<TAccountCourseStudent>;
   course: Address<TAccountCourse>;
   provider: Address<TAccountProvider>;
   hub: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
+  resource: AddCourseModuleInstructionDataArgs["resource"];
+  percentage: AddCourseModuleInstructionDataArgs["percentage"];
 };
 
-export function getArchiveCourseProgressInstruction<
-  TAccountCourseStudent extends string,
+export function getAddCourseModuleInstruction<
   TAccountCourse extends string,
   TAccountProvider extends string,
   TAccountHub extends string,
   TAccountProviderAuthority extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: ArchiveCourseProgressInput<
-    TAccountCourseStudent,
+  input: AddCourseModuleInput<
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
     TAccountProviderAuthority
   >,
   config?: { programAddress?: TProgramAddress },
-): ArchiveCourseProgressInstruction<
+): AddCourseModuleInstruction<
   TProgramAddress,
-  TAccountCourseStudent,
   TAccountCourse,
   TAccountProvider,
   TAccountHub,
@@ -256,8 +259,7 @@ export function getArchiveCourseProgressInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    courseStudent: { value: input.courseStudent ?? null, isWritable: true },
-    course: { value: input.course ?? null, isWritable: false },
+    course: { value: input.course ?? null, isWritable: true },
     provider: { value: input.provider ?? null, isWritable: false },
     hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
@@ -270,20 +272,23 @@ export function getArchiveCourseProgressInstruction<
     ResolvedAccount
   >;
 
+  // Original args.
+  const args = { ...input };
+
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta(accounts.courseStudent),
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
       getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
     ],
-    data: getArchiveCourseProgressInstructionDataEncoder().encode({}),
+    data: getAddCourseModuleInstructionDataEncoder().encode(
+      args as AddCourseModuleInstructionDataArgs,
+    ),
     programAddress,
-  } as ArchiveCourseProgressInstruction<
+  } as AddCourseModuleInstruction<
     TProgramAddress,
-    TAccountCourseStudent,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
@@ -291,30 +296,29 @@ export function getArchiveCourseProgressInstruction<
   >);
 }
 
-export type ParsedArchiveCourseProgressInstruction<
+export type ParsedAddCourseModuleInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    courseStudent: TAccountMetas[0];
-    course: TAccountMetas[1];
-    provider: TAccountMetas[2];
-    hub: TAccountMetas[3];
-    providerAuthority: TAccountMetas[4];
+    course: TAccountMetas[0];
+    provider: TAccountMetas[1];
+    hub: TAccountMetas[2];
+    providerAuthority: TAccountMetas[3];
   };
-  data: ArchiveCourseProgressInstructionData;
+  data: AddCourseModuleInstructionData;
 };
 
-export function parseArchiveCourseProgressInstruction<
+export function parseAddCourseModuleInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedArchiveCourseProgressInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 5) {
+): ParsedAddCourseModuleInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 4) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -327,14 +331,11 @@ export function parseArchiveCourseProgressInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
-      courseStudent: getNextAccount(),
       course: getNextAccount(),
       provider: getNextAccount(),
       hub: getNextAccount(),
       providerAuthority: getNextAccount(),
     },
-    data: getArchiveCourseProgressInstructionDataDecoder().decode(
-      instruction.data,
-    ),
+    data: getAddCourseModuleInstructionDataDecoder().decode(instruction.data),
   };
 }

@@ -7,8 +7,6 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
   combineCodec,
   getAddressDecoder,
   getAddressEncoder,
@@ -16,50 +14,46 @@ import {
   getI64Encoder,
   getStructDecoder,
   getStructEncoder,
-  getU32Decoder,
-  getU32Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
 } from "@solana/kit";
 
 /** Event emitted when a course is accepted by hub */
 export type CourseAccepted = {
   hubAuthority: Address;
-  courseId: string;
+  course: Address;
   provider: Address;
   timestamp: bigint;
 };
 
 export type CourseAcceptedArgs = {
   hubAuthority: Address;
-  courseId: string;
+  course: Address;
   provider: Address;
   timestamp: number | bigint;
 };
 
-export function getCourseAcceptedEncoder(): Encoder<CourseAcceptedArgs> {
+export function getCourseAcceptedEncoder(): FixedSizeEncoder<CourseAcceptedArgs> {
   return getStructEncoder([
     ["hubAuthority", getAddressEncoder()],
-    ["courseId", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+    ["course", getAddressEncoder()],
     ["provider", getAddressEncoder()],
     ["timestamp", getI64Encoder()],
   ]);
 }
 
-export function getCourseAcceptedDecoder(): Decoder<CourseAccepted> {
+export function getCourseAcceptedDecoder(): FixedSizeDecoder<CourseAccepted> {
   return getStructDecoder([
     ["hubAuthority", getAddressDecoder()],
-    ["courseId", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ["course", getAddressDecoder()],
     ["provider", getAddressDecoder()],
     ["timestamp", getI64Decoder()],
   ]);
 }
 
-export function getCourseAcceptedCodec(): Codec<
+export function getCourseAcceptedCodec(): FixedSizeCodec<
   CourseAcceptedArgs,
   CourseAccepted
 > {

@@ -11,11 +11,15 @@ import {
   fixDecoderSize,
   fixEncoderSize,
   getAddressEncoder,
+  getBooleanDecoder,
+  getBooleanEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getProgramDerivedAddress,
   getStructDecoder,
   getStructEncoder,
+  getU16Decoder,
+  getU16Encoder,
   transformEncoder,
   type AccountMeta,
   type AccountSignerMeta,
@@ -27,34 +31,35 @@ import {
   type InstructionWithAccounts,
   type InstructionWithData,
   type ReadonlyAccount,
-  type ReadonlySignerAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
+  type WritableSignerAccount,
 } from "@solana/kit";
 import { FAIR_CREDIT_PROGRAM_ADDRESS } from "../programs";
 import {
   expectAddress,
+  expectSome,
   getAccountMetaFactory,
   type ResolvedAccount,
 } from "../shared";
 
-export const ADD_ACCEPTED_PROVIDER_DISCRIMINATOR = new Uint8Array([
-  254, 208, 75, 70, 237, 107, 97, 207,
+export const REMOVE_COURSE_FROM_LIST_DISCRIMINATOR = new Uint8Array([
+  105, 4, 156, 52, 106, 61, 66, 167,
 ]);
 
-export function getAddAcceptedProviderDiscriminatorBytes() {
+export function getRemoveCourseFromListDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    ADD_ACCEPTED_PROVIDER_DISCRIMINATOR,
+    REMOVE_COURSE_FROM_LIST_DISCRIMINATOR,
   );
 }
 
-export type AddAcceptedProviderInstruction<
+export type RemoveCourseFromListInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountHub extends string | AccountMeta<string> = string,
   TAccountAuthority extends string | AccountMeta<string> = string,
-  TAccountProvider extends string | AccountMeta<string> = string,
-  TAccountProviderWallet extends string | AccountMeta<string> = string,
+  TAccountCourseList extends string | AccountMeta<string> = string,
+  TAccountCourse extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -62,84 +67,97 @@ export type AddAcceptedProviderInstruction<
     [
       TAccountHub extends string ? WritableAccount<TAccountHub> : TAccountHub,
       TAccountAuthority extends string
-        ? ReadonlySignerAccount<TAccountAuthority> &
+        ? WritableSignerAccount<TAccountAuthority> &
             AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
-      TAccountProvider extends string
-        ? ReadonlyAccount<TAccountProvider>
-        : TAccountProvider,
-      TAccountProviderWallet extends string
-        ? ReadonlyAccount<TAccountProviderWallet>
-        : TAccountProviderWallet,
+      TAccountCourseList extends string
+        ? WritableAccount<TAccountCourseList>
+        : TAccountCourseList,
+      TAccountCourse extends string
+        ? ReadonlyAccount<TAccountCourse>
+        : TAccountCourse,
       ...TRemainingAccounts,
     ]
   >;
 
-export type AddAcceptedProviderInstructionData = {
+export type RemoveCourseFromListInstructionData = {
   discriminator: ReadonlyUint8Array;
+  courseListIndex: number;
+  removeReferenceIfEmpty: boolean;
 };
 
-export type AddAcceptedProviderInstructionDataArgs = {};
+export type RemoveCourseFromListInstructionDataArgs = {
+  courseListIndex: number;
+  removeReferenceIfEmpty: boolean;
+};
 
-export function getAddAcceptedProviderInstructionDataEncoder(): FixedSizeEncoder<AddAcceptedProviderInstructionDataArgs> {
+export function getRemoveCourseFromListInstructionDataEncoder(): FixedSizeEncoder<RemoveCourseFromListInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
+    getStructEncoder([
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["courseListIndex", getU16Encoder()],
+      ["removeReferenceIfEmpty", getBooleanEncoder()],
+    ]),
     (value) => ({
       ...value,
-      discriminator: ADD_ACCEPTED_PROVIDER_DISCRIMINATOR,
+      discriminator: REMOVE_COURSE_FROM_LIST_DISCRIMINATOR,
     }),
   );
 }
 
-export function getAddAcceptedProviderInstructionDataDecoder(): FixedSizeDecoder<AddAcceptedProviderInstructionData> {
+export function getRemoveCourseFromListInstructionDataDecoder(): FixedSizeDecoder<RemoveCourseFromListInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["courseListIndex", getU16Decoder()],
+    ["removeReferenceIfEmpty", getBooleanDecoder()],
   ]);
 }
 
-export function getAddAcceptedProviderInstructionDataCodec(): FixedSizeCodec<
-  AddAcceptedProviderInstructionDataArgs,
-  AddAcceptedProviderInstructionData
+export function getRemoveCourseFromListInstructionDataCodec(): FixedSizeCodec<
+  RemoveCourseFromListInstructionDataArgs,
+  RemoveCourseFromListInstructionData
 > {
   return combineCodec(
-    getAddAcceptedProviderInstructionDataEncoder(),
-    getAddAcceptedProviderInstructionDataDecoder(),
+    getRemoveCourseFromListInstructionDataEncoder(),
+    getRemoveCourseFromListInstructionDataDecoder(),
   );
 }
 
-export type AddAcceptedProviderAsyncInput<
+export type RemoveCourseFromListAsyncInput<
   TAccountHub extends string = string,
   TAccountAuthority extends string = string,
-  TAccountProvider extends string = string,
-  TAccountProviderWallet extends string = string,
+  TAccountCourseList extends string = string,
+  TAccountCourse extends string = string,
 > = {
   hub?: Address<TAccountHub>;
   authority: TransactionSigner<TAccountAuthority>;
-  provider?: Address<TAccountProvider>;
-  providerWallet: Address<TAccountProviderWallet>;
+  courseList?: Address<TAccountCourseList>;
+  course: Address<TAccountCourse>;
+  courseListIndex: RemoveCourseFromListInstructionDataArgs["courseListIndex"];
+  removeReferenceIfEmpty: RemoveCourseFromListInstructionDataArgs["removeReferenceIfEmpty"];
 };
 
-export async function getAddAcceptedProviderInstructionAsync<
+export async function getRemoveCourseFromListInstructionAsync<
   TAccountHub extends string,
   TAccountAuthority extends string,
-  TAccountProvider extends string,
-  TAccountProviderWallet extends string,
+  TAccountCourseList extends string,
+  TAccountCourse extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: AddAcceptedProviderAsyncInput<
+  input: RemoveCourseFromListAsyncInput<
     TAccountHub,
     TAccountAuthority,
-    TAccountProvider,
-    TAccountProviderWallet
+    TAccountCourseList,
+    TAccountCourse
   >,
   config?: { programAddress?: TProgramAddress },
 ): Promise<
-  AddAcceptedProviderInstruction<
+  RemoveCourseFromListInstruction<
     TProgramAddress,
     TAccountHub,
     TAccountAuthority,
-    TAccountProvider,
-    TAccountProviderWallet
+    TAccountCourseList,
+    TAccountCourse
   >
 > {
   // Program address.
@@ -148,14 +166,17 @@ export async function getAddAcceptedProviderInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     hub: { value: input.hub ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: false },
-    provider: { value: input.provider ?? null, isWritable: false },
-    providerWallet: { value: input.providerWallet ?? null, isWritable: false },
+    authority: { value: input.authority ?? null, isWritable: true },
+    courseList: { value: input.courseList ?? null, isWritable: true },
+    course: { value: input.course ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
     ResolvedAccount
   >;
+
+  // Original args.
+  const args = { ...input };
 
   // Resolve default values.
   if (!accounts.hub.value) {
@@ -164,17 +185,15 @@ export async function getAddAcceptedProviderInstructionAsync<
       seeds: [getBytesEncoder().encode(new Uint8Array([104, 117, 98]))],
     });
   }
-  if (!accounts.provider.value) {
-    accounts.provider.value = await getProgramDerivedAddress({
+  if (!accounts.courseList.value) {
+    accounts.courseList.value = await getProgramDerivedAddress({
       programAddress,
       seeds: [
         getBytesEncoder().encode(
-          new Uint8Array([112, 114, 111, 118, 105, 100, 101, 114]),
+          new Uint8Array([99, 111, 117, 114, 115, 101, 45, 108, 105, 115, 116]),
         ),
         getAddressEncoder().encode(expectAddress(accounts.hub.value)),
-        getAddressEncoder().encode(
-          expectAddress(accounts.providerWallet.value),
-        ),
+        getU16Encoder().encode(expectSome(args.courseListIndex)),
       ],
     });
   }
@@ -184,52 +203,56 @@ export async function getAddAcceptedProviderInstructionAsync<
     accounts: [
       getAccountMeta(accounts.hub),
       getAccountMeta(accounts.authority),
-      getAccountMeta(accounts.provider),
-      getAccountMeta(accounts.providerWallet),
+      getAccountMeta(accounts.courseList),
+      getAccountMeta(accounts.course),
     ],
-    data: getAddAcceptedProviderInstructionDataEncoder().encode({}),
+    data: getRemoveCourseFromListInstructionDataEncoder().encode(
+      args as RemoveCourseFromListInstructionDataArgs,
+    ),
     programAddress,
-  } as AddAcceptedProviderInstruction<
+  } as RemoveCourseFromListInstruction<
     TProgramAddress,
     TAccountHub,
     TAccountAuthority,
-    TAccountProvider,
-    TAccountProviderWallet
+    TAccountCourseList,
+    TAccountCourse
   >);
 }
 
-export type AddAcceptedProviderInput<
+export type RemoveCourseFromListInput<
   TAccountHub extends string = string,
   TAccountAuthority extends string = string,
-  TAccountProvider extends string = string,
-  TAccountProviderWallet extends string = string,
+  TAccountCourseList extends string = string,
+  TAccountCourse extends string = string,
 > = {
   hub: Address<TAccountHub>;
   authority: TransactionSigner<TAccountAuthority>;
-  provider: Address<TAccountProvider>;
-  providerWallet: Address<TAccountProviderWallet>;
+  courseList: Address<TAccountCourseList>;
+  course: Address<TAccountCourse>;
+  courseListIndex: RemoveCourseFromListInstructionDataArgs["courseListIndex"];
+  removeReferenceIfEmpty: RemoveCourseFromListInstructionDataArgs["removeReferenceIfEmpty"];
 };
 
-export function getAddAcceptedProviderInstruction<
+export function getRemoveCourseFromListInstruction<
   TAccountHub extends string,
   TAccountAuthority extends string,
-  TAccountProvider extends string,
-  TAccountProviderWallet extends string,
+  TAccountCourseList extends string,
+  TAccountCourse extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: AddAcceptedProviderInput<
+  input: RemoveCourseFromListInput<
     TAccountHub,
     TAccountAuthority,
-    TAccountProvider,
-    TAccountProviderWallet
+    TAccountCourseList,
+    TAccountCourse
   >,
   config?: { programAddress?: TProgramAddress },
-): AddAcceptedProviderInstruction<
+): RemoveCourseFromListInstruction<
   TProgramAddress,
   TAccountHub,
   TAccountAuthority,
-  TAccountProvider,
-  TAccountProviderWallet
+  TAccountCourseList,
+  TAccountCourse
 > {
   // Program address.
   const programAddress = config?.programAddress ?? FAIR_CREDIT_PROGRAM_ADDRESS;
@@ -237,35 +260,40 @@ export function getAddAcceptedProviderInstruction<
   // Original accounts.
   const originalAccounts = {
     hub: { value: input.hub ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: false },
-    provider: { value: input.provider ?? null, isWritable: false },
-    providerWallet: { value: input.providerWallet ?? null, isWritable: false },
+    authority: { value: input.authority ?? null, isWritable: true },
+    courseList: { value: input.courseList ?? null, isWritable: true },
+    course: { value: input.course ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
     ResolvedAccount
   >;
 
+  // Original args.
+  const args = { ...input };
+
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.hub),
       getAccountMeta(accounts.authority),
-      getAccountMeta(accounts.provider),
-      getAccountMeta(accounts.providerWallet),
+      getAccountMeta(accounts.courseList),
+      getAccountMeta(accounts.course),
     ],
-    data: getAddAcceptedProviderInstructionDataEncoder().encode({}),
+    data: getRemoveCourseFromListInstructionDataEncoder().encode(
+      args as RemoveCourseFromListInstructionDataArgs,
+    ),
     programAddress,
-  } as AddAcceptedProviderInstruction<
+  } as RemoveCourseFromListInstruction<
     TProgramAddress,
     TAccountHub,
     TAccountAuthority,
-    TAccountProvider,
-    TAccountProviderWallet
+    TAccountCourseList,
+    TAccountCourse
   >);
 }
 
-export type ParsedAddAcceptedProviderInstruction<
+export type ParsedRemoveCourseFromListInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
@@ -273,20 +301,20 @@ export type ParsedAddAcceptedProviderInstruction<
   accounts: {
     hub: TAccountMetas[0];
     authority: TAccountMetas[1];
-    provider: TAccountMetas[2];
-    providerWallet: TAccountMetas[3];
+    courseList: TAccountMetas[2];
+    course: TAccountMetas[3];
   };
-  data: AddAcceptedProviderInstructionData;
+  data: RemoveCourseFromListInstructionData;
 };
 
-export function parseAddAcceptedProviderInstruction<
+export function parseRemoveCourseFromListInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedAddAcceptedProviderInstruction<TProgram, TAccountMetas> {
+): ParsedRemoveCourseFromListInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 4) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
@@ -302,10 +330,10 @@ export function parseAddAcceptedProviderInstruction<
     accounts: {
       hub: getNextAccount(),
       authority: getNextAccount(),
-      provider: getNextAccount(),
-      providerWallet: getNextAccount(),
+      courseList: getNextAccount(),
+      course: getNextAccount(),
     },
-    data: getAddAcceptedProviderInstructionDataDecoder().decode(
+    data: getRemoveCourseFromListInstructionDataDecoder().decode(
       instruction.data,
     ),
   };

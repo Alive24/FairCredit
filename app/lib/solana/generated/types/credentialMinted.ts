@@ -14,49 +14,51 @@ import {
   getI64Encoder,
   getStructDecoder,
   getStructEncoder,
-  getU64Decoder,
-  getU64Encoder,
   type Address,
   type FixedSizeCodec,
   type FixedSizeDecoder,
   type FixedSizeEncoder,
 } from "@solana/kit";
 
-/** Event emitted when a credential is verified */
-export type CredentialVerified = {
+/** Event emitted when a credential NFT is minted */
+export type CredentialMinted = {
   credential: Address;
-  verificationCount: bigint;
+  student: Address;
+  mint: Address;
   timestamp: bigint;
 };
 
-export type CredentialVerifiedArgs = {
+export type CredentialMintedArgs = {
   credential: Address;
-  verificationCount: number | bigint;
+  student: Address;
+  mint: Address;
   timestamp: number | bigint;
 };
 
-export function getCredentialVerifiedEncoder(): FixedSizeEncoder<CredentialVerifiedArgs> {
+export function getCredentialMintedEncoder(): FixedSizeEncoder<CredentialMintedArgs> {
   return getStructEncoder([
     ["credential", getAddressEncoder()],
-    ["verificationCount", getU64Encoder()],
+    ["student", getAddressEncoder()],
+    ["mint", getAddressEncoder()],
     ["timestamp", getI64Encoder()],
   ]);
 }
 
-export function getCredentialVerifiedDecoder(): FixedSizeDecoder<CredentialVerified> {
+export function getCredentialMintedDecoder(): FixedSizeDecoder<CredentialMinted> {
   return getStructDecoder([
     ["credential", getAddressDecoder()],
-    ["verificationCount", getU64Decoder()],
+    ["student", getAddressDecoder()],
+    ["mint", getAddressDecoder()],
     ["timestamp", getI64Decoder()],
   ]);
 }
 
-export function getCredentialVerifiedCodec(): FixedSizeCodec<
-  CredentialVerifiedArgs,
-  CredentialVerified
+export function getCredentialMintedCodec(): FixedSizeCodec<
+  CredentialMintedArgs,
+  CredentialMinted
 > {
   return combineCodec(
-    getCredentialVerifiedEncoder(),
-    getCredentialVerifiedDecoder(),
+    getCredentialMintedEncoder(),
+    getCredentialMintedDecoder(),
   );
 }

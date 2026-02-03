@@ -1,3 +1,4 @@
+use crate::types::HubError;
 use anchor_lang::prelude::*;
 
 /// Hub state account - acts as a curated registry.
@@ -12,8 +13,8 @@ pub struct Hub {
     #[max_len(50)]
     pub accepted_providers: Vec<Pubkey>,
     /// List of accepted course PDAs (courses from accepted providers; must be accepted to be usable)
-    /// NOTE: We keep a high upper bound here for account sizing, but logically this can grow over time.
-    #[max_len(2000)]
+    /// Entries can be direct course PDAs or CourseList PDAs for sharded storage.
+    #[max_len(250)]
     pub accepted_courses: Vec<Pubkey>,
     /// Hub creation timestamp
     pub created_at: i64,
@@ -44,6 +45,8 @@ impl Default for HubConfig {
 impl Hub {
     /// Seed prefix for PDA generation
     pub const SEED_PREFIX: &'static str = "hub";
+    /// Maximum number of references stored directly on the hub account.
+    pub const MAX_ACCEPTED_REFERENCES: usize = 250;
 
     /// Add a provider to the accepted list
     pub fn add_provider(&mut self, provider: Pubkey) -> Result<()> {
@@ -73,10 +76,14 @@ impl Hub {
         Ok(())
     }
 
-    /// Add a course to the accepted list (by course PDA)
-    pub fn add_course(&mut self, course: Pubkey) -> Result<()> {
-        if !self.accepted_courses.contains(&course) {
-            self.accepted_courses.push(course);
+    /// Add a course or course-list reference to the accepted list
+    pub fn add_course(&mut self, reference: Pubkey) -> Result<()> {
+        require!(
+            self.accepted_courses.len() < Self::MAX_ACCEPTED_REFERENCES,
+            HubError::HubListCapacityReached
+        );
+        if !self.accepted_courses.contains(&reference) {
+            self.accepted_courses.push(reference);
             self.updated_at = Clock::get()?.unix_timestamp;
         }
         Ok(())

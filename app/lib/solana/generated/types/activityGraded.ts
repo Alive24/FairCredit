@@ -7,8 +7,6 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
   combineCodec,
   getAddressDecoder,
   getAddressEncoder,
@@ -18,50 +16,46 @@ import {
   getI64Encoder,
   getStructDecoder,
   getStructEncoder,
-  getU32Decoder,
-  getU32Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
 } from "@solana/kit";
 
 /** Event emitted when an activity is graded */
 export type ActivityGraded = {
-  activityId: string;
+  activity: Address;
   grade: number;
   teacher: Address;
   timestamp: bigint;
 };
 
 export type ActivityGradedArgs = {
-  activityId: string;
+  activity: Address;
   grade: number;
   teacher: Address;
   timestamp: number | bigint;
 };
 
-export function getActivityGradedEncoder(): Encoder<ActivityGradedArgs> {
+export function getActivityGradedEncoder(): FixedSizeEncoder<ActivityGradedArgs> {
   return getStructEncoder([
-    ["activityId", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+    ["activity", getAddressEncoder()],
     ["grade", getF64Encoder()],
     ["teacher", getAddressEncoder()],
     ["timestamp", getI64Encoder()],
   ]);
 }
 
-export function getActivityGradedDecoder(): Decoder<ActivityGraded> {
+export function getActivityGradedDecoder(): FixedSizeDecoder<ActivityGraded> {
   return getStructDecoder([
-    ["activityId", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ["activity", getAddressDecoder()],
     ["grade", getF64Decoder()],
     ["teacher", getAddressDecoder()],
     ["timestamp", getI64Decoder()],
   ]);
 }
 
-export function getActivityGradedCodec(): Codec<
+export function getActivityGradedCodec(): FixedSizeCodec<
   ActivityGradedArgs,
   ActivityGraded
 > {

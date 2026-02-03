@@ -7,8 +7,6 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
   assertAccountExists,
   assertAccountsExist,
   combineCodec,
@@ -27,10 +25,6 @@ import {
   getI64Encoder,
   getStructDecoder,
   getStructEncoder,
-  getU32Decoder,
-  getU32Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
   transformEncoder,
   type Account,
   type Address,
@@ -65,8 +59,11 @@ export type Hub = {
   authority: Address;
   /** List of accepted provider wallets */
   acceptedProviders: Array<Address>;
-  /** List of accepted course IDs (courses from accepted providers; must be accepted to be usable) */
-  acceptedCourses: Array<string>;
+  /**
+   * List of accepted course PDAs (courses from accepted providers; must be accepted to be usable)
+   * Entries can be direct course PDAs or CourseList PDAs for sharded storage.
+   */
+  acceptedCourses: Array<Address>;
   /** Hub creation timestamp */
   createdAt: bigint;
   /** Last update timestamp */
@@ -80,8 +77,11 @@ export type HubArgs = {
   authority: Address;
   /** List of accepted provider wallets */
   acceptedProviders: Array<Address>;
-  /** List of accepted course IDs (courses from accepted providers; must be accepted to be usable) */
-  acceptedCourses: Array<string>;
+  /**
+   * List of accepted course PDAs (courses from accepted providers; must be accepted to be usable)
+   * Entries can be direct course PDAs or CourseList PDAs for sharded storage.
+   */
+  acceptedCourses: Array<Address>;
   /** Hub creation timestamp */
   createdAt: number | bigint;
   /** Last update timestamp */
@@ -97,12 +97,7 @@ export function getHubEncoder(): Encoder<HubArgs> {
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["authority", getAddressEncoder()],
       ["acceptedProviders", getArrayEncoder(getAddressEncoder())],
-      [
-        "acceptedCourses",
-        getArrayEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
-        ),
-      ],
+      ["acceptedCourses", getArrayEncoder(getAddressEncoder())],
       ["createdAt", getI64Encoder()],
       ["updatedAt", getI64Encoder()],
       ["config", getHubConfigEncoder()],
@@ -117,10 +112,7 @@ export function getHubDecoder(): Decoder<Hub> {
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
     ["authority", getAddressDecoder()],
     ["acceptedProviders", getArrayDecoder(getAddressDecoder())],
-    [
-      "acceptedCourses",
-      getArrayDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
-    ],
+    ["acceptedCourses", getArrayDecoder(getAddressDecoder())],
     ["createdAt", getI64Decoder()],
     ["updatedAt", getI64Decoder()],
     ["config", getHubConfigDecoder()],

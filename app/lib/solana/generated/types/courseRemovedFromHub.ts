@@ -7,8 +7,6 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
   combineCodec,
   getAddressDecoder,
   getAddressEncoder,
@@ -16,46 +14,42 @@ import {
   getI64Encoder,
   getStructDecoder,
   getStructEncoder,
-  getU32Decoder,
-  getU32Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
 } from "@solana/kit";
 
 /** Event emitted when a course is removed from hub */
 export type CourseRemovedFromHub = {
   hubAuthority: Address;
-  courseId: string;
+  course: Address;
   timestamp: bigint;
 };
 
 export type CourseRemovedFromHubArgs = {
   hubAuthority: Address;
-  courseId: string;
+  course: Address;
   timestamp: number | bigint;
 };
 
-export function getCourseRemovedFromHubEncoder(): Encoder<CourseRemovedFromHubArgs> {
+export function getCourseRemovedFromHubEncoder(): FixedSizeEncoder<CourseRemovedFromHubArgs> {
   return getStructEncoder([
     ["hubAuthority", getAddressEncoder()],
-    ["courseId", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+    ["course", getAddressEncoder()],
     ["timestamp", getI64Encoder()],
   ]);
 }
 
-export function getCourseRemovedFromHubDecoder(): Decoder<CourseRemovedFromHub> {
+export function getCourseRemovedFromHubDecoder(): FixedSizeDecoder<CourseRemovedFromHub> {
   return getStructDecoder([
     ["hubAuthority", getAddressDecoder()],
-    ["courseId", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ["course", getAddressDecoder()],
     ["timestamp", getI64Decoder()],
   ]);
 }
 
-export function getCourseRemovedFromHubCodec(): Codec<
+export function getCourseRemovedFromHubCodec(): FixedSizeCodec<
   CourseRemovedFromHubArgs,
   CourseRemovedFromHub
 > {

@@ -98,6 +98,32 @@ pub mod fair_credit {
         handlers::hub::remove_accepted_course(ctx)
     }
 
+    pub fn create_course_list(
+        ctx: Context<CreateCourseList>,
+        course_list_index: u16,
+    ) -> Result<()> {
+        handlers::hub::create_course_list(ctx, course_list_index)
+    }
+
+    pub fn add_course_to_list(ctx: Context<AddCourseToList>, course_list_index: u16) -> Result<()> {
+        handlers::hub::add_course_to_list(ctx, course_list_index)
+    }
+
+    pub fn remove_course_from_list(
+        ctx: Context<RemoveCourseFromList>,
+        course_list_index: u16,
+        remove_reference_if_empty: bool,
+    ) -> Result<()> {
+        handlers::hub::remove_course_from_list(ctx, course_list_index, remove_reference_if_empty)
+    }
+
+    pub fn set_course_list_next(
+        ctx: Context<SetCourseListNext>,
+        course_list_index: u16,
+    ) -> Result<()> {
+        handlers::hub::set_course_list_next(ctx, course_list_index)
+    }
+
     pub fn add_provider_endorser(ctx: Context<AddProviderEndorser>) -> Result<()> {
         handlers::provider::add_provider_endorser(ctx)
     }

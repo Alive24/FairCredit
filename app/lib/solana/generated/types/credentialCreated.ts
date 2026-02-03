@@ -18,8 +18,6 @@ import {
   getStructEncoder,
   getU32Decoder,
   getU32Encoder,
-  getU64Decoder,
-  getU64Encoder,
   getUtf8Decoder,
   getUtf8Encoder,
   type Address,
@@ -30,7 +28,7 @@ import {
 
 /** Event emitted when a credential is created */
 export type CredentialCreated = {
-  credentialId: bigint;
+  credential: Address;
   provider: Address;
   student: Address;
   mentor: Address;
@@ -39,7 +37,7 @@ export type CredentialCreated = {
 };
 
 export type CredentialCreatedArgs = {
-  credentialId: number | bigint;
+  credential: Address;
   provider: Address;
   student: Address;
   mentor: Address;
@@ -49,7 +47,7 @@ export type CredentialCreatedArgs = {
 
 export function getCredentialCreatedEncoder(): Encoder<CredentialCreatedArgs> {
   return getStructEncoder([
-    ["credentialId", getU64Encoder()],
+    ["credential", getAddressEncoder()],
     ["provider", getAddressEncoder()],
     ["student", getAddressEncoder()],
     ["mentor", getAddressEncoder()],
@@ -60,7 +58,7 @@ export function getCredentialCreatedEncoder(): Encoder<CredentialCreatedArgs> {
 
 export function getCredentialCreatedDecoder(): Decoder<CredentialCreated> {
   return getStructDecoder([
-    ["credentialId", getU64Decoder()],
+    ["credential", getAddressDecoder()],
     ["provider", getAddressDecoder()],
     ["student", getAddressDecoder()],
     ["mentor", getAddressDecoder()],

@@ -8,14 +8,17 @@
 
 export * from "./activityCreated";
 export * from "./activityGraded";
+export * from "./activityKind";
+export * from "./activityStatus";
 export * from "./courseAccepted";
 export * from "./courseCreated";
+export * from "./courseModule";
 export * from "./courseRemovedFromHub";
 export * from "./courseStatus";
-export * from "./courseStudentStatus";
 export * from "./credentialCreated";
 export * from "./credentialEndorsed";
 export * from "./credentialMetadata";
+export * from "./credentialMinted";
 export * from "./credentialStatus";
 export * from "./credentialVerified";
 export * from "./hubAuthorityTransferred";
@@ -31,3 +34,6 @@ export * from "./providerReputationUpdated";
 export * from "./providerSuspended";
 export * from "./providerUnsuspended";
 export * from "./resourceAdded";
+export * from "./resourceKind";
+export * from "./resourceStatus";
+export * from "./submissionStatus";

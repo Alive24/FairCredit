@@ -10,6 +10,8 @@ import {
   addDecoderSizePrefix,
   addEncoderSizePrefix,
   combineCodec,
+  getAddressDecoder,
+  getAddressEncoder,
   getArrayDecoder,
   getArrayEncoder,
   getI64Decoder,
@@ -22,6 +24,7 @@ import {
   getU32Encoder,
   getUtf8Decoder,
   getUtf8Encoder,
+  type Address,
   type Codec,
   type Decoder,
   type Encoder,
@@ -29,10 +32,7 @@ import {
   type OptionOrNullable,
 } from "@solana/kit";
 
-/**
- * Credential metadata structure
- * Contains detailed credential information, with some data stored on IPFS
- */
+/** Credential metadata structure */
 export type CredentialMetadata = {
   /** Credential title */
   title: string;
@@ -42,12 +42,12 @@ export type CredentialMetadata = {
   skillsAcquired: Array<string>;
   /** Research output (optional) */
   researchOutput: Option<string>;
-  /** Mentor endorsement content */
+  /** Mentor endorsement content (set when mentor endorses) */
   mentorEndorsement: string;
   /** Completion date timestamp */
   completionDate: bigint;
-  /** IPFS hash for storing additional metadata */
-  ipfsHash: string;
+  /** Activity PDAs created by this student and linked to this credential */
+  activities: Array<Address>;
 };
 
 export type CredentialMetadataArgs = {
@@ -59,12 +59,12 @@ export type CredentialMetadataArgs = {
   skillsAcquired: Array<string>;
   /** Research output (optional) */
   researchOutput: OptionOrNullable<string>;
-  /** Mentor endorsement content */
+  /** Mentor endorsement content (set when mentor endorses) */
   mentorEndorsement: string;
   /** Completion date timestamp */
   completionDate: number | bigint;
-  /** IPFS hash for storing additional metadata */
-  ipfsHash: string;
+  /** Activity PDAs created by this student and linked to this credential */
+  activities: Array<Address>;
 };
 
 export function getCredentialMetadataEncoder(): Encoder<CredentialMetadataArgs> {
@@ -84,7 +84,7 @@ export function getCredentialMetadataEncoder(): Encoder<CredentialMetadataArgs> 
       addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
     ],
     ["completionDate", getI64Encoder()],
-    ["ipfsHash", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+    ["activities", getArrayEncoder(getAddressEncoder())],
   ]);
 }
 
@@ -105,7 +105,7 @@ export function getCredentialMetadataDecoder(): Decoder<CredentialMetadata> {
       addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder()),
     ],
     ["completionDate", getI64Decoder()],
-    ["ipfsHash", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ["activities", getArrayDecoder(getAddressDecoder())],
   ]);
 }
 

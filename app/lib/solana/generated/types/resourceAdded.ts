@@ -29,7 +29,7 @@ import {
 /** Event emitted when a resource is added */
 export type ResourceAdded = {
   resourceId: string;
-  courseId: string;
+  course: Address;
   provider: Address;
   name: string;
   kind: string;
@@ -38,7 +38,7 @@ export type ResourceAdded = {
 
 export type ResourceAddedArgs = {
   resourceId: string;
-  courseId: string;
+  course: Address;
   provider: Address;
   name: string;
   kind: string;
@@ -48,7 +48,7 @@ export type ResourceAddedArgs = {
 export function getResourceAddedEncoder(): Encoder<ResourceAddedArgs> {
   return getStructEncoder([
     ["resourceId", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-    ["courseId", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+    ["course", getAddressEncoder()],
     ["provider", getAddressEncoder()],
     ["name", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
     ["kind", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
@@ -59,7 +59,7 @@ export function getResourceAddedEncoder(): Encoder<ResourceAddedArgs> {
 export function getResourceAddedDecoder(): Decoder<ResourceAdded> {
   return getStructDecoder([
     ["resourceId", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ["courseId", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ["course", getAddressDecoder()],
     ["provider", getAddressDecoder()],
     ["name", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ["kind", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],

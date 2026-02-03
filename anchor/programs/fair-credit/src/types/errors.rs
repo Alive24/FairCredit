@@ -146,4 +146,12 @@ pub enum HubError {
     CourseAlreadyAccepted,
     #[msg("Course not in accepted list")]
     CourseNotAccepted,
+    #[msg("Course list already registered in hub")]
+    CourseListAlreadyRegistered,
+    #[msg("Course list must be registered in hub before use")]
+    CourseListNotRegistered,
+    #[msg("Course list is full")]
+    CourseListFull,
+    #[msg("Course list reference required")]
+    CourseListReferenceRequired,
 }

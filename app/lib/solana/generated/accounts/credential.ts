@@ -59,8 +59,6 @@ export function getCredentialDiscriminatorBytes() {
 
 export type Credential = {
   discriminator: ReadonlyUint8Array;
-  /** Unique credential identifier */
-  id: bigint;
   /** Creation timestamp */
   created: bigint;
   /** Last update timestamp */
@@ -73,6 +71,8 @@ export type Credential = {
   providerWallet: Address;
   /** Associated NFT mint address */
   nftMint: Address;
+  /** Course account (PDA) this credential belongs to — single canonical reference */
+  course: Address;
   /** Detailed credential metadata */
   metadata: CredentialMetadata;
   /** Verification count statistics */
@@ -82,8 +82,6 @@ export type Credential = {
 };
 
 export type CredentialArgs = {
-  /** Unique credential identifier */
-  id: number | bigint;
   /** Creation timestamp */
   created: number | bigint;
   /** Last update timestamp */
@@ -96,6 +94,8 @@ export type CredentialArgs = {
   providerWallet: Address;
   /** Associated NFT mint address */
   nftMint: Address;
+  /** Course account (PDA) this credential belongs to — single canonical reference */
+  course: Address;
   /** Detailed credential metadata */
   metadata: CredentialMetadataArgs;
   /** Verification count statistics */
@@ -109,13 +109,13 @@ export function getCredentialEncoder(): Encoder<CredentialArgs> {
   return transformEncoder(
     getStructEncoder([
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
-      ["id", getU64Encoder()],
       ["created", getI64Encoder()],
       ["updated", getI64Encoder()],
       ["studentWallet", getAddressEncoder()],
       ["mentorWallet", getAddressEncoder()],
       ["providerWallet", getAddressEncoder()],
       ["nftMint", getAddressEncoder()],
+      ["course", getAddressEncoder()],
       ["metadata", getCredentialMetadataEncoder()],
       ["verificationCount", getU64Encoder()],
       ["status", getCredentialStatusEncoder()],
@@ -128,13 +128,13 @@ export function getCredentialEncoder(): Encoder<CredentialArgs> {
 export function getCredentialDecoder(): Decoder<Credential> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
-    ["id", getU64Decoder()],
     ["created", getI64Decoder()],
     ["updated", getI64Decoder()],
     ["studentWallet", getAddressDecoder()],
     ["mentorWallet", getAddressDecoder()],
     ["providerWallet", getAddressDecoder()],
     ["nftMint", getAddressDecoder()],
+    ["course", getAddressDecoder()],
     ["metadata", getCredentialMetadataDecoder()],
     ["verificationCount", getU64Decoder()],
     ["status", getCredentialStatusDecoder()],

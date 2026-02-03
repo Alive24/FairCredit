@@ -6,9 +6,12 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from "./activity";
+export * from "./asset";
 export * from "./course";
-export * from "./courseStudent";
+export * from "./courseList";
 export * from "./credential";
 export * from "./hub";
 export * from "./provider";
-export * from "./weight";
+export * from "./resource";
+export * from "./submission";

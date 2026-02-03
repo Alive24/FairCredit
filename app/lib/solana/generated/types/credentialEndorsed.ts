@@ -18,8 +18,6 @@ import {
   getStructEncoder,
   getU32Decoder,
   getU32Encoder,
-  getU64Decoder,
-  getU64Encoder,
   getUtf8Decoder,
   getUtf8Encoder,
   type Address,
@@ -30,14 +28,14 @@ import {
 
 /** Event emitted when a credential is endorsed */
 export type CredentialEndorsed = {
-  credentialId: bigint;
+  credential: Address;
   mentor: Address;
   endorsement: string;
   timestamp: bigint;
 };
 
 export type CredentialEndorsedArgs = {
-  credentialId: number | bigint;
+  credential: Address;
   mentor: Address;
   endorsement: string;
   timestamp: number | bigint;
@@ -45,7 +43,7 @@ export type CredentialEndorsedArgs = {
 
 export function getCredentialEndorsedEncoder(): Encoder<CredentialEndorsedArgs> {
   return getStructEncoder([
-    ["credentialId", getU64Encoder()],
+    ["credential", getAddressEncoder()],
     ["mentor", getAddressEncoder()],
     ["endorsement", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
     ["timestamp", getI64Encoder()],
@@ -54,7 +52,7 @@ export function getCredentialEndorsedEncoder(): Encoder<CredentialEndorsedArgs> 
 
 export function getCredentialEndorsedDecoder(): Decoder<CredentialEndorsed> {
   return getStructDecoder([
-    ["credentialId", getU64Decoder()],
+    ["credential", getAddressDecoder()],
     ["mentor", getAddressDecoder()],
     ["endorsement", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ["timestamp", getI64Decoder()],

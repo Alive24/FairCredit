@@ -13,6 +13,8 @@ import {
   fixDecoderSize,
   fixEncoderSize,
   getAddressEncoder,
+  getArrayDecoder,
+  getArrayEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getI64Decoder,
@@ -51,19 +53,26 @@ import {
   getAccountMetaFactory,
   type ResolvedAccount,
 } from "../shared";
+import {
+  getResourceKindDecoder,
+  getResourceKindEncoder,
+  type ResourceKind,
+  type ResourceKindArgs,
+} from "../types";
 
-export const CREATE_COURSE_DISCRIMINATOR = new Uint8Array([
-  120, 121, 154, 164, 107, 180, 167, 241,
+export const ADD_RESOURCE_DISCRIMINATOR = new Uint8Array([
+  83, 86, 127, 113, 72, 33, 236, 121,
 ]);
 
-export function getCreateCourseDiscriminatorBytes() {
+export function getAddResourceDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CREATE_COURSE_DISCRIMINATOR,
+    ADD_RESOURCE_DISCRIMINATOR,
   );
 }
 
-export type CreateCourseInstruction<
+export type AddResourceInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
+  TAccountResource extends string | AccountMeta<string> = string,
   TAccountCourse extends string | AccountMeta<string> = string,
   TAccountProvider extends string | AccountMeta<string> = string,
   TAccountHub extends string | AccountMeta<string> = string,
@@ -75,11 +84,14 @@ export type CreateCourseInstruction<
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
+      TAccountResource extends string
+        ? WritableAccount<TAccountResource>
+        : TAccountResource,
       TAccountCourse extends string
-        ? WritableAccount<TAccountCourse>
+        ? ReadonlyAccount<TAccountCourse>
         : TAccountCourse,
       TAccountProvider extends string
-        ? WritableAccount<TAccountProvider>
+        ? ReadonlyAccount<TAccountProvider>
         : TAccountProvider,
       TAccountHub extends string ? ReadonlyAccount<TAccountHub> : TAccountHub,
       TAccountProviderAuthority extends string
@@ -93,86 +105,102 @@ export type CreateCourseInstruction<
     ]
   >;
 
-export type CreateCourseInstructionData = {
+export type AddResourceInstructionData = {
   discriminator: ReadonlyUint8Array;
   creationTimestamp: bigint;
+  kind: ResourceKind;
   name: string;
-  description: string;
-  workloadRequired: number;
-  degreeId: Option<string>;
+  externalId: Option<string>;
+  workload: Option<number>;
+  tags: Array<string>;
 };
 
-export type CreateCourseInstructionDataArgs = {
+export type AddResourceInstructionDataArgs = {
   creationTimestamp: number | bigint;
+  kind: ResourceKindArgs;
   name: string;
-  description: string;
-  workloadRequired: number;
-  degreeId: OptionOrNullable<string>;
+  externalId: OptionOrNullable<string>;
+  workload: OptionOrNullable<number>;
+  tags: Array<string>;
 };
 
-export function getCreateCourseInstructionDataEncoder(): Encoder<CreateCourseInstructionDataArgs> {
+export function getAddResourceInstructionDataEncoder(): Encoder<AddResourceInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["creationTimestamp", getI64Encoder()],
+      ["kind", getResourceKindEncoder()],
       ["name", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-      ["description", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-      ["workloadRequired", getU32Encoder()],
       [
-        "degreeId",
+        "externalId",
         getOptionEncoder(
           addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
+      ["workload", getOptionEncoder(getU32Encoder())],
+      [
+        "tags",
+        getArrayEncoder(
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
+        ),
+      ],
     ]),
-    (value) => ({ ...value, discriminator: CREATE_COURSE_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: ADD_RESOURCE_DISCRIMINATOR }),
   );
 }
 
-export function getCreateCourseInstructionDataDecoder(): Decoder<CreateCourseInstructionData> {
+export function getAddResourceInstructionDataDecoder(): Decoder<AddResourceInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
     ["creationTimestamp", getI64Decoder()],
+    ["kind", getResourceKindDecoder()],
     ["name", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ["description", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ["workloadRequired", getU32Decoder()],
     [
-      "degreeId",
+      "externalId",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
+    ],
+    ["workload", getOptionDecoder(getU32Decoder())],
+    [
+      "tags",
+      getArrayDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
 }
 
-export function getCreateCourseInstructionDataCodec(): Codec<
-  CreateCourseInstructionDataArgs,
-  CreateCourseInstructionData
+export function getAddResourceInstructionDataCodec(): Codec<
+  AddResourceInstructionDataArgs,
+  AddResourceInstructionData
 > {
   return combineCodec(
-    getCreateCourseInstructionDataEncoder(),
-    getCreateCourseInstructionDataDecoder(),
+    getAddResourceInstructionDataEncoder(),
+    getAddResourceInstructionDataDecoder(),
   );
 }
 
-export type CreateCourseAsyncInput<
+export type AddResourceAsyncInput<
+  TAccountResource extends string = string,
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
   TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
-  course?: Address<TAccountCourse>;
+  resource?: Address<TAccountResource>;
+  course: Address<TAccountCourse>;
   provider?: Address<TAccountProvider>;
   hub?: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
   systemProgram?: Address<TAccountSystemProgram>;
-  creationTimestamp: CreateCourseInstructionDataArgs["creationTimestamp"];
-  name: CreateCourseInstructionDataArgs["name"];
-  description: CreateCourseInstructionDataArgs["description"];
-  workloadRequired: CreateCourseInstructionDataArgs["workloadRequired"];
-  degreeId: CreateCourseInstructionDataArgs["degreeId"];
+  creationTimestamp: AddResourceInstructionDataArgs["creationTimestamp"];
+  kind: AddResourceInstructionDataArgs["kind"];
+  name: AddResourceInstructionDataArgs["name"];
+  externalId: AddResourceInstructionDataArgs["externalId"];
+  workload: AddResourceInstructionDataArgs["workload"];
+  tags: AddResourceInstructionDataArgs["tags"];
 };
 
-export async function getCreateCourseInstructionAsync<
+export async function getAddResourceInstructionAsync<
+  TAccountResource extends string,
   TAccountCourse extends string,
   TAccountProvider extends string,
   TAccountHub extends string,
@@ -180,7 +208,8 @@ export async function getCreateCourseInstructionAsync<
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: CreateCourseAsyncInput<
+  input: AddResourceAsyncInput<
+    TAccountResource,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
@@ -189,8 +218,9 @@ export async function getCreateCourseInstructionAsync<
   >,
   config?: { programAddress?: TProgramAddress },
 ): Promise<
-  CreateCourseInstruction<
+  AddResourceInstruction<
     TProgramAddress,
+    TAccountResource,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
@@ -203,8 +233,9 @@ export async function getCreateCourseInstructionAsync<
 
   // Original accounts.
   const originalAccounts = {
-    course: { value: input.course ?? null, isWritable: true },
-    provider: { value: input.provider ?? null, isWritable: true },
+    resource: { value: input.resource ?? null, isWritable: true },
+    course: { value: input.course ?? null, isWritable: false },
+    provider: { value: input.provider ?? null, isWritable: false },
     hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
@@ -221,6 +252,18 @@ export async function getCreateCourseInstructionAsync<
   const args = { ...input };
 
   // Resolve default values.
+  if (!accounts.resource.value) {
+    accounts.resource.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [
+        getBytesEncoder().encode(
+          new Uint8Array([114, 101, 115, 111, 117, 114, 99, 101]),
+        ),
+        getAddressEncoder().encode(expectAddress(accounts.course.value)),
+        getI64Encoder().encode(expectSome(args.creationTimestamp)),
+      ],
+    });
+  }
   if (!accounts.hub.value) {
     accounts.hub.value = await getProgramDerivedAddress({
       programAddress,
@@ -241,17 +284,6 @@ export async function getCreateCourseInstructionAsync<
       ],
     });
   }
-  if (!accounts.course.value) {
-    accounts.course.value = await getProgramDerivedAddress({
-      programAddress,
-      seeds: [
-        getBytesEncoder().encode(new Uint8Array([99, 111, 117, 114, 115, 101])),
-        getAddressEncoder().encode(expectAddress(accounts.hub.value)),
-        getAddressEncoder().encode(expectAddress(accounts.provider.value)),
-        getI64Encoder().encode(expectSome(args.creationTimestamp)),
-      ],
-    });
-  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -260,18 +292,20 @@ export async function getCreateCourseInstructionAsync<
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
+      getAccountMeta(accounts.resource),
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
       getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
       getAccountMeta(accounts.systemProgram),
     ],
-    data: getCreateCourseInstructionDataEncoder().encode(
-      args as CreateCourseInstructionDataArgs,
+    data: getAddResourceInstructionDataEncoder().encode(
+      args as AddResourceInstructionDataArgs,
     ),
     programAddress,
-  } as CreateCourseInstruction<
+  } as AddResourceInstruction<
     TProgramAddress,
+    TAccountResource,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
@@ -280,26 +314,30 @@ export async function getCreateCourseInstructionAsync<
   >);
 }
 
-export type CreateCourseInput<
+export type AddResourceInput<
+  TAccountResource extends string = string,
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
   TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
+  resource: Address<TAccountResource>;
   course: Address<TAccountCourse>;
   provider: Address<TAccountProvider>;
   hub: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
   systemProgram?: Address<TAccountSystemProgram>;
-  creationTimestamp: CreateCourseInstructionDataArgs["creationTimestamp"];
-  name: CreateCourseInstructionDataArgs["name"];
-  description: CreateCourseInstructionDataArgs["description"];
-  workloadRequired: CreateCourseInstructionDataArgs["workloadRequired"];
-  degreeId: CreateCourseInstructionDataArgs["degreeId"];
+  creationTimestamp: AddResourceInstructionDataArgs["creationTimestamp"];
+  kind: AddResourceInstructionDataArgs["kind"];
+  name: AddResourceInstructionDataArgs["name"];
+  externalId: AddResourceInstructionDataArgs["externalId"];
+  workload: AddResourceInstructionDataArgs["workload"];
+  tags: AddResourceInstructionDataArgs["tags"];
 };
 
-export function getCreateCourseInstruction<
+export function getAddResourceInstruction<
+  TAccountResource extends string,
   TAccountCourse extends string,
   TAccountProvider extends string,
   TAccountHub extends string,
@@ -307,7 +345,8 @@ export function getCreateCourseInstruction<
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: CreateCourseInput<
+  input: AddResourceInput<
+    TAccountResource,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
@@ -315,8 +354,9 @@ export function getCreateCourseInstruction<
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
-): CreateCourseInstruction<
+): AddResourceInstruction<
   TProgramAddress,
+  TAccountResource,
   TAccountCourse,
   TAccountProvider,
   TAccountHub,
@@ -328,8 +368,9 @@ export function getCreateCourseInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    course: { value: input.course ?? null, isWritable: true },
-    provider: { value: input.provider ?? null, isWritable: true },
+    resource: { value: input.resource ?? null, isWritable: true },
+    course: { value: input.course ?? null, isWritable: false },
+    provider: { value: input.provider ?? null, isWritable: false },
     hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
@@ -354,18 +395,20 @@ export function getCreateCourseInstruction<
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
+      getAccountMeta(accounts.resource),
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
       getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
       getAccountMeta(accounts.systemProgram),
     ],
-    data: getCreateCourseInstructionDataEncoder().encode(
-      args as CreateCourseInstructionDataArgs,
+    data: getAddResourceInstructionDataEncoder().encode(
+      args as AddResourceInstructionDataArgs,
     ),
     programAddress,
-  } as CreateCourseInstruction<
+  } as AddResourceInstruction<
     TProgramAddress,
+    TAccountResource,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
@@ -374,30 +417,31 @@ export function getCreateCourseInstruction<
   >);
 }
 
-export type ParsedCreateCourseInstruction<
+export type ParsedAddResourceInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    course: TAccountMetas[0];
-    provider: TAccountMetas[1];
-    hub: TAccountMetas[2];
-    providerAuthority: TAccountMetas[3];
-    systemProgram: TAccountMetas[4];
+    resource: TAccountMetas[0];
+    course: TAccountMetas[1];
+    provider: TAccountMetas[2];
+    hub: TAccountMetas[3];
+    providerAuthority: TAccountMetas[4];
+    systemProgram: TAccountMetas[5];
   };
-  data: CreateCourseInstructionData;
+  data: AddResourceInstructionData;
 };
 
-export function parseCreateCourseInstruction<
+export function parseAddResourceInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedCreateCourseInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 5) {
+): ParsedAddResourceInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 6) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -410,12 +454,13 @@ export function parseCreateCourseInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
+      resource: getNextAccount(),
       course: getNextAccount(),
       provider: getNextAccount(),
       hub: getNextAccount(),
       providerAuthority: getNextAccount(),
       systemProgram: getNextAccount(),
     },
-    data: getCreateCourseInstructionDataDecoder().decode(instruction.data),
+    data: getAddResourceInstructionDataDecoder().decode(instruction.data),
   };
 }

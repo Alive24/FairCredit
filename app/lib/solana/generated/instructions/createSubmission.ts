@@ -10,9 +10,14 @@ import {
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
+  getAddressDecoder,
   getAddressEncoder,
+  getArrayDecoder,
+  getArrayEncoder,
   getBytesDecoder,
   getBytesEncoder,
+  getI64Decoder,
+  getI64Encoder,
   getProgramDerivedAddress,
   getStructDecoder,
   getStructEncoder,
@@ -20,9 +25,9 @@ import {
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
+  type Codec,
+  type Decoder,
+  type Encoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -35,26 +40,25 @@ import {
 import { FAIR_CREDIT_PROGRAM_ADDRESS } from "../programs";
 import {
   expectAddress,
+  expectSome,
   getAccountMetaFactory,
   type ResolvedAccount,
 } from "../shared";
 
-export const CREATE_CREDENTIAL_DISCRIMINATOR = new Uint8Array([
-  205, 74, 60, 212, 63, 198, 196, 109,
+export const CREATE_SUBMISSION_DISCRIMINATOR = new Uint8Array([
+  85, 217, 61, 59, 157, 60, 175, 220,
 ]);
 
-export function getCreateCredentialDiscriminatorBytes() {
+export function getCreateSubmissionDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CREATE_CREDENTIAL_DISCRIMINATOR,
+    CREATE_SUBMISSION_DISCRIMINATOR,
   );
 }
 
-export type CreateCredentialInstruction<
+export type CreateSubmissionInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
-  TAccountCredential extends string | AccountMeta<string> = string,
-  TAccountCourse extends string | AccountMeta<string> = string,
-  TAccountProvider extends string | AccountMeta<string> = string,
-  TAccountHub extends string | AccountMeta<string> = string,
+  TAccountSubmission extends string | AccountMeta<string> = string,
+  TAccountResource extends string | AccountMeta<string> = string,
   TAccountStudent extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
@@ -63,16 +67,12 @@ export type CreateCredentialInstruction<
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
-      TAccountCredential extends string
-        ? WritableAccount<TAccountCredential>
-        : TAccountCredential,
-      TAccountCourse extends string
-        ? ReadonlyAccount<TAccountCourse>
-        : TAccountCourse,
-      TAccountProvider extends string
-        ? ReadonlyAccount<TAccountProvider>
-        : TAccountProvider,
-      TAccountHub extends string ? ReadonlyAccount<TAccountHub> : TAccountHub,
+      TAccountSubmission extends string
+        ? WritableAccount<TAccountSubmission>
+        : TAccountSubmission,
+      TAccountResource extends string
+        ? ReadonlyAccount<TAccountResource>
+        : TAccountResource,
       TAccountStudent extends string
         ? WritableSignerAccount<TAccountStudent> &
             AccountSignerMeta<TAccountStudent>
@@ -84,76 +84,84 @@ export type CreateCredentialInstruction<
     ]
   >;
 
-export type CreateCredentialInstructionData = {
+export type CreateSubmissionInstructionData = {
   discriminator: ReadonlyUint8Array;
+  submissionTimestamp: bigint;
+  assets: Array<Address>;
+  evidenceAssets: Array<Address>;
 };
 
-export type CreateCredentialInstructionDataArgs = {};
+export type CreateSubmissionInstructionDataArgs = {
+  submissionTimestamp: number | bigint;
+  assets: Array<Address>;
+  evidenceAssets: Array<Address>;
+};
 
-export function getCreateCredentialInstructionDataEncoder(): FixedSizeEncoder<CreateCredentialInstructionDataArgs> {
+export function getCreateSubmissionInstructionDataEncoder(): Encoder<CreateSubmissionInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
-    (value) => ({ ...value, discriminator: CREATE_CREDENTIAL_DISCRIMINATOR }),
+    getStructEncoder([
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["submissionTimestamp", getI64Encoder()],
+      ["assets", getArrayEncoder(getAddressEncoder())],
+      ["evidenceAssets", getArrayEncoder(getAddressEncoder())],
+    ]),
+    (value) => ({ ...value, discriminator: CREATE_SUBMISSION_DISCRIMINATOR }),
   );
 }
 
-export function getCreateCredentialInstructionDataDecoder(): FixedSizeDecoder<CreateCredentialInstructionData> {
+export function getCreateSubmissionInstructionDataDecoder(): Decoder<CreateSubmissionInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["submissionTimestamp", getI64Decoder()],
+    ["assets", getArrayDecoder(getAddressDecoder())],
+    ["evidenceAssets", getArrayDecoder(getAddressDecoder())],
   ]);
 }
 
-export function getCreateCredentialInstructionDataCodec(): FixedSizeCodec<
-  CreateCredentialInstructionDataArgs,
-  CreateCredentialInstructionData
+export function getCreateSubmissionInstructionDataCodec(): Codec<
+  CreateSubmissionInstructionDataArgs,
+  CreateSubmissionInstructionData
 > {
   return combineCodec(
-    getCreateCredentialInstructionDataEncoder(),
-    getCreateCredentialInstructionDataDecoder(),
+    getCreateSubmissionInstructionDataEncoder(),
+    getCreateSubmissionInstructionDataDecoder(),
   );
 }
 
-export type CreateCredentialAsyncInput<
-  TAccountCredential extends string = string,
-  TAccountCourse extends string = string,
-  TAccountProvider extends string = string,
-  TAccountHub extends string = string,
+export type CreateSubmissionAsyncInput<
+  TAccountSubmission extends string = string,
+  TAccountResource extends string = string,
   TAccountStudent extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
-  credential?: Address<TAccountCredential>;
-  course: Address<TAccountCourse>;
-  provider: Address<TAccountProvider>;
-  hub?: Address<TAccountHub>;
+  submission?: Address<TAccountSubmission>;
+  resource: Address<TAccountResource>;
   student: TransactionSigner<TAccountStudent>;
   systemProgram?: Address<TAccountSystemProgram>;
+  submissionTimestamp: CreateSubmissionInstructionDataArgs["submissionTimestamp"];
+  assets: CreateSubmissionInstructionDataArgs["assets"];
+  evidenceAssets: CreateSubmissionInstructionDataArgs["evidenceAssets"];
 };
 
-export async function getCreateCredentialInstructionAsync<
-  TAccountCredential extends string,
-  TAccountCourse extends string,
-  TAccountProvider extends string,
-  TAccountHub extends string,
+export async function getCreateSubmissionInstructionAsync<
+  TAccountSubmission extends string,
+  TAccountResource extends string,
   TAccountStudent extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: CreateCredentialAsyncInput<
-    TAccountCredential,
-    TAccountCourse,
-    TAccountProvider,
-    TAccountHub,
+  input: CreateSubmissionAsyncInput<
+    TAccountSubmission,
+    TAccountResource,
     TAccountStudent,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
 ): Promise<
-  CreateCredentialInstruction<
+  CreateSubmissionInstruction<
     TProgramAddress,
-    TAccountCredential,
-    TAccountCourse,
-    TAccountProvider,
-    TAccountHub,
+    TAccountSubmission,
+    TAccountResource,
     TAccountStudent,
     TAccountSystemProgram
   >
@@ -163,10 +171,8 @@ export async function getCreateCredentialInstructionAsync<
 
   // Original accounts.
   const originalAccounts = {
-    credential: { value: input.credential ?? null, isWritable: true },
-    course: { value: input.course ?? null, isWritable: false },
-    provider: { value: input.provider ?? null, isWritable: false },
-    hub: { value: input.hub ?? null, isWritable: false },
+    submission: { value: input.submission ?? null, isWritable: true },
+    resource: { value: input.resource ?? null, isWritable: false },
     student: { value: input.student ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
@@ -175,23 +181,21 @@ export async function getCreateCredentialInstructionAsync<
     ResolvedAccount
   >;
 
+  // Original args.
+  const args = { ...input };
+
   // Resolve default values.
-  if (!accounts.credential.value) {
-    accounts.credential.value = await getProgramDerivedAddress({
+  if (!accounts.submission.value) {
+    accounts.submission.value = await getProgramDerivedAddress({
       programAddress,
       seeds: [
         getBytesEncoder().encode(
-          new Uint8Array([99, 114, 101, 100, 101, 110, 116, 105, 97, 108]),
+          new Uint8Array([115, 117, 98, 109, 105, 115, 115, 105, 111, 110]),
         ),
-        getAddressEncoder().encode(expectAddress(accounts.course.value)),
+        getAddressEncoder().encode(expectAddress(accounts.resource.value)),
         getAddressEncoder().encode(expectAddress(accounts.student.value)),
+        getI64Encoder().encode(expectSome(args.submissionTimestamp)),
       ],
-    });
-  }
-  if (!accounts.hub.value) {
-    accounts.hub.value = await getProgramDerivedAddress({
-      programAddress,
-      seeds: [getBytesEncoder().encode(new Uint8Array([104, 117, 98]))],
     });
   }
   if (!accounts.systemProgram.value) {
@@ -202,66 +206,57 @@ export async function getCreateCredentialInstructionAsync<
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta(accounts.credential),
-      getAccountMeta(accounts.course),
-      getAccountMeta(accounts.provider),
-      getAccountMeta(accounts.hub),
+      getAccountMeta(accounts.submission),
+      getAccountMeta(accounts.resource),
       getAccountMeta(accounts.student),
       getAccountMeta(accounts.systemProgram),
     ],
-    data: getCreateCredentialInstructionDataEncoder().encode({}),
+    data: getCreateSubmissionInstructionDataEncoder().encode(
+      args as CreateSubmissionInstructionDataArgs,
+    ),
     programAddress,
-  } as CreateCredentialInstruction<
+  } as CreateSubmissionInstruction<
     TProgramAddress,
-    TAccountCredential,
-    TAccountCourse,
-    TAccountProvider,
-    TAccountHub,
+    TAccountSubmission,
+    TAccountResource,
     TAccountStudent,
     TAccountSystemProgram
   >);
 }
 
-export type CreateCredentialInput<
-  TAccountCredential extends string = string,
-  TAccountCourse extends string = string,
-  TAccountProvider extends string = string,
-  TAccountHub extends string = string,
+export type CreateSubmissionInput<
+  TAccountSubmission extends string = string,
+  TAccountResource extends string = string,
   TAccountStudent extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
-  credential: Address<TAccountCredential>;
-  course: Address<TAccountCourse>;
-  provider: Address<TAccountProvider>;
-  hub: Address<TAccountHub>;
+  submission: Address<TAccountSubmission>;
+  resource: Address<TAccountResource>;
   student: TransactionSigner<TAccountStudent>;
   systemProgram?: Address<TAccountSystemProgram>;
+  submissionTimestamp: CreateSubmissionInstructionDataArgs["submissionTimestamp"];
+  assets: CreateSubmissionInstructionDataArgs["assets"];
+  evidenceAssets: CreateSubmissionInstructionDataArgs["evidenceAssets"];
 };
 
-export function getCreateCredentialInstruction<
-  TAccountCredential extends string,
-  TAccountCourse extends string,
-  TAccountProvider extends string,
-  TAccountHub extends string,
+export function getCreateSubmissionInstruction<
+  TAccountSubmission extends string,
+  TAccountResource extends string,
   TAccountStudent extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: CreateCredentialInput<
-    TAccountCredential,
-    TAccountCourse,
-    TAccountProvider,
-    TAccountHub,
+  input: CreateSubmissionInput<
+    TAccountSubmission,
+    TAccountResource,
     TAccountStudent,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
-): CreateCredentialInstruction<
+): CreateSubmissionInstruction<
   TProgramAddress,
-  TAccountCredential,
-  TAccountCourse,
-  TAccountProvider,
-  TAccountHub,
+  TAccountSubmission,
+  TAccountResource,
   TAccountStudent,
   TAccountSystemProgram
 > {
@@ -270,10 +265,8 @@ export function getCreateCredentialInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    credential: { value: input.credential ?? null, isWritable: true },
-    course: { value: input.course ?? null, isWritable: false },
-    provider: { value: input.provider ?? null, isWritable: false },
-    hub: { value: input.hub ?? null, isWritable: false },
+    submission: { value: input.submission ?? null, isWritable: true },
+    resource: { value: input.resource ?? null, isWritable: false },
     student: { value: input.student ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
@@ -281,6 +274,9 @@ export function getCreateCredentialInstruction<
     keyof typeof originalAccounts,
     ResolvedAccount
   >;
+
+  // Original args.
+  const args = { ...input };
 
   // Resolve default values.
   if (!accounts.systemProgram.value) {
@@ -291,51 +287,47 @@ export function getCreateCredentialInstruction<
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta(accounts.credential),
-      getAccountMeta(accounts.course),
-      getAccountMeta(accounts.provider),
-      getAccountMeta(accounts.hub),
+      getAccountMeta(accounts.submission),
+      getAccountMeta(accounts.resource),
       getAccountMeta(accounts.student),
       getAccountMeta(accounts.systemProgram),
     ],
-    data: getCreateCredentialInstructionDataEncoder().encode({}),
+    data: getCreateSubmissionInstructionDataEncoder().encode(
+      args as CreateSubmissionInstructionDataArgs,
+    ),
     programAddress,
-  } as CreateCredentialInstruction<
+  } as CreateSubmissionInstruction<
     TProgramAddress,
-    TAccountCredential,
-    TAccountCourse,
-    TAccountProvider,
-    TAccountHub,
+    TAccountSubmission,
+    TAccountResource,
     TAccountStudent,
     TAccountSystemProgram
   >);
 }
 
-export type ParsedCreateCredentialInstruction<
+export type ParsedCreateSubmissionInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    credential: TAccountMetas[0];
-    course: TAccountMetas[1];
-    provider: TAccountMetas[2];
-    hub: TAccountMetas[3];
-    student: TAccountMetas[4];
-    systemProgram: TAccountMetas[5];
+    submission: TAccountMetas[0];
+    resource: TAccountMetas[1];
+    student: TAccountMetas[2];
+    systemProgram: TAccountMetas[3];
   };
-  data: CreateCredentialInstructionData;
+  data: CreateSubmissionInstructionData;
 };
 
-export function parseCreateCredentialInstruction<
+export function parseCreateSubmissionInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedCreateCredentialInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
+): ParsedCreateSubmissionInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 4) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -348,13 +340,11 @@ export function parseCreateCredentialInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
-      credential: getNextAccount(),
-      course: getNextAccount(),
-      provider: getNextAccount(),
-      hub: getNextAccount(),
+      submission: getNextAccount(),
+      resource: getNextAccount(),
       student: getNextAccount(),
       systemProgram: getNextAccount(),
     },
-    data: getCreateCredentialInstructionDataDecoder().decode(instruction.data),
+    data: getCreateSubmissionInstructionDataDecoder().decode(instruction.data),
   };
 }

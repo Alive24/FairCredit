@@ -28,7 +28,7 @@ import {
 
 /** Event emitted when a course is created */
 export type CourseCreated = {
-  courseId: string;
+  course: Address;
   provider: Address;
   name: string;
   workloadRequired: number;
@@ -36,7 +36,7 @@ export type CourseCreated = {
 };
 
 export type CourseCreatedArgs = {
-  courseId: string;
+  course: Address;
   provider: Address;
   name: string;
   workloadRequired: number;
@@ -45,7 +45,7 @@ export type CourseCreatedArgs = {
 
 export function getCourseCreatedEncoder(): Encoder<CourseCreatedArgs> {
   return getStructEncoder([
-    ["courseId", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+    ["course", getAddressEncoder()],
     ["provider", getAddressEncoder()],
     ["name", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
     ["workloadRequired", getU32Encoder()],
@@ -55,7 +55,7 @@ export function getCourseCreatedEncoder(): Encoder<CourseCreatedArgs> {
 
 export function getCourseCreatedDecoder(): Decoder<CourseCreated> {
   return getStructDecoder([
-    ["courseId", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ["course", getAddressDecoder()],
     ["provider", getAddressDecoder()],
     ["name", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ["workloadRequired", getU32Decoder()],

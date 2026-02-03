@@ -49,8 +49,12 @@ import {
   type ReadonlyUint8Array,
 } from "@solana/kit";
 import {
+  getCourseModuleDecoder,
+  getCourseModuleEncoder,
   getCourseStatusDecoder,
   getCourseStatusEncoder,
+  type CourseModule,
+  type CourseModuleArgs,
   type CourseStatus,
   type CourseStatusArgs,
 } from "../types";
@@ -65,7 +69,8 @@ export function getCourseDiscriminatorBytes() {
 
 export type Course = {
   discriminator: ReadonlyUint8Array;
-  id: string;
+  /** Creation timestamp used in PDA seeds (hub + provider + creation_timestamp) */
+  creationTimestamp: bigint;
   created: bigint;
   updated: bigint;
   provider: Address;
@@ -73,16 +78,19 @@ export type Course = {
   rejectionReason: Option<string>;
   name: string;
   description: string;
-  weightIds: Array<string>;
+  /** List of modules: each points to a resource (PDA) and has a percentage weight */
+  modules: Array<CourseModule>;
   workloadRequired: number;
   workload: number;
   collegeId: string;
   degreeId: Option<string>;
-  resourceIds: Array<string>;
+  /** Credential PDAs approved by this provider for this course */
+  approvedCredentials: Array<Address>;
 };
 
 export type CourseArgs = {
-  id: string;
+  /** Creation timestamp used in PDA seeds (hub + provider + creation_timestamp) */
+  creationTimestamp: number | bigint;
   created: number | bigint;
   updated: number | bigint;
   provider: Address;
@@ -90,12 +98,14 @@ export type CourseArgs = {
   rejectionReason: OptionOrNullable<string>;
   name: string;
   description: string;
-  weightIds: Array<string>;
+  /** List of modules: each points to a resource (PDA) and has a percentage weight */
+  modules: Array<CourseModuleArgs>;
   workloadRequired: number;
   workload: number;
   collegeId: string;
   degreeId: OptionOrNullable<string>;
-  resourceIds: Array<string>;
+  /** Credential PDAs approved by this provider for this course */
+  approvedCredentials: Array<Address>;
 };
 
 /** Gets the encoder for {@link CourseArgs} account data. */
@@ -103,7 +113,7 @@ export function getCourseEncoder(): Encoder<CourseArgs> {
   return transformEncoder(
     getStructEncoder([
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
-      ["id", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+      ["creationTimestamp", getI64Encoder()],
       ["created", getI64Encoder()],
       ["updated", getI64Encoder()],
       ["provider", getAddressEncoder()],
@@ -116,12 +126,7 @@ export function getCourseEncoder(): Encoder<CourseArgs> {
       ],
       ["name", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
       ["description", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-      [
-        "weightIds",
-        getArrayEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
-        ),
-      ],
+      ["modules", getArrayEncoder(getCourseModuleEncoder())],
       ["workloadRequired", getU32Encoder()],
       ["workload", getU32Encoder()],
       ["collegeId", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
@@ -131,12 +136,7 @@ export function getCourseEncoder(): Encoder<CourseArgs> {
           addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
-      [
-        "resourceIds",
-        getArrayEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
-        ),
-      ],
+      ["approvedCredentials", getArrayEncoder(getAddressEncoder())],
     ]),
     (value) => ({ ...value, discriminator: COURSE_DISCRIMINATOR }),
   );
@@ -146,7 +146,7 @@ export function getCourseEncoder(): Encoder<CourseArgs> {
 export function getCourseDecoder(): Decoder<Course> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
-    ["id", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ["creationTimestamp", getI64Decoder()],
     ["created", getI64Decoder()],
     ["updated", getI64Decoder()],
     ["provider", getAddressDecoder()],
@@ -157,10 +157,7 @@ export function getCourseDecoder(): Decoder<Course> {
     ],
     ["name", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ["description", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    [
-      "weightIds",
-      getArrayDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
-    ],
+    ["modules", getArrayDecoder(getCourseModuleDecoder())],
     ["workloadRequired", getU32Decoder()],
     ["workload", getU32Decoder()],
     ["collegeId", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
@@ -168,10 +165,7 @@ export function getCourseDecoder(): Decoder<Course> {
       "degreeId",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
-    [
-      "resourceIds",
-      getArrayDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
-    ],
+    ["approvedCredentials", getArrayDecoder(getAddressDecoder())],
   ]);
 }
 

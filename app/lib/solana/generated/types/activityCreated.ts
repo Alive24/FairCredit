@@ -10,6 +10,8 @@ import {
   addDecoderSizePrefix,
   addEncoderSizePrefix,
   combineCodec,
+  getAddressDecoder,
+  getAddressEncoder,
   getI64Decoder,
   getI64Encoder,
   getOptionDecoder,
@@ -20,6 +22,7 @@ import {
   getU32Encoder,
   getUtf8Decoder,
   getUtf8Encoder,
+  type Address,
   type Codec,
   type Decoder,
   type Encoder,
@@ -29,29 +32,29 @@ import {
 
 /** Event emitted when an activity is created */
 export type ActivityCreated = {
-  activityId: string;
-  userId: string;
-  courseId: Option<string>;
+  activity: Address;
+  student: Address;
+  provider: Address;
+  course: Option<Address>;
   kind: string;
   timestamp: bigint;
 };
 
 export type ActivityCreatedArgs = {
-  activityId: string;
-  userId: string;
-  courseId: OptionOrNullable<string>;
+  activity: Address;
+  student: Address;
+  provider: Address;
+  course: OptionOrNullable<Address>;
   kind: string;
   timestamp: number | bigint;
 };
 
 export function getActivityCreatedEncoder(): Encoder<ActivityCreatedArgs> {
   return getStructEncoder([
-    ["activityId", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-    ["userId", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-    [
-      "courseId",
-      getOptionEncoder(addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())),
-    ],
+    ["activity", getAddressEncoder()],
+    ["student", getAddressEncoder()],
+    ["provider", getAddressEncoder()],
+    ["course", getOptionEncoder(getAddressEncoder())],
     ["kind", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
     ["timestamp", getI64Encoder()],
   ]);
@@ -59,12 +62,10 @@ export function getActivityCreatedEncoder(): Encoder<ActivityCreatedArgs> {
 
 export function getActivityCreatedDecoder(): Decoder<ActivityCreated> {
   return getStructDecoder([
-    ["activityId", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ["userId", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    [
-      "courseId",
-      getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
-    ],
+    ["activity", getAddressDecoder()],
+    ["student", getAddressDecoder()],
+    ["provider", getAddressDecoder()],
+    ["course", getOptionDecoder(getAddressDecoder())],
     ["kind", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ["timestamp", getI64Decoder()],
   ]);

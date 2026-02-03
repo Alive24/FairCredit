@@ -7,78 +7,63 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
   getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
-  getOptionDecoder,
-  getOptionEncoder,
   getProgramDerivedAddress,
   getStructDecoder,
   getStructEncoder,
-  getU32Decoder,
-  getU32Encoder,
-  getU8Decoder,
-  getU8Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
   transformEncoder,
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
-  type Option,
-  type OptionOrNullable,
   type ReadonlyAccount,
+  type ReadonlySignerAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
-  type WritableSignerAccount,
 } from "@solana/kit";
 import { FAIR_CREDIT_PROGRAM_ADDRESS } from "../programs";
 import {
   expectAddress,
-  expectSome,
   getAccountMetaFactory,
   type ResolvedAccount,
 } from "../shared";
 
-export const CREATE_WEIGHT_DISCRIMINATOR = new Uint8Array([
-  172, 251, 81, 40, 50, 110, 121, 140,
+export const APPROVE_CREDENTIAL_DISCRIMINATOR = new Uint8Array([
+  171, 247, 4, 204, 54, 63, 230, 24,
 ]);
 
-export function getCreateWeightDiscriminatorBytes() {
+export function getApproveCredentialDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CREATE_WEIGHT_DISCRIMINATOR,
+    APPROVE_CREDENTIAL_DISCRIMINATOR,
   );
 }
 
-export type CreateWeightInstruction<
+export type ApproveCredentialInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
-  TAccountWeight extends string | AccountMeta<string> = string,
+  TAccountCredential extends string | AccountMeta<string> = string,
   TAccountCourse extends string | AccountMeta<string> = string,
   TAccountProvider extends string | AccountMeta<string> = string,
   TAccountHub extends string | AccountMeta<string> = string,
   TAccountProviderAuthority extends string | AccountMeta<string> = string,
-  TAccountSystemProgram extends string | AccountMeta<string> =
-    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
-      TAccountWeight extends string
-        ? WritableAccount<TAccountWeight>
-        : TAccountWeight,
+      TAccountCredential extends string
+        ? WritableAccount<TAccountCredential>
+        : TAccountCredential,
       TAccountCourse extends string
         ? WritableAccount<TAccountCourse>
         : TAccountCourse,
@@ -87,119 +72,80 @@ export type CreateWeightInstruction<
         : TAccountProvider,
       TAccountHub extends string ? ReadonlyAccount<TAccountHub> : TAccountHub,
       TAccountProviderAuthority extends string
-        ? WritableSignerAccount<TAccountProviderAuthority> &
+        ? ReadonlySignerAccount<TAccountProviderAuthority> &
             AccountSignerMeta<TAccountProviderAuthority>
         : TAccountProviderAuthority,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
       ...TRemainingAccounts,
     ]
   >;
 
-export type CreateWeightInstructionData = {
+export type ApproveCredentialInstructionData = {
   discriminator: ReadonlyUint8Array;
-  weightId: string;
-  name: string;
-  percentage: number;
-  description: Option<string>;
 };
 
-export type CreateWeightInstructionDataArgs = {
-  weightId: string;
-  name: string;
-  percentage: number;
-  description: OptionOrNullable<string>;
-};
+export type ApproveCredentialInstructionDataArgs = {};
 
-export function getCreateWeightInstructionDataEncoder(): Encoder<CreateWeightInstructionDataArgs> {
+export function getApproveCredentialInstructionDataEncoder(): FixedSizeEncoder<ApproveCredentialInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([
-      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
-      ["weightId", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-      ["name", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-      ["percentage", getU8Encoder()],
-      [
-        "description",
-        getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
-        ),
-      ],
-    ]),
-    (value) => ({ ...value, discriminator: CREATE_WEIGHT_DISCRIMINATOR }),
+    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
+    (value) => ({ ...value, discriminator: APPROVE_CREDENTIAL_DISCRIMINATOR }),
   );
 }
 
-export function getCreateWeightInstructionDataDecoder(): Decoder<CreateWeightInstructionData> {
+export function getApproveCredentialInstructionDataDecoder(): FixedSizeDecoder<ApproveCredentialInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
-    ["weightId", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ["name", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ["percentage", getU8Decoder()],
-    [
-      "description",
-      getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
-    ],
   ]);
 }
 
-export function getCreateWeightInstructionDataCodec(): Codec<
-  CreateWeightInstructionDataArgs,
-  CreateWeightInstructionData
+export function getApproveCredentialInstructionDataCodec(): FixedSizeCodec<
+  ApproveCredentialInstructionDataArgs,
+  ApproveCredentialInstructionData
 > {
   return combineCodec(
-    getCreateWeightInstructionDataEncoder(),
-    getCreateWeightInstructionDataDecoder(),
+    getApproveCredentialInstructionDataEncoder(),
+    getApproveCredentialInstructionDataDecoder(),
   );
 }
 
-export type CreateWeightAsyncInput<
-  TAccountWeight extends string = string,
+export type ApproveCredentialAsyncInput<
+  TAccountCredential extends string = string,
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
   TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
-  TAccountSystemProgram extends string = string,
 > = {
-  weight?: Address<TAccountWeight>;
+  credential: Address<TAccountCredential>;
   course: Address<TAccountCourse>;
   provider?: Address<TAccountProvider>;
   hub?: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
-  systemProgram?: Address<TAccountSystemProgram>;
-  weightId: CreateWeightInstructionDataArgs["weightId"];
-  name: CreateWeightInstructionDataArgs["name"];
-  percentage: CreateWeightInstructionDataArgs["percentage"];
-  description: CreateWeightInstructionDataArgs["description"];
 };
 
-export async function getCreateWeightInstructionAsync<
-  TAccountWeight extends string,
+export async function getApproveCredentialInstructionAsync<
+  TAccountCredential extends string,
   TAccountCourse extends string,
   TAccountProvider extends string,
   TAccountHub extends string,
   TAccountProviderAuthority extends string,
-  TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: CreateWeightAsyncInput<
-    TAccountWeight,
+  input: ApproveCredentialAsyncInput<
+    TAccountCredential,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
-    TAccountProviderAuthority,
-    TAccountSystemProgram
+    TAccountProviderAuthority
   >,
   config?: { programAddress?: TProgramAddress },
 ): Promise<
-  CreateWeightInstruction<
+  ApproveCredentialInstruction<
     TProgramAddress,
-    TAccountWeight,
+    TAccountCredential,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
-    TAccountProviderAuthority,
-    TAccountSystemProgram
+    TAccountProviderAuthority
   >
 > {
   // Program address.
@@ -207,36 +153,21 @@ export async function getCreateWeightInstructionAsync<
 
   // Original accounts.
   const originalAccounts = {
-    weight: { value: input.weight ?? null, isWritable: true },
+    credential: { value: input.credential ?? null, isWritable: true },
     course: { value: input.course ?? null, isWritable: true },
     provider: { value: input.provider ?? null, isWritable: false },
     hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
-      isWritable: true,
+      isWritable: false,
     },
-    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
     ResolvedAccount
   >;
 
-  // Original args.
-  const args = { ...input };
-
   // Resolve default values.
-  if (!accounts.weight.value) {
-    accounts.weight.value = await getProgramDerivedAddress({
-      programAddress,
-      seeds: [
-        getBytesEncoder().encode(
-          new Uint8Array([119, 101, 105, 103, 104, 116]),
-        ),
-        getUtf8Encoder().encode(expectSome(args.weightId)),
-      ],
-    });
-  }
   if (!accounts.hub.value) {
     accounts.hub.value = await getProgramDerivedAddress({
       programAddress,
@@ -257,162 +188,130 @@ export async function getCreateWeightInstructionAsync<
       ],
     });
   }
-  if (!accounts.systemProgram.value) {
-    accounts.systemProgram.value =
-      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
-  }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta(accounts.weight),
+      getAccountMeta(accounts.credential),
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
       getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
-      getAccountMeta(accounts.systemProgram),
     ],
-    data: getCreateWeightInstructionDataEncoder().encode(
-      args as CreateWeightInstructionDataArgs,
-    ),
+    data: getApproveCredentialInstructionDataEncoder().encode({}),
     programAddress,
-  } as CreateWeightInstruction<
+  } as ApproveCredentialInstruction<
     TProgramAddress,
-    TAccountWeight,
+    TAccountCredential,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
-    TAccountProviderAuthority,
-    TAccountSystemProgram
+    TAccountProviderAuthority
   >);
 }
 
-export type CreateWeightInput<
-  TAccountWeight extends string = string,
+export type ApproveCredentialInput<
+  TAccountCredential extends string = string,
   TAccountCourse extends string = string,
   TAccountProvider extends string = string,
   TAccountHub extends string = string,
   TAccountProviderAuthority extends string = string,
-  TAccountSystemProgram extends string = string,
 > = {
-  weight: Address<TAccountWeight>;
+  credential: Address<TAccountCredential>;
   course: Address<TAccountCourse>;
   provider: Address<TAccountProvider>;
   hub: Address<TAccountHub>;
   providerAuthority: TransactionSigner<TAccountProviderAuthority>;
-  systemProgram?: Address<TAccountSystemProgram>;
-  weightId: CreateWeightInstructionDataArgs["weightId"];
-  name: CreateWeightInstructionDataArgs["name"];
-  percentage: CreateWeightInstructionDataArgs["percentage"];
-  description: CreateWeightInstructionDataArgs["description"];
 };
 
-export function getCreateWeightInstruction<
-  TAccountWeight extends string,
+export function getApproveCredentialInstruction<
+  TAccountCredential extends string,
   TAccountCourse extends string,
   TAccountProvider extends string,
   TAccountHub extends string,
   TAccountProviderAuthority extends string,
-  TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: CreateWeightInput<
-    TAccountWeight,
+  input: ApproveCredentialInput<
+    TAccountCredential,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
-    TAccountProviderAuthority,
-    TAccountSystemProgram
+    TAccountProviderAuthority
   >,
   config?: { programAddress?: TProgramAddress },
-): CreateWeightInstruction<
+): ApproveCredentialInstruction<
   TProgramAddress,
-  TAccountWeight,
+  TAccountCredential,
   TAccountCourse,
   TAccountProvider,
   TAccountHub,
-  TAccountProviderAuthority,
-  TAccountSystemProgram
+  TAccountProviderAuthority
 > {
   // Program address.
   const programAddress = config?.programAddress ?? FAIR_CREDIT_PROGRAM_ADDRESS;
 
   // Original accounts.
   const originalAccounts = {
-    weight: { value: input.weight ?? null, isWritable: true },
+    credential: { value: input.credential ?? null, isWritable: true },
     course: { value: input.course ?? null, isWritable: true },
     provider: { value: input.provider ?? null, isWritable: false },
     hub: { value: input.hub ?? null, isWritable: false },
     providerAuthority: {
       value: input.providerAuthority ?? null,
-      isWritable: true,
+      isWritable: false,
     },
-    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
     ResolvedAccount
   >;
 
-  // Original args.
-  const args = { ...input };
-
-  // Resolve default values.
-  if (!accounts.systemProgram.value) {
-    accounts.systemProgram.value =
-      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
-  }
-
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta(accounts.weight),
+      getAccountMeta(accounts.credential),
       getAccountMeta(accounts.course),
       getAccountMeta(accounts.provider),
       getAccountMeta(accounts.hub),
       getAccountMeta(accounts.providerAuthority),
-      getAccountMeta(accounts.systemProgram),
     ],
-    data: getCreateWeightInstructionDataEncoder().encode(
-      args as CreateWeightInstructionDataArgs,
-    ),
+    data: getApproveCredentialInstructionDataEncoder().encode({}),
     programAddress,
-  } as CreateWeightInstruction<
+  } as ApproveCredentialInstruction<
     TProgramAddress,
-    TAccountWeight,
+    TAccountCredential,
     TAccountCourse,
     TAccountProvider,
     TAccountHub,
-    TAccountProviderAuthority,
-    TAccountSystemProgram
+    TAccountProviderAuthority
   >);
 }
 
-export type ParsedCreateWeightInstruction<
+export type ParsedApproveCredentialInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    weight: TAccountMetas[0];
+    credential: TAccountMetas[0];
     course: TAccountMetas[1];
     provider: TAccountMetas[2];
     hub: TAccountMetas[3];
     providerAuthority: TAccountMetas[4];
-    systemProgram: TAccountMetas[5];
   };
-  data: CreateWeightInstructionData;
+  data: ApproveCredentialInstructionData;
 };
 
-export function parseCreateWeightInstruction<
+export function parseApproveCredentialInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedCreateWeightInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
+): ParsedApproveCredentialInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 5) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -425,13 +324,12 @@ export function parseCreateWeightInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
-      weight: getNextAccount(),
+      credential: getNextAccount(),
       course: getNextAccount(),
       provider: getNextAccount(),
       hub: getNextAccount(),
       providerAuthority: getNextAccount(),
-      systemProgram: getNextAccount(),
     },
-    data: getCreateWeightInstructionDataDecoder().decode(instruction.data),
+    data: getApproveCredentialInstructionDataDecoder().decode(instruction.data),
   };
 }

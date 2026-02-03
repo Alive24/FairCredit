@@ -1,5 +1,5 @@
 use crate::events::*;
-use crate::state::{Course, Hub, HubConfig, Provider};
+use crate::state::{Course, CourseList, Hub, HubConfig, Provider};
 use crate::types::HubError;
 use anchor_lang::prelude::*;
 
@@ -223,6 +223,185 @@ pub fn remove_accepted_course(ctx: Context<RemoveAcceptedCourse>) -> Result<()> 
         timestamp: Clock::get()?.unix_timestamp,
     });
 
+    Ok(())
+}
+
+#[derive(Accounts)]
+#[instruction(course_list_index: u16)]
+pub struct CreateCourseList<'info> {
+    #[account(
+        mut,
+        seeds = [Hub::SEED_PREFIX.as_bytes()],
+        bump,
+        constraint = hub.authority == authority.key() @ HubError::UnauthorizedHubAction
+    )]
+    pub hub: Account<'info, Hub>,
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + CourseList::INIT_SPACE,
+        seeds = [
+            CourseList::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            &course_list_index.to_le_bytes(),
+        ],
+        bump
+    )]
+    pub course_list: Account<'info, CourseList>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+pub fn create_course_list(ctx: Context<CreateCourseList>, course_list_index: u16) -> Result<()> {
+    let hub = &mut ctx.accounts.hub;
+    let list = &mut ctx.accounts.course_list;
+    let now = Clock::get()?.unix_timestamp;
+
+    list.hub = hub.key();
+    list.index = course_list_index;
+    list.created_at = now;
+    list.updated_at = now;
+    list.next = None;
+    list.courses = Vec::new();
+
+    hub.add_course(list.key())?;
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+#[instruction(course_list_index: u16)]
+pub struct AddCourseToList<'info> {
+    #[account(
+        mut,
+        seeds = [Hub::SEED_PREFIX.as_bytes()],
+        bump,
+        constraint = hub.authority == authority.key() @ HubError::UnauthorizedHubAction
+    )]
+    pub hub: Account<'info, Hub>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [
+            CourseList::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            &course_list_index.to_le_bytes(),
+        ],
+        bump,
+        has_one = hub
+    )]
+    pub course_list: Account<'info, CourseList>,
+    pub course: Account<'info, Course>,
+}
+
+pub fn add_course_to_list(ctx: Context<AddCourseToList>, course_list_index: u16) -> Result<()> {
+    let hub = &ctx.accounts.hub;
+    let course_list = &mut ctx.accounts.course_list;
+    let course = &ctx.accounts.course;
+
+    require!(
+        hub.accepted_courses.contains(&course_list.key()),
+        HubError::CourseListNotRegistered
+    );
+    require!(
+        course_list.index == course_list_index,
+        HubError::CourseListNotRegistered
+    );
+
+    course_list.add_course(course.key())?;
+    Ok(())
+}
+
+#[derive(Accounts)]
+#[instruction(course_list_index: u16)]
+pub struct RemoveCourseFromList<'info> {
+    #[account(
+        mut,
+        seeds = [Hub::SEED_PREFIX.as_bytes()],
+        bump,
+        constraint = hub.authority == authority.key() @ HubError::UnauthorizedHubAction
+    )]
+    pub hub: Account<'info, Hub>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [
+            CourseList::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            &course_list_index.to_le_bytes(),
+        ],
+        bump,
+        has_one = hub
+    )]
+    pub course_list: Account<'info, CourseList>,
+    pub course: Account<'info, Course>,
+}
+
+pub fn remove_course_from_list(
+    ctx: Context<RemoveCourseFromList>,
+    course_list_index: u16,
+    remove_reference_if_empty: bool,
+) -> Result<()> {
+    let hub = &mut ctx.accounts.hub;
+    let course_list = &mut ctx.accounts.course_list;
+    let course = &ctx.accounts.course;
+
+    require!(
+        hub.accepted_courses.contains(&course_list.key()),
+        HubError::CourseListNotRegistered
+    );
+    require!(
+        course_list.index == course_list_index,
+        HubError::CourseListNotRegistered
+    );
+
+    course_list.remove_course(&course.key())?;
+
+    if remove_reference_if_empty && course_list.courses.is_empty() {
+        hub.remove_course(&course_list.key())?;
+    }
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+#[instruction(course_list_index: u16)]
+pub struct SetCourseListNext<'info> {
+    #[account(
+        seeds = [Hub::SEED_PREFIX.as_bytes()],
+        bump,
+        constraint = hub.authority == authority.key() @ HubError::UnauthorizedHubAction
+    )]
+    pub hub: Account<'info, Hub>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [
+            CourseList::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            &course_list_index.to_le_bytes(),
+        ],
+        bump,
+        has_one = hub
+    )]
+    pub course_list: Account<'info, CourseList>,
+    /// CHECK: Optional pointer to another course list; validated off-chain when traversing
+    pub next_list: Option<AccountInfo<'info>>,
+}
+
+pub fn set_course_list_next(ctx: Context<SetCourseListNext>, course_list_index: u16) -> Result<()> {
+    let course_list = &mut ctx.accounts.course_list;
+    require!(
+        course_list.index == course_list_index,
+        HubError::CourseListNotRegistered
+    );
+
+    let next_key = ctx.accounts.next_list.as_ref().map(|account| account.key());
+    course_list.next = next_key;
+    course_list.updated_at = Clock::get()?.unix_timestamp;
     Ok(())
 }
 

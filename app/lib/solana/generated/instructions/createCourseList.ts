@@ -16,6 +16,8 @@ import {
   getProgramDerivedAddress,
   getStructDecoder,
   getStructEncoder,
+  getU16Decoder,
+  getU16Encoder,
   transformEncoder,
   type AccountMeta,
   type AccountSignerMeta,
@@ -27,119 +29,124 @@ import {
   type InstructionWithAccounts,
   type InstructionWithData,
   type ReadonlyAccount,
-  type ReadonlySignerAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
+  type WritableSignerAccount,
 } from "@solana/kit";
 import { FAIR_CREDIT_PROGRAM_ADDRESS } from "../programs";
 import {
   expectAddress,
+  expectSome,
   getAccountMetaFactory,
   type ResolvedAccount,
 } from "../shared";
 
-export const ADD_ACCEPTED_PROVIDER_DISCRIMINATOR = new Uint8Array([
-  254, 208, 75, 70, 237, 107, 97, 207,
+export const CREATE_COURSE_LIST_DISCRIMINATOR = new Uint8Array([
+  236, 54, 193, 88, 23, 242, 114, 85,
 ]);
 
-export function getAddAcceptedProviderDiscriminatorBytes() {
+export function getCreateCourseListDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    ADD_ACCEPTED_PROVIDER_DISCRIMINATOR,
+    CREATE_COURSE_LIST_DISCRIMINATOR,
   );
 }
 
-export type AddAcceptedProviderInstruction<
+export type CreateCourseListInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountHub extends string | AccountMeta<string> = string,
+  TAccountCourseList extends string | AccountMeta<string> = string,
   TAccountAuthority extends string | AccountMeta<string> = string,
-  TAccountProvider extends string | AccountMeta<string> = string,
-  TAccountProviderWallet extends string | AccountMeta<string> = string,
+  TAccountSystemProgram extends string | AccountMeta<string> =
+    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
       TAccountHub extends string ? WritableAccount<TAccountHub> : TAccountHub,
+      TAccountCourseList extends string
+        ? WritableAccount<TAccountCourseList>
+        : TAccountCourseList,
       TAccountAuthority extends string
-        ? ReadonlySignerAccount<TAccountAuthority> &
+        ? WritableSignerAccount<TAccountAuthority> &
             AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
-      TAccountProvider extends string
-        ? ReadonlyAccount<TAccountProvider>
-        : TAccountProvider,
-      TAccountProviderWallet extends string
-        ? ReadonlyAccount<TAccountProviderWallet>
-        : TAccountProviderWallet,
+      TAccountSystemProgram extends string
+        ? ReadonlyAccount<TAccountSystemProgram>
+        : TAccountSystemProgram,
       ...TRemainingAccounts,
     ]
   >;
 
-export type AddAcceptedProviderInstructionData = {
+export type CreateCourseListInstructionData = {
   discriminator: ReadonlyUint8Array;
+  courseListIndex: number;
 };
 
-export type AddAcceptedProviderInstructionDataArgs = {};
+export type CreateCourseListInstructionDataArgs = { courseListIndex: number };
 
-export function getAddAcceptedProviderInstructionDataEncoder(): FixedSizeEncoder<AddAcceptedProviderInstructionDataArgs> {
+export function getCreateCourseListInstructionDataEncoder(): FixedSizeEncoder<CreateCourseListInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
-    (value) => ({
-      ...value,
-      discriminator: ADD_ACCEPTED_PROVIDER_DISCRIMINATOR,
-    }),
+    getStructEncoder([
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["courseListIndex", getU16Encoder()],
+    ]),
+    (value) => ({ ...value, discriminator: CREATE_COURSE_LIST_DISCRIMINATOR }),
   );
 }
 
-export function getAddAcceptedProviderInstructionDataDecoder(): FixedSizeDecoder<AddAcceptedProviderInstructionData> {
+export function getCreateCourseListInstructionDataDecoder(): FixedSizeDecoder<CreateCourseListInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["courseListIndex", getU16Decoder()],
   ]);
 }
 
-export function getAddAcceptedProviderInstructionDataCodec(): FixedSizeCodec<
-  AddAcceptedProviderInstructionDataArgs,
-  AddAcceptedProviderInstructionData
+export function getCreateCourseListInstructionDataCodec(): FixedSizeCodec<
+  CreateCourseListInstructionDataArgs,
+  CreateCourseListInstructionData
 > {
   return combineCodec(
-    getAddAcceptedProviderInstructionDataEncoder(),
-    getAddAcceptedProviderInstructionDataDecoder(),
+    getCreateCourseListInstructionDataEncoder(),
+    getCreateCourseListInstructionDataDecoder(),
   );
 }
 
-export type AddAcceptedProviderAsyncInput<
+export type CreateCourseListAsyncInput<
   TAccountHub extends string = string,
+  TAccountCourseList extends string = string,
   TAccountAuthority extends string = string,
-  TAccountProvider extends string = string,
-  TAccountProviderWallet extends string = string,
+  TAccountSystemProgram extends string = string,
 > = {
   hub?: Address<TAccountHub>;
+  courseList?: Address<TAccountCourseList>;
   authority: TransactionSigner<TAccountAuthority>;
-  provider?: Address<TAccountProvider>;
-  providerWallet: Address<TAccountProviderWallet>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  courseListIndex: CreateCourseListInstructionDataArgs["courseListIndex"];
 };
 
-export async function getAddAcceptedProviderInstructionAsync<
+export async function getCreateCourseListInstructionAsync<
   TAccountHub extends string,
+  TAccountCourseList extends string,
   TAccountAuthority extends string,
-  TAccountProvider extends string,
-  TAccountProviderWallet extends string,
+  TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: AddAcceptedProviderAsyncInput<
+  input: CreateCourseListAsyncInput<
     TAccountHub,
+    TAccountCourseList,
     TAccountAuthority,
-    TAccountProvider,
-    TAccountProviderWallet
+    TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
 ): Promise<
-  AddAcceptedProviderInstruction<
+  CreateCourseListInstruction<
     TProgramAddress,
     TAccountHub,
+    TAccountCourseList,
     TAccountAuthority,
-    TAccountProvider,
-    TAccountProviderWallet
+    TAccountSystemProgram
   >
 > {
   // Program address.
@@ -148,14 +155,17 @@ export async function getAddAcceptedProviderInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     hub: { value: input.hub ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: false },
-    provider: { value: input.provider ?? null, isWritable: false },
-    providerWallet: { value: input.providerWallet ?? null, isWritable: false },
+    courseList: { value: input.courseList ?? null, isWritable: true },
+    authority: { value: input.authority ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
     ResolvedAccount
   >;
+
+  // Original args.
+  const args = { ...input };
 
   // Resolve default values.
   if (!accounts.hub.value) {
@@ -164,72 +174,77 @@ export async function getAddAcceptedProviderInstructionAsync<
       seeds: [getBytesEncoder().encode(new Uint8Array([104, 117, 98]))],
     });
   }
-  if (!accounts.provider.value) {
-    accounts.provider.value = await getProgramDerivedAddress({
+  if (!accounts.courseList.value) {
+    accounts.courseList.value = await getProgramDerivedAddress({
       programAddress,
       seeds: [
         getBytesEncoder().encode(
-          new Uint8Array([112, 114, 111, 118, 105, 100, 101, 114]),
+          new Uint8Array([99, 111, 117, 114, 115, 101, 45, 108, 105, 115, 116]),
         ),
         getAddressEncoder().encode(expectAddress(accounts.hub.value)),
-        getAddressEncoder().encode(
-          expectAddress(accounts.providerWallet.value),
-        ),
+        getU16Encoder().encode(expectSome(args.courseListIndex)),
       ],
     });
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.hub),
+      getAccountMeta(accounts.courseList),
       getAccountMeta(accounts.authority),
-      getAccountMeta(accounts.provider),
-      getAccountMeta(accounts.providerWallet),
+      getAccountMeta(accounts.systemProgram),
     ],
-    data: getAddAcceptedProviderInstructionDataEncoder().encode({}),
+    data: getCreateCourseListInstructionDataEncoder().encode(
+      args as CreateCourseListInstructionDataArgs,
+    ),
     programAddress,
-  } as AddAcceptedProviderInstruction<
+  } as CreateCourseListInstruction<
     TProgramAddress,
     TAccountHub,
+    TAccountCourseList,
     TAccountAuthority,
-    TAccountProvider,
-    TAccountProviderWallet
+    TAccountSystemProgram
   >);
 }
 
-export type AddAcceptedProviderInput<
+export type CreateCourseListInput<
   TAccountHub extends string = string,
+  TAccountCourseList extends string = string,
   TAccountAuthority extends string = string,
-  TAccountProvider extends string = string,
-  TAccountProviderWallet extends string = string,
+  TAccountSystemProgram extends string = string,
 > = {
   hub: Address<TAccountHub>;
+  courseList: Address<TAccountCourseList>;
   authority: TransactionSigner<TAccountAuthority>;
-  provider: Address<TAccountProvider>;
-  providerWallet: Address<TAccountProviderWallet>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  courseListIndex: CreateCourseListInstructionDataArgs["courseListIndex"];
 };
 
-export function getAddAcceptedProviderInstruction<
+export function getCreateCourseListInstruction<
   TAccountHub extends string,
+  TAccountCourseList extends string,
   TAccountAuthority extends string,
-  TAccountProvider extends string,
-  TAccountProviderWallet extends string,
+  TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
 >(
-  input: AddAcceptedProviderInput<
+  input: CreateCourseListInput<
     TAccountHub,
+    TAccountCourseList,
     TAccountAuthority,
-    TAccountProvider,
-    TAccountProviderWallet
+    TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
-): AddAcceptedProviderInstruction<
+): CreateCourseListInstruction<
   TProgramAddress,
   TAccountHub,
+  TAccountCourseList,
   TAccountAuthority,
-  TAccountProvider,
-  TAccountProviderWallet
+  TAccountSystemProgram
 > {
   // Program address.
   const programAddress = config?.programAddress ?? FAIR_CREDIT_PROGRAM_ADDRESS;
@@ -237,56 +252,67 @@ export function getAddAcceptedProviderInstruction<
   // Original accounts.
   const originalAccounts = {
     hub: { value: input.hub ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: false },
-    provider: { value: input.provider ?? null, isWritable: false },
-    providerWallet: { value: input.providerWallet ?? null, isWritable: false },
+    courseList: { value: input.courseList ?? null, isWritable: true },
+    authority: { value: input.authority ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
     ResolvedAccount
   >;
 
+  // Original args.
+  const args = { ...input };
+
+  // Resolve default values.
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
+  }
+
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.hub),
+      getAccountMeta(accounts.courseList),
       getAccountMeta(accounts.authority),
-      getAccountMeta(accounts.provider),
-      getAccountMeta(accounts.providerWallet),
+      getAccountMeta(accounts.systemProgram),
     ],
-    data: getAddAcceptedProviderInstructionDataEncoder().encode({}),
+    data: getCreateCourseListInstructionDataEncoder().encode(
+      args as CreateCourseListInstructionDataArgs,
+    ),
     programAddress,
-  } as AddAcceptedProviderInstruction<
+  } as CreateCourseListInstruction<
     TProgramAddress,
     TAccountHub,
+    TAccountCourseList,
     TAccountAuthority,
-    TAccountProvider,
-    TAccountProviderWallet
+    TAccountSystemProgram
   >);
 }
 
-export type ParsedAddAcceptedProviderInstruction<
+export type ParsedCreateCourseListInstruction<
   TProgram extends string = typeof FAIR_CREDIT_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
     hub: TAccountMetas[0];
-    authority: TAccountMetas[1];
-    provider: TAccountMetas[2];
-    providerWallet: TAccountMetas[3];
+    courseList: TAccountMetas[1];
+    authority: TAccountMetas[2];
+    systemProgram: TAccountMetas[3];
   };
-  data: AddAcceptedProviderInstructionData;
+  data: CreateCourseListInstructionData;
 };
 
-export function parseAddAcceptedProviderInstruction<
+export function parseCreateCourseListInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedAddAcceptedProviderInstruction<TProgram, TAccountMetas> {
+): ParsedCreateCourseListInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 4) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
@@ -301,12 +327,10 @@ export function parseAddAcceptedProviderInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       hub: getNextAccount(),
+      courseList: getNextAccount(),
       authority: getNextAccount(),
-      provider: getNextAccount(),
-      providerWallet: getNextAccount(),
+      systemProgram: getNextAccount(),
     },
-    data: getAddAcceptedProviderInstructionDataDecoder().decode(
-      instruction.data,
-    ),
+    data: getCreateCourseListInstructionDataDecoder().decode(instruction.data),
   };
 }
