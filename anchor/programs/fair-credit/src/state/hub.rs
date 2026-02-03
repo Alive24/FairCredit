@@ -11,9 +11,10 @@ pub struct Hub {
     /// List of accepted provider wallets
     #[max_len(50)]
     pub accepted_providers: Vec<Pubkey>,
-    /// List of accepted course IDs (courses from accepted providers; must be accepted to be usable)
-    #[max_len(100, 32)]
-    pub accepted_courses: Vec<String>,
+    /// List of accepted course PDAs (courses from accepted providers; must be accepted to be usable)
+    /// NOTE: We keep a high upper bound here for account sizing, but logically this can grow over time.
+    #[max_len(2000)]
+    pub accepted_courses: Vec<Pubkey>,
     /// Hub creation timestamp
     pub created_at: i64,
     /// Last update timestamp
@@ -72,24 +73,24 @@ impl Hub {
         Ok(())
     }
 
-    /// Add a course to the accepted list
-    pub fn add_course(&mut self, course_id: String) -> Result<()> {
-        if !self.accepted_courses.contains(&course_id) {
-            self.accepted_courses.push(course_id);
+    /// Add a course to the accepted list (by course PDA)
+    pub fn add_course(&mut self, course: Pubkey) -> Result<()> {
+        if !self.accepted_courses.contains(&course) {
+            self.accepted_courses.push(course);
             self.updated_at = Clock::get()?.unix_timestamp;
         }
         Ok(())
     }
 
     /// Remove a course from the accepted list
-    pub fn remove_course(&mut self, course_id: &String) -> Result<()> {
-        self.accepted_courses.retain(|c| c != course_id);
+    pub fn remove_course(&mut self, course: &Pubkey) -> Result<()> {
+        self.accepted_courses.retain(|c| c != course);
         self.updated_at = Clock::get()?.unix_timestamp;
         Ok(())
     }
 
     /// Check if a course is accepted
-    pub fn is_course_accepted(&self, course_id: &String) -> bool {
-        self.accepted_courses.contains(course_id)
+    pub fn is_course_accepted(&self, course: &Pubkey) -> bool {
+        self.accepted_courses.contains(course)
     }
 }

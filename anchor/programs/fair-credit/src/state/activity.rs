@@ -1,23 +1,20 @@
+use crate::types::{ActivityError, ActivityKind, ActivityStatus, ResourceKind};
 use anchor_lang::prelude::*;
-use crate::types::{ActivityKind, ActivityStatus, ResourceKind, ActivityError};
 
 #[account]
 #[derive(InitSpace)]
 pub struct Activity {
-    #[max_len(32)]
-    pub id: String,
+    /// Creation timestamp (used in PDA seeds: activity + provider + student + created)
     pub created: i64,
     pub updated: i64,
-    #[max_len(32)]
-    pub user_id: String,
-    #[max_len(32)]
-    pub college_id: String,
+    /// Uploader / student wallet
+    pub student: Pubkey,
+    /// Provider account (PDA)
+    pub provider: Pubkey,
     #[max_len(32)]
     pub degree_id: Option<String>,
-    #[max_len(32)]
-    pub weight_id: Option<String>,
-    #[max_len(32)]
-    pub course_id: Option<String>,
+    /// Course account (PDA) if activity is course-related
+    pub course: Option<Pubkey>,
     #[max_len(32)]
     pub resource_id: Option<String>,
     #[max_len(512)]
@@ -32,8 +29,6 @@ pub struct Activity {
     pub evidence_assets: Vec<String>, // Evidence asset IDs
 }
 
-
-
 impl Activity {
     pub const SEED_PREFIX: &'static str = "activity";
 
@@ -45,7 +40,10 @@ impl Activity {
     }
 
     pub fn add_evidence_asset(&mut self, asset_id: String) -> Result<()> {
-        require!(self.evidence_assets.len() < 10, ActivityError::TooManyAssets);
+        require!(
+            self.evidence_assets.len() < 10,
+            ActivityError::TooManyAssets
+        );
         self.evidence_assets.push(asset_id);
         self.updated = Clock::get()?.unix_timestamp;
         Ok(())

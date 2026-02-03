@@ -1,9 +1,9 @@
 use crate::state::*;
-use crate::types::{CourseError, CourseStatus, CourseStudentStatus};
+use crate::types::{CourseError, CourseStatus};
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
-#[instruction(course_id: String)]
+#[instruction(creation_timestamp: i64)]
 pub struct CreateCourse<'info> {
     #[account(
         init,
@@ -11,8 +11,9 @@ pub struct CreateCourse<'info> {
         space = 8 + Course::INIT_SPACE,
         seeds = [
             Course::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
             provider.key().as_ref(),
-            course_id.as_bytes(),
+            &creation_timestamp.to_le_bytes(),
         ],
         bump
     )]
@@ -36,7 +37,7 @@ pub struct CreateCourse<'info> {
 
 pub fn create_course(
     ctx: Context<CreateCourse>,
-    course_id: String,
+    creation_timestamp: i64,
     name: String,
     description: String,
     workload_required: u32,
@@ -44,8 +45,15 @@ pub fn create_course(
 ) -> Result<()> {
     let course = &mut ctx.accounts.course;
     let clock = Clock::get()?;
+    // Reject if timestamp is too far from current time (e.g. ±5 min) to avoid replay
+    let now = clock.unix_timestamp;
+    require!(
+        creation_timestamp >= now.saturating_sub(300)
+            && creation_timestamp <= now.saturating_add(60),
+        CourseError::InvalidCreationTimestamp
+    );
 
-    course.id = course_id.clone();
+    course.creation_timestamp = creation_timestamp;
     course.created = clock.unix_timestamp;
     course.updated = clock.unix_timestamp;
     course.provider = ctx.accounts.provider_authority.key();
@@ -53,68 +61,28 @@ pub fn create_course(
     course.rejection_reason = None;
     course.name = name;
     course.description = description;
-    course.weight_ids = Vec::new();
+    course.modules = Vec::new();
     course.workload_required = workload_required;
     course.workload = 0;
-    course.college_id = ctx.accounts.provider.wallet.to_string(); // Use provider wallet as ID
+    course.college_id = ctx.accounts.provider.wallet.to_string();
     course.degree_id = degree_id;
-    course.resource_ids = Vec::new();
+    course.approved_credentials = Vec::new();
 
     Ok(())
 }
 
 #[derive(Accounts)]
-#[instruction(weight_id: String)]
-pub struct CreateWeight<'info> {
-    #[account(
-        init,
-        payer = provider_authority,
-        space = 8 + Weight::INIT_SPACE,
-        seeds = [Weight::SEED_PREFIX.as_bytes(), weight_id.as_bytes()],
-        bump
-    )]
-    pub weight: Account<'info, Weight>,
+pub struct AddCourseModule<'info> {
     #[account(
         mut,
         seeds = [
             Course::SEED_PREFIX.as_bytes(),
-            provider.key().as_ref(),
-            course.id.as_bytes(),
-        ],
-        bump
-    )]
-    pub course: Account<'info, Course>,
-    #[account(
-        seeds = [
-            Provider::SEED_PREFIX.as_bytes(),
             hub.key().as_ref(),
-            provider_authority.key().as_ref(),
-        ],
-        bump
-    )]
-    pub provider: Account<'info, Provider>,
-    #[account(seeds = [Hub::SEED_PREFIX.as_bytes()], bump)]
-    pub hub: Account<'info, Hub>,
-    #[account(mut)]
-    pub provider_authority: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct ArchiveCourseProgress<'info> {
-    #[account(
-        mut,
-        seeds = [CourseStudent::SEED_PREFIX.as_bytes(), course_student.course_id.as_bytes(), course_student.student_id.as_bytes()],
-        bump
-    )]
-    pub course_student: Account<'info, CourseStudent>,
-    #[account(
-        seeds = [
-            Course::SEED_PREFIX.as_bytes(),
             provider.key().as_ref(),
-            course_student.course_id.as_bytes(),
+            &course.creation_timestamp.to_le_bytes(),
         ],
-        bump
+        bump,
+        constraint = course.provider == provider_authority.key()
     )]
     pub course: Account<'info, Course>,
     #[account(
@@ -132,27 +100,12 @@ pub struct ArchiveCourseProgress<'info> {
     pub provider_authority: Signer<'info>,
 }
 
-pub fn create_weight(
-    ctx: Context<CreateWeight>,
-    weight_id: String,
-    name: String,
+pub fn add_course_module(
+    ctx: Context<AddCourseModule>,
+    resource: Pubkey,
     percentage: u8,
-    description: Option<String>,
 ) -> Result<()> {
-    require!(percentage <= 100, CourseError::InvalidProgress);
-
-    let weight = &mut ctx.accounts.weight;
-    let course = &mut ctx.accounts.course;
-
-    weight.id = weight_id.clone();
-    weight.course_id = course.id.clone();
-    weight.name = name;
-    weight.percentage = percentage;
-    weight.description = description;
-
-    // Add weight to course
-    course.add_weight(weight_id)?;
-
+    ctx.accounts.course.add_module(resource, percentage)?;
     Ok(())
 }
 
@@ -166,36 +119,15 @@ pub fn update_course_status(
     Ok(())
 }
 
-pub fn archive_course_progress(ctx: Context<ArchiveCourseProgress>) -> Result<bool> {
-    let course_student = &mut ctx.accounts.course_student;
-
-    // Set status to archived/completed
-    course_student.status = CourseStudentStatus::Submitted;
-    course_student.updated = Clock::get()?.unix_timestamp;
-
-    Ok(true)
-}
-
-pub fn update_course_progress(ctx: Context<UpdateCourseProgress>, progress: u8) -> Result<()> {
-    let course_student = &mut ctx.accounts.course_student;
-    course_student.update_progress(progress)?;
-    Ok(())
-}
-
-pub fn complete_course(ctx: Context<CompleteCourse>, final_grade: f64) -> Result<()> {
-    let course_student = &mut ctx.accounts.course_student;
-    course_student.complete_course(final_grade)?;
-    Ok(())
-}
-
 #[derive(Accounts)]
 pub struct UpdateCourseStatus<'info> {
     #[account(
         mut,
         seeds = [
             Course::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
             provider.key().as_ref(),
-            course.id.as_bytes(),
+            &course.creation_timestamp.to_le_bytes(),
         ],
         bump
     )]
@@ -213,48 +145,4 @@ pub struct UpdateCourseStatus<'info> {
     pub hub: Account<'info, Hub>,
     #[account(mut)]
     pub provider_authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateCourseProgress<'info> {
-    #[account(
-        mut,
-        seeds = [CourseStudent::SEED_PREFIX.as_bytes(), course_student.course_id.as_bytes(), course_student.student_id.as_bytes()],
-        bump
-    )]
-    pub course_student: Account<'info, CourseStudent>,
-    #[account(mut)]
-    pub student_authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct CompleteCourse<'info> {
-    #[account(
-        mut,
-        seeds = [CourseStudent::SEED_PREFIX.as_bytes(), course_student.course_id.as_bytes(), course_student.student_id.as_bytes()],
-        bump
-    )]
-    pub course_student: Account<'info, CourseStudent>,
-    #[account(
-        seeds = [
-            Course::SEED_PREFIX.as_bytes(),
-            provider.key().as_ref(),
-            course_student.course_id.as_bytes(),
-        ],
-        bump
-    )]
-    pub course: Account<'info, Course>,
-    #[account(
-        seeds = [
-            Provider::SEED_PREFIX.as_bytes(),
-            hub.key().as_ref(),
-            teacher_authority.key().as_ref(),
-        ],
-        bump
-    )]
-    pub provider: Account<'info, Provider>,
-    #[account(seeds = [Hub::SEED_PREFIX.as_bytes()], bump)]
-    pub hub: Account<'info, Hub>,
-    #[account(mut)]
-    pub teacher_authority: Signer<'info>,
 }

@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 
 /// Credential metadata structure
-/// Contains detailed credential information, with some data stored on IPFS
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct CredentialMetadata {
     /// Credential title
@@ -16,14 +15,14 @@ pub struct CredentialMetadata {
     /// Research output (optional)
     #[max_len(200)]
     pub research_output: Option<String>,
-    /// Mentor endorsement content
+    /// Mentor endorsement content (set when mentor endorses)
     #[max_len(300)]
     pub mentor_endorsement: String,
     /// Completion date timestamp
     pub completion_date: i64,
-    /// IPFS hash for storing additional metadata
-    #[max_len(64)]
-    pub ipfs_hash: String,
+    /// Activity PDAs created by this student and linked to this credential
+    #[max_len(20)]
+    pub activities: Vec<Pubkey>,
 }
 
 /// Credential status enumeration
@@ -38,4 +37,4 @@ pub enum CredentialStatus {
     Minted,
     /// Verified - Credential has been verified by third parties
     Verified,
-} 
+}

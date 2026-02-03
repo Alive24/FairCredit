@@ -73,7 +73,6 @@ pub struct AddAcceptedProvider<'info> {
     )]
     pub hub: Account<'info, Hub>,
     pub authority: Signer<'info>,
-    /// The provider account to be added (PDA: provider + hub + provider_wallet)
     #[account(
         seeds = [
             Provider::SEED_PREFIX.as_bytes(),
@@ -166,7 +165,6 @@ pub fn transfer_hub_authority(ctx: Context<TransferHubAuthority>) -> Result<()> 
 }
 
 #[derive(Accounts)]
-#[instruction(course_id: String, provider_wallet: Pubkey)]
 pub struct AddAcceptedCourse<'info> {
     #[account(
         mut,
@@ -176,48 +174,23 @@ pub struct AddAcceptedCourse<'info> {
     )]
     pub hub: Account<'info, Hub>,
     pub authority: Signer<'info>,
-    /// Provider that owns the course (PDA: provider + hub + provider_wallet)
-    #[account(
-        seeds = [
-            Provider::SEED_PREFIX.as_bytes(),
-            hub.key().as_ref(),
-            provider_wallet.as_ref(),
-        ],
-        bump
-    )]
-    pub provider: Account<'info, Provider>,
-    /// The course account to be added (PDA: course + provider + course_id)
-    #[account(
-        seeds = [
-            Course::SEED_PREFIX.as_bytes(),
-            provider.key().as_ref(),
-            course_id.as_bytes(),
-        ],
-        bump
-    )]
     pub course: Account<'info, Course>,
 }
 
-pub fn add_accepted_course(
-    ctx: Context<AddAcceptedCourse>,
-    course_id: String,
-    _provider_wallet: Pubkey,
-) -> Result<()> {
+pub fn add_accepted_course(ctx: Context<AddAcceptedCourse>) -> Result<()> {
     let hub = &mut ctx.accounts.hub;
     let course = &ctx.accounts.course;
 
-    // Verify the course belongs to an accepted provider
     require!(
         hub.is_provider_accepted(&course.provider),
         HubError::ProviderNotAccepted
     );
 
-    hub.add_course(course_id.clone())?;
+    hub.add_course(course.key())?;
 
-    // Emit course accepted event
     emit!(CourseAccepted {
         hub_authority: hub.authority,
-        course_id,
+        course: course.key(),
         provider: course.provider,
         timestamp: Clock::get()?.unix_timestamp,
     });
@@ -226,7 +199,6 @@ pub fn add_accepted_course(
 }
 
 #[derive(Accounts)]
-#[instruction(course_id: String)]
 pub struct RemoveAcceptedCourse<'info> {
     #[account(
         mut,
@@ -236,17 +208,18 @@ pub struct RemoveAcceptedCourse<'info> {
     )]
     pub hub: Account<'info, Hub>,
     pub authority: Signer<'info>,
+    pub course: Account<'info, Course>,
 }
 
-pub fn remove_accepted_course(ctx: Context<RemoveAcceptedCourse>, course_id: String) -> Result<()> {
+pub fn remove_accepted_course(ctx: Context<RemoveAcceptedCourse>) -> Result<()> {
     let hub = &mut ctx.accounts.hub;
+    let course = &ctx.accounts.course;
 
-    hub.remove_course(&course_id)?;
+    hub.remove_course(&course.key())?;
 
-    // Emit course removed event
     emit!(CourseRemovedFromHub {
         hub_authority: hub.authority,
-        course_id,
+        course: course.key(),
         timestamp: Clock::get()?.unix_timestamp,
     });
 

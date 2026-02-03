@@ -25,7 +25,7 @@ pub struct Provider {
     /// Registration timestamp
     pub registered_at: i64,
     /// Endorser wallets set by this provider (no Hub acceptance required)
-    #[max_len(50)]
+    #[max_len(100)]
     pub endorsers: Vec<Pubkey>,
 }
 
@@ -45,10 +45,5 @@ impl Provider {
     pub fn remove_endorser(&mut self, endorser: &Pubkey) -> Result<()> {
         self.endorsers.retain(|e| e != endorser);
         Ok(())
-    }
-
-    /// Check if provider can issue credentials
-    pub fn can_issue_credentials(&self) -> bool {
-        true
     }
 }

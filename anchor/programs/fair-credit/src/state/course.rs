@@ -1,11 +1,18 @@
+use crate::types::{CourseError, CourseStatus};
 use anchor_lang::prelude::*;
-use crate::types::{CourseStatus, CourseStudentStatus, CourseError};
+
+/// One module in a course: points to a resource and its weight (percentage).
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+pub struct CourseModule {
+    pub resource: Pubkey,
+    pub percentage: u8, // 0-100
+}
 
 #[account]
 #[derive(InitSpace)]
 pub struct Course {
-    #[max_len(32)]
-    pub id: String,
+    /// Creation timestamp used in PDA seeds (hub + provider + creation_timestamp)
+    pub creation_timestamp: i64,
     pub created: i64,
     pub updated: i64,
     pub provider: Pubkey,
@@ -16,91 +23,57 @@ pub struct Course {
     pub name: String,
     #[max_len(256)]
     pub description: String,
-    #[max_len(20, 32)]
-    pub weight_ids: Vec<String>, // Weight IDs
+    /// List of modules: each points to a resource (PDA) and has a percentage weight
+    #[max_len(20)]
+    pub modules: Vec<CourseModule>,
     pub workload_required: u32,
     pub workload: u32,
     #[max_len(32)]
     pub college_id: String,
     #[max_len(32)]
     pub degree_id: Option<String>,
-    #[max_len(50, 32)]
-    pub resource_ids: Vec<String>, // Associated resource IDs
-}
-
-#[account]
-#[derive(InitSpace)]
-pub struct CourseStudent {
-    #[max_len(32)]
-    pub course_id: String,
-    #[max_len(32)]
-    pub student_id: String,
-    pub status: CourseStudentStatus,
-    pub enrolled_at: i64,
-    pub updated: i64,
-    pub progress: u8, // 0-100 percentage
-    pub final_grade: Option<f64>,
-}
-
-#[account]
-#[derive(InitSpace)]
-pub struct Weight {
-    #[max_len(32)]
-    pub id: String,
-    #[max_len(32)]
-    pub course_id: String,
-    #[max_len(64)]
-    pub name: String,
-    pub percentage: u8, // 0-100
-    #[max_len(100)]
-    pub description: Option<String>,
+    /// Credential PDAs approved by this provider for this course
+    #[max_len(200)]
+    pub approved_credentials: Vec<Pubkey>,
 }
 
 impl Course {
     pub const SEED_PREFIX: &'static str = "course";
 
-    pub fn add_weight(&mut self, weight_id: String) -> Result<()> {
-        require!(self.weight_ids.len() < 20, CourseError::TooManyWeights);
-        self.weight_ids.push(weight_id);
+    pub fn add_module(&mut self, resource: Pubkey, percentage: u8) -> Result<()> {
+        require!(self.modules.len() < 20, CourseError::TooManyModules);
+        require!(percentage <= 100, CourseError::InvalidProgress);
+        self.modules.push(CourseModule {
+            resource,
+            percentage,
+        });
         self.updated = Clock::get()?.unix_timestamp;
         Ok(())
     }
 
-    pub fn add_resource(&mut self, resource_id: String) -> Result<()> {
-        require!(self.resource_ids.len() < 50, CourseError::TooManyResources);
-        self.resource_ids.push(resource_id);
-        self.updated = Clock::get()?.unix_timestamp;
-        Ok(())
-    }
-
-    pub fn update_status(&mut self, status: CourseStatus, rejection_reason: Option<String>) -> Result<()> {
+    pub fn update_status(
+        &mut self,
+        status: CourseStatus,
+        rejection_reason: Option<String>,
+    ) -> Result<()> {
         self.status = status;
         self.rejection_reason = rejection_reason;
         self.updated = Clock::get()?.unix_timestamp;
         Ok(())
     }
-}
 
-impl CourseStudent {
-    pub const SEED_PREFIX: &'static str = "course_student";
-
-    pub fn update_progress(&mut self, progress: u8) -> Result<()> {
-        require!(progress <= 100, CourseError::InvalidProgress);
-        self.progress = progress;
+    /// Add a credential to the approved list (provider confirms after endorser signs)
+    pub fn add_approved_credential(&mut self, credential_pubkey: Pubkey) -> Result<()> {
+        require!(
+            !self.approved_credentials.contains(&credential_pubkey),
+            CourseError::CredentialAlreadyApproved
+        );
+        require!(
+            self.approved_credentials.len() < 200,
+            CourseError::TooManyApprovedCredentials
+        );
+        self.approved_credentials.push(credential_pubkey);
         self.updated = Clock::get()?.unix_timestamp;
         Ok(())
     }
-
-    pub fn complete_course(&mut self, final_grade: f64) -> Result<()> {
-        self.final_grade = Some(final_grade);
-        self.status = if final_grade >= 60.0 { CourseStudentStatus::Passed } else { CourseStudentStatus::Failed };
-        self.updated = Clock::get()?.unix_timestamp;
-        Ok(())
-    }
 }
-
-impl Weight {
-    pub const SEED_PREFIX: &'static str = "weight";
-}
-
- 

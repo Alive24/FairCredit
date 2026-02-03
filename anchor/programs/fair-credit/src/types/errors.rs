@@ -4,16 +4,26 @@ use anchor_lang::prelude::*;
 pub enum ActivityError {
     #[msg("Too many assets attached to activity")]
     TooManyAssets,
+    #[msg("Creation timestamp must be within ±5 minutes of current time")]
+    InvalidCreationTimestamp,
 }
 
 #[error_code]
 pub enum CourseError {
-    #[msg("Too many weights for course")]
-    TooManyWeights,
+    #[msg("Creation timestamp must be within ±5 minutes of current time")]
+    InvalidCreationTimestamp,
+    #[msg("Too many modules for course")]
+    TooManyModules,
     #[msg("Too many resources for course")]
     TooManyResources,
     #[msg("Invalid progress percentage")]
     InvalidProgress,
+    #[msg("Credential already in approved list")]
+    CredentialAlreadyApproved,
+    #[msg("Too many approved credentials")]
+    TooManyApprovedCredentials,
+    #[msg("Course must be Verified (active) to create credentials")]
+    CourseNotActive,
 }
 
 #[error_code]
@@ -40,24 +50,22 @@ pub enum StudentError {
 
 #[error_code]
 pub enum ResourceError {
+    #[msg("Creation timestamp must be within ±5 minutes of current time")]
+    InvalidCreationTimestamp,
     #[msg("Too many assets attached")]
     TooManyAssets,
     #[msg("Too many tags")]
     TooManyTags,
     #[msg("Duplicate tag")]
     DuplicateTag,
-    #[msg("Too many teachers assigned")]
-    TooManyTeachers,
-    #[msg("Teacher already assigned to resource")]
-    TeacherAlreadyAssigned,
-    #[msg("Content too long")]
-    ContentTooLong,
-    #[msg("Invalid IPFS hash")]
-    InvalidIPFSHash,
     #[msg("Invalid grade value")]
     InvalidGrade,
     #[msg("Submission not graded yet")]
     SubmissionNotGraded,
+    #[msg("Caller is not authorized to update this entity")]
+    UnauthorizedResourceAuthority,
+    #[msg("Nostr reference already set; use force=true to override")]
+    NostrRefAlreadySet,
 }
 
 #[error_code]
@@ -104,6 +112,24 @@ pub enum ProviderError {
     NoteTooLong,
     #[msg("Invalid reputation score (must be 0-100)")]
     InvalidReputationScore,
+}
+
+#[error_code]
+pub enum CredentialError {
+    #[msg("Credential must be Endorsed before provider can approve")]
+    NotEndorsed,
+    #[msg("Credential must be Verified before student can mint NFT")]
+    NotVerified,
+    #[msg("Credential NFT has already been minted")]
+    AlreadyMinted,
+    #[msg("Only the designated mentor can endorse this credential")]
+    UnauthorizedEndorser,
+    #[msg("Too many activities linked to this credential")]
+    TooManyActivities,
+    #[msg("Activity must be created by the same student as the credential")]
+    ActivityNotOwnedByStudent,
+    #[msg("Activity already linked to this credential")]
+    ActivityAlreadyLinked,
 }
 
 #[error_code]

@@ -10,6 +10,7 @@ use handlers::course::*;
 use handlers::credential::*;
 use handlers::hub::*;
 use handlers::provider::*;
+use handlers::resource::*;
 use state::HubConfig;
 
 // Must match target/deploy/fair_credit-keypair.json (run: solana address -k anchor/target/deploy/fair_credit-keypair.json)
@@ -42,28 +43,12 @@ pub mod fair_credit {
         )
     }
 
-    pub fn create_credential(
-        ctx: Context<CreateCredential>,
-        credential_id: u64,
-        title: String,
-        description: String,
-        skills_acquired: Vec<String>,
-        research_output: Option<String>,
-        mentor_endorsement: String,
-        completion_date: i64,
-        ipfs_hash: String,
-    ) -> Result<()> {
-        handlers::credential::create_credential(
-            ctx,
-            credential_id,
-            title,
-            description,
-            skills_acquired,
-            research_output,
-            mentor_endorsement,
-            completion_date,
-            ipfs_hash,
-        )
+    pub fn create_credential(ctx: Context<CreateCredential>) -> Result<()> {
+        handlers::credential::create_credential(ctx)
+    }
+
+    pub fn link_activity_to_credential(ctx: Context<LinkActivityToCredential>) -> Result<()> {
+        handlers::credential::link_activity_to_credential(ctx)
     }
 
     pub fn endorse_credential(
@@ -71,6 +56,14 @@ pub mod fair_credit {
         endorsement_message: String,
     ) -> Result<()> {
         handlers::credential::endorse_credential(ctx, endorsement_message)
+    }
+
+    pub fn approve_credential(ctx: Context<ApproveCredential>) -> Result<()> {
+        handlers::credential::approve_credential(ctx)
+    }
+
+    pub fn mint_credential_nft(ctx: Context<MintCredentialNft>) -> Result<()> {
+        handlers::credential::mint_credential_nft(ctx)
     }
 
     pub fn initialize_hub(ctx: Context<InitializeHub>) -> Result<()> {
@@ -97,19 +90,12 @@ pub mod fair_credit {
         handlers::hub::transfer_hub_authority(ctx)
     }
 
-    pub fn add_accepted_course(
-        ctx: Context<AddAcceptedCourse>,
-        course_id: String,
-        provider_wallet: Pubkey,
-    ) -> Result<()> {
-        handlers::hub::add_accepted_course(ctx, course_id, provider_wallet)
+    pub fn add_accepted_course(ctx: Context<AddAcceptedCourse>) -> Result<()> {
+        handlers::hub::add_accepted_course(ctx)
     }
 
-    pub fn remove_accepted_course(
-        ctx: Context<RemoveAcceptedCourse>,
-        course_id: String,
-    ) -> Result<()> {
-        handlers::hub::remove_accepted_course(ctx, course_id)
+    pub fn remove_accepted_course(ctx: Context<RemoveAcceptedCourse>) -> Result<()> {
+        handlers::hub::remove_accepted_course(ctx)
     }
 
     pub fn add_provider_endorser(ctx: Context<AddProviderEndorser>) -> Result<()> {
@@ -126,7 +112,7 @@ pub mod fair_credit {
 
     pub fn create_course(
         ctx: Context<CreateCourse>,
-        course_id: String,
+        creation_timestamp: i64,
         name: String,
         description: String,
         workload_required: u32,
@@ -134,7 +120,7 @@ pub mod fair_credit {
     ) -> Result<()> {
         handlers::course::create_course(
             ctx,
-            course_id,
+            creation_timestamp,
             name,
             description,
             workload_required,
@@ -142,14 +128,12 @@ pub mod fair_credit {
         )
     }
 
-    pub fn create_weight(
-        ctx: Context<CreateWeight>,
-        weight_id: String,
-        name: String,
+    pub fn add_course_module(
+        ctx: Context<AddCourseModule>,
+        resource: Pubkey,
         percentage: u8,
-        description: Option<String>,
     ) -> Result<()> {
-        handlers::course::create_weight(ctx, weight_id, name, percentage, description)
+        handlers::course::add_course_module(ctx, resource, percentage)
     }
 
     pub fn update_course_status(
@@ -160,16 +144,116 @@ pub mod fair_credit {
         handlers::course::update_course_status(ctx, status, rejection_reason)
     }
 
-    pub fn archive_course_progress(ctx: Context<ArchiveCourseProgress>) -> Result<bool> {
-        handlers::course::archive_course_progress(ctx)
+    pub fn add_resource(
+        ctx: Context<AddResource>,
+        creation_timestamp: i64,
+        kind: types::ResourceKind,
+        name: String,
+        external_id: Option<String>,
+        workload: Option<u32>,
+        tags: Vec<String>,
+    ) -> Result<()> {
+        handlers::resource::add_resource(
+            ctx,
+            creation_timestamp,
+            kind,
+            name,
+            external_id,
+            workload,
+            tags,
+        )
     }
 
-    pub fn update_course_progress(ctx: Context<UpdateCourseProgress>, progress: u8) -> Result<()> {
-        handlers::course::update_course_progress(ctx, progress)
+    pub fn update_resource_data(
+        ctx: Context<UpdateResourceData>,
+        name: Option<String>,
+        workload: Option<u32>,
+        tags: Option<Vec<String>>,
+    ) -> Result<()> {
+        handlers::resource::update_resource_data(ctx, name, workload, tags)
     }
 
-    pub fn complete_course(ctx: Context<CompleteCourse>, final_grade: f64) -> Result<()> {
-        handlers::course::complete_course(ctx, final_grade)
+    pub fn set_resource_nostr_ref(
+        ctx: Context<SetResourceNostrRef>,
+        nostr_d_tag: String,
+        nostr_author_pubkey: [u8; 32],
+        force: bool,
+    ) -> Result<()> {
+        handlers::resource::set_resource_nostr_ref(ctx, nostr_d_tag, nostr_author_pubkey, force)
+    }
+
+    pub fn set_resource_walrus_ref(
+        ctx: Context<SetResourceWalrusRef>,
+        walrus_blob_id: String,
+    ) -> Result<()> {
+        handlers::resource::set_resource_walrus_ref(ctx, walrus_blob_id)
+    }
+
+    pub fn create_asset(
+        ctx: Context<CreateAsset>,
+        creation_timestamp: i64,
+        content_type: Option<String>,
+        file_name: Option<String>,
+        file_size: Option<u64>,
+        resource: Option<Pubkey>,
+    ) -> Result<()> {
+        handlers::resource::create_asset(
+            ctx,
+            creation_timestamp,
+            content_type,
+            file_name,
+            file_size,
+            resource,
+        )
+    }
+
+    pub fn set_asset_nostr_ref(
+        ctx: Context<SetAssetNostrRef>,
+        nostr_d_tag: String,
+        nostr_author_pubkey: [u8; 32],
+        force: bool,
+    ) -> Result<()> {
+        handlers::resource::set_asset_nostr_ref(ctx, nostr_d_tag, nostr_author_pubkey, force)
+    }
+
+    pub fn set_asset_walrus_ref(
+        ctx: Context<SetAssetWalrusRef>,
+        walrus_blob_id: String,
+    ) -> Result<()> {
+        handlers::resource::set_asset_walrus_ref(ctx, walrus_blob_id)
+    }
+
+    pub fn create_submission(
+        ctx: Context<CreateSubmission>,
+        submission_timestamp: i64,
+        assets: Vec<Pubkey>,
+        evidence_assets: Vec<Pubkey>,
+    ) -> Result<()> {
+        handlers::resource::create_submission(ctx, submission_timestamp, assets, evidence_assets)
+    }
+
+    pub fn grade_submission(
+        ctx: Context<GradeSubmission>,
+        grade: f64,
+        feedback: Option<String>,
+    ) -> Result<()> {
+        handlers::resource::grade_submission(ctx, grade, feedback)
+    }
+
+    pub fn set_submission_nostr_ref(
+        ctx: Context<SetSubmissionNostrRef>,
+        nostr_d_tag: String,
+        nostr_author_pubkey: [u8; 32],
+        force: bool,
+    ) -> Result<()> {
+        handlers::resource::set_submission_nostr_ref(ctx, nostr_d_tag, nostr_author_pubkey, force)
+    }
+
+    pub fn set_submission_walrus_ref(
+        ctx: Context<SetSubmissionWalrusRef>,
+        walrus_blob_id: String,
+    ) -> Result<()> {
+        handlers::resource::set_submission_walrus_ref(ctx, walrus_blob_id)
     }
 }
 

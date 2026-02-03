@@ -33,7 +33,7 @@ pub struct ProviderReputationUpdated {
 /// Event emitted when a credential is created
 #[event]
 pub struct CredentialCreated {
-    pub credential_id: u64,
+    pub credential: Pubkey,
     pub provider: Pubkey,
     pub student: Pubkey,
     pub mentor: Pubkey,
@@ -44,7 +44,7 @@ pub struct CredentialCreated {
 /// Event emitted when a credential is endorsed
 #[event]
 pub struct CredentialEndorsed {
-    pub credential_id: u64,
+    pub credential: Pubkey,
     pub mentor: Pubkey,
     pub endorsement: String,
     pub timestamp: i64,
@@ -53,15 +53,24 @@ pub struct CredentialEndorsed {
 /// Event emitted when a credential is verified
 #[event]
 pub struct CredentialVerified {
-    pub credential_id: u64,
+    pub credential: Pubkey,
     pub verification_count: u64,
+    pub timestamp: i64,
+}
+
+/// Event emitted when a credential NFT is minted
+#[event]
+pub struct CredentialMinted {
+    pub credential: Pubkey,
+    pub student: Pubkey,
+    pub mint: Pubkey,
     pub timestamp: i64,
 }
 
 /// Event emitted when a course is created
 #[event]
 pub struct CourseCreated {
-    pub course_id: String,
+    pub course: Pubkey,
     pub provider: Pubkey,
     pub name: String,
     pub workload_required: u32,
@@ -72,7 +81,7 @@ pub struct CourseCreated {
 #[event]
 pub struct ResourceAdded {
     pub resource_id: String,
-    pub course_id: String,
+    pub course: Pubkey,
     pub provider: Pubkey,
     pub name: String,
     pub kind: String,
@@ -82,9 +91,10 @@ pub struct ResourceAdded {
 /// Event emitted when an activity is created
 #[event]
 pub struct ActivityCreated {
-    pub activity_id: String,
-    pub user_id: String,
-    pub course_id: Option<String>,
+    pub activity: Pubkey,
+    pub student: Pubkey,
+    pub provider: Pubkey,
+    pub course: Option<Pubkey>,
     pub kind: String,
     pub timestamp: i64,
 }
@@ -92,7 +102,7 @@ pub struct ActivityCreated {
 /// Event emitted when an activity is graded
 #[event]
 pub struct ActivityGraded {
-    pub activity_id: String,
+    pub activity: Pubkey,
     pub grade: f64,
     pub teacher: Pubkey,
     pub timestamp: i64,
@@ -156,7 +166,7 @@ pub struct HubAuthorityTransferred {
 #[event]
 pub struct CourseAccepted {
     pub hub_authority: Pubkey,
-    pub course_id: String,
+    pub course: Pubkey,
     pub provider: Pubkey,
     pub timestamp: i64,
 }
@@ -165,6 +175,6 @@ pub struct CourseAccepted {
 #[event]
 pub struct CourseRemovedFromHub {
     pub hub_authority: Pubkey,
-    pub course_id: String,
+    pub course: Pubkey,
     pub timestamp: i64,
 }
