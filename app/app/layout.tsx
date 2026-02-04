@@ -1,7 +1,6 @@
 import type React from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 import { Layout, Navbar, Footer } from "nextra-theme-docs";
 import { getPageMap } from "nextra/page-map";
@@ -34,41 +33,7 @@ const navbar = (
     projectLink="https://github.com/Alive24/FairCredit"
     align="left"
   >
-    <div className="flex items-center gap-6">
-      <nav className="hidden items-center gap-6 md:flex">
-        <Link
-          href="/#features"
-          className="text-sm transition-colors hover:text-primary"
-        >
-          Features
-        </Link>
-        <Link
-          href="/#how-it-works"
-          className="text-sm transition-colors hover:text-primary"
-        >
-          How It Works
-        </Link>
-        <Link
-          href="/verify"
-          className="text-sm transition-colors hover:text-primary"
-        >
-          Verify
-        </Link>
-        <Link
-          href="/hub"
-          className="text-sm transition-colors hover:text-primary"
-        >
-          Hub
-        </Link>
-      </nav>
-      <Link
-        href="/docs"
-        className="text-sm transition-colors hover:text-primary"
-      >
-        Docs
-      </Link>
-      <NavbarActions />
-    </div>
+    <NavbarActions />
   </Navbar>
 );
 
@@ -86,7 +51,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pageMap = await getPageMap("/docs");
+  const pageMap = await getPageMap();
 
   return (
     <html lang="en" suppressHydrationWarning>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { User, Shield } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
-import { useAppKit, AppKitButton, useAppKitAccount } from "@reown/appkit/react";
+import { AppKitButton, useAppKitAccount } from "@reown/appkit/react";
 import { useIsHubAuthority } from "@/hooks/use-is-hub-authority";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,7 +27,6 @@ type UserType = "provider" | "student" | "supervisor" | "verifier" | null;
 
 export function NavbarActions() {
   const { address } = useAppKitAccount();
-  const { open } = useAppKit();
   const { isHubAuthority } = useIsHubAuthority();
   const [userType, setUserType] = useState<UserType>(null);
 
@@ -37,16 +36,35 @@ export function NavbarActions() {
     : "";
 
   useEffect(() => {
-    const savedUserType = localStorage.getItem("userType") as UserType;
-    if (savedUserType) {
-      setUserType(savedUserType);
-    }
+    const syncRole = () => {
+      const savedUserType = localStorage.getItem("userType") as UserType;
+      setUserType(savedUserType ?? null);
+    };
+    syncRole();
+    window.addEventListener("storage", syncRole);
+    window.addEventListener("faircredit:role-change", syncRole);
+    return () => {
+      window.removeEventListener("storage", syncRole);
+      window.removeEventListener("faircredit:role-change", syncRole);
+    };
   }, []);
 
   const handleUserTypeSelection = (type: Exclude<UserType, null>) => {
     setUserType(type);
     localStorage.setItem("userType", type);
+    window.dispatchEvent(new Event("faircredit:role-change"));
   };
+
+  const roleLabel =
+    userType === "student"
+      ? "Student"
+      : userType === "provider"
+      ? "Provider"
+      : userType === "supervisor"
+      ? "Supervisor"
+      : userType === "verifier"
+      ? "Verifier"
+      : "Unknown";
 
   return (
     <>
@@ -60,7 +78,10 @@ export function NavbarActions() {
                 className="flex items-center gap-2 bg-transparent"
               >
                 <User className="h-4 w-4" />
-                {walletAddress}
+                <span>{walletAddress}</span>
+                <span className="text-xs text-muted-foreground">
+                  {roleLabel}
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
@@ -68,6 +89,9 @@ export function NavbarActions() {
                 <div className="flex justify-center">
                   <AppKitButton />
                 </div>
+              </div>
+              <div className="px-3 py-2 text-xs text-muted-foreground">
+                Current role: {roleLabel}
               </div>
               <DropdownMenuItem asChild>
                 <Link href="/dashboard">
@@ -102,6 +126,7 @@ export function NavbarActions() {
                 onClick={() => {
                   localStorage.removeItem("userType");
                   setUserType(null);
+                  window.dispatchEvent(new Event("faircredit:role-change"));
                 }}
                 className="cursor-pointer"
               >

@@ -111,14 +111,13 @@ export function ProviderDashboard() {
       setHubData(hub);
 
       try {
-        const providerInstruction = await getAddAcceptedProviderInstructionAsync(
-          {
+        const providerInstruction =
+          await getAddAcceptedProviderInstructionAsync({
             hub: undefined,
             authority: DEFAULT_PLACEHOLDER_SIGNER,
             provider: undefined,
             providerWallet: address(walletAddress),
-          }
-        );
+          });
         const providerAddress = providerInstruction.accounts[2].address;
         setProviderAccountAddress(providerAddress);
         const providerAccount = await fetchMaybeProvider(rpc, providerAddress);
@@ -204,6 +203,7 @@ export function ProviderDashboard() {
   const [newEndorser, setNewEndorser] = useState("");
   const [addingEndorser, setAddingEndorser] = useState(false);
   const [removingEndorser, setRemovingEndorser] = useState<string | null>(null);
+  const endorserCount = providerData?.endorsers?.length ?? 0;
 
   const handleSubmitForHubReview = async (courseAddress: string) => {
     if (!walletAddress) return;
@@ -646,11 +646,6 @@ export function ProviderDashboard() {
                       )}
                     </div>
                   )}
-                  <Link href="/create-credential" className="mt-4 inline-block">
-                    <Button variant="outline" size="sm">
-                      Create Credential
-                    </Button>
-                  </Link>
                 </CardContent>
               </Card>
             </div>
@@ -677,13 +672,13 @@ export function ProviderDashboard() {
                       Manage Courses
                     </Button>
                   </Link>
-                  <Link href="/create-credential">
+                  <Link href="#endorsers">
                     <Button
                       variant="outline"
                       className="w-full h-20 flex flex-col gap-2 bg-transparent"
                     >
                       <Eye className="h-6 w-6" />
-                      Create Credential
+                      Manage Endorsers
                     </Button>
                   </Link>
                   {isHubAuthority && (
@@ -696,6 +691,70 @@ export function ProviderDashboard() {
                         Hub Dashboard
                       </Button>
                     </Link>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card id="endorsers" className="mt-8">
+              <CardHeader>
+                <CardTitle>Endorser Management</CardTitle>
+                <CardDescription>
+                  Grant or revoke permission for wallets to endorse your
+                  students.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col gap-2 md:flex-row">
+                  <Input
+                    placeholder="Endorser wallet address"
+                    value={newEndorser}
+                    onChange={(e) => setNewEndorser(e.target.value)}
+                  />
+                  <Button
+                    onClick={handleAddEndorser}
+                    disabled={addingEndorser || !newEndorser}
+                  >
+                    {addingEndorser && (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    )}
+                    Add Endorser
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {(providerData?.endorsers ?? []).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No endorsers yet. Add at least one wallet so endorsements
+                      can be issued.
+                    </p>
+                  ) : (
+                    (providerData?.endorsers ?? []).map((endorser: Address) => {
+                      const value = String(endorser);
+                      return (
+                        <div
+                          key={value}
+                          className="flex items-center justify-between rounded border px-3 py-2 text-sm"
+                        >
+                          <span className="font-mono text-xs">
+                            {value.slice(0, 8)}…{value.slice(-8)}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={
+                              removingEndorser === value || endorserCount <= 1
+                            }
+                            onClick={() => handleRemoveEndorser(value)}
+                          >
+                            {removingEndorser === value ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              "Remove"
+                            )}
+                          </Button>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </CardContent>
