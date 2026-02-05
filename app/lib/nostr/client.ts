@@ -29,8 +29,8 @@ export const DEFAULT_RELAYS: RelayConfig[] = [
 ];
 
 // Application-specific kinds used to filter events.
-const RESOURCE_EVENT_KIND = 30000;
-const COURSE_EVENT_KIND = 30001;
+const RESOURCE_EVENT_KIND = 30078;
+const COURSE_EVENT_KIND = 30078;
 
 type WebSocketLike = WebSocket;
 type SignMessageFn = (message: Uint8Array) => Promise<Uint8Array> | Uint8Array;

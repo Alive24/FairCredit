@@ -52,12 +52,17 @@ import {
   publishCourseEvent,
 } from "@/lib/nostr/client";
 import { nip19 } from "nostr-tools";
+import { useTransactionQueue } from "@/hooks/use-transaction-queue";
+import { useFairCredit } from "@/hooks/use-fair-credit";
+import { fetchMaybeCourse } from "@/lib/solana/generated/accounts/course";
 
 export default function CreateCourse() {
   const { toast } = useToast();
+  const { rpc } = useFairCredit();
   const { address: walletAddress, isConnected } = useAppKitAccount();
   const { sendTransaction, isSending, walletProvider } =
     useAppKitTransaction();
+  const transactionQueue = useTransactionQueue();
   const [currentStep, setCurrentStep] = useState(1);
   const [skills, setSkills] = useState<string[]>([]);
   const [requirements, setRequirements] = useState<string[]>([]);
@@ -92,6 +97,7 @@ export default function CreateCourse() {
   const [hubAddress, setHubAddress] = useState<Address | null>(null);
   const [providerPda, setProviderPda] = useState<Address | null>(null);
   const [resolvingProvider, setResolvingProvider] = useState(false);
+  const [isConfirmingOnChain, setIsConfirmingOnChain] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -341,37 +347,42 @@ export default function CreateCourse() {
 
     setIsSubmitting(true);
     try {
-      const createIx = await getCreateCourseInstructionAsync({
-        course: nostrDraft.courseAddress,
-        provider: providerPda,
-        hub: hubAddress,
-        providerAuthority: createPlaceholderSigner(walletAddress),
-        creationTimestamp: nostrDraft.creationTimestamp,
-        name: nostrDraft.profile.title,
-        description: nostrDraft.profile.description,
-        workloadRequired: nostrDraft.workloadRequired,
-        degreeId: null,
+      transactionQueue.enqueue({
+        module: "Courses",
+        label: "Create course",
+        build: async () => {
+          const createIx = await getCreateCourseInstructionAsync({
+            course: nostrDraft.courseAddress,
+            provider: providerPda,
+            hub: hubAddress,
+            providerAuthority: createPlaceholderSigner(walletAddress),
+            creationTimestamp: nostrDraft.creationTimestamp,
+            name: nostrDraft.profile.title,
+            description: nostrDraft.profile.description,
+            workloadRequired: nostrDraft.workloadRequired,
+            degreeId: null,
+          });
+          const authorBytes = hexToBytes32(nostrDraft.authorPubkey);
+          const nostrIx = await getSetCourseNostrRefInstructionAsync({
+            course: nostrDraft.courseAddress,
+            providerAuthority: createPlaceholderSigner(walletAddress),
+            nostrDTag: nostrDraft.dTag,
+            nostrAuthorPubkey: authorBytes,
+            force: false,
+          });
+          return [createIx, nostrIx];
+        },
       });
-      const authorBytes = hexToBytes32(nostrDraft.authorPubkey);
-      const nostrIx = await getSetCourseNostrRefInstructionAsync({
-        course: nostrDraft.courseAddress,
-        providerAuthority: createPlaceholderSigner(walletAddress),
-        nostrDTag: nostrDraft.dTag,
-        nostrAuthorPubkey: authorBytes,
-        force: false,
-      });
-
-      await sendTransaction([createIx, nostrIx]);
       setCreatedCourseAddress(String(nostrDraft.courseAddress));
-      setProgramCreated(true);
       toast({
-        title: "Course created on-chain",
-        description: "Nostr pointer has been bound to the course account.",
+        title: "Course creation enqueued",
+        description:
+          "Approve the transaction in your wallet and wait for it to land on-chain.",
       });
     } catch (error) {
       console.error("Create course failed:", error);
       toast({
-        title: "Failed to create course",
+        title: "Failed to enqueue course creation",
         description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
@@ -488,6 +499,46 @@ export default function CreateCourse() {
     };
   }, [walletAddress]);
 
+  useEffect(() => {
+    if (!createdCourseAddress || !rpc || programCreated) return;
+    let cancelled = false;
+    setIsConfirmingOnChain(true);
+
+    (async () => {
+      try {
+        for (let attempt = 0; attempt < 10; attempt++) {
+          if (cancelled) return;
+          const maybe = await fetchMaybeCourse(
+            rpc,
+            createdCourseAddress as Address<string>,
+          );
+          if (maybe.exists) {
+            if (!cancelled) {
+              setProgramCreated(true);
+              toast({
+                title: "Course created on-chain",
+                description:
+                  "The course account now exists on-chain and is ready in your dashboard.",
+              });
+            }
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+      } catch (error) {
+        console.error("Failed to confirm course creation on-chain", error);
+      } finally {
+        if (!cancelled) {
+          setIsConfirmingOnChain(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [createdCourseAddress, rpc, programCreated, toast]);
+
   const steps = [
     {
       number: 1,
@@ -529,9 +580,9 @@ export default function CreateCourse() {
                   Course Created Successfully!
                 </h1>
                 <p className="text-muted-foreground mb-6">
-                  Your credential course "<strong>{formData.title}</strong>" has
-                  been created on-chain. Submit it to the hub so students can
-                  enroll once verified.
+                  Your credential course "<strong>{formData.title}</strong>" is
+                  now available on-chain. You can submit it to the hub so
+                  students can enroll once verified.
                 </p>
                 {createdCourseAddress && (
                   <p className="text-xs text-muted-foreground font-mono mb-4 break-all">

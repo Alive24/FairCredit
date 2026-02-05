@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAppKitConnection } from "@reown/appkit-adapter-solana/react";
+import bs58 from "bs58";
 import {
   FAIR_CREDIT_PROGRAM_ADDRESS,
   parseFairCreditInstruction,
@@ -31,12 +32,21 @@ type ParsedIx = {
   index: number;
   kind: "system" | "fairCredit" | "other";
   fairCreditType?: FairCreditInstruction;
+  fairCreditDecoded?: unknown;
+  fairCreditDecodeError?: string;
+  // Debug info for troubleshooting parsing
+  rawDataType?: string;
+  rawDataIsUint8?: boolean;
+  rawDataIsString?: boolean;
+  rawDataPreview?: string;
+  normalizedDataLength?: number | null;
   accounts: { pubkey: string; isSigner: boolean; isWritable: boolean }[];
 };
 
 export default function TransactionDetailPage() {
   const params = useParams<{ signature: string }>();
-  const signature = typeof params?.signature === "string" ? params.signature : "";
+  const signature =
+    typeof params?.signature === "string" ? params.signature : "";
   const { connection } = useAppKitConnection();
 
   const [loading, setLoading] = useState(true);
@@ -46,6 +56,10 @@ export default function TransactionDetailPage() {
   const [fee, setFee] = useState<number | null>(null);
   const [computeUnits, setComputeUnits] = useState<number | null>(null);
   const [parsedIxs, setParsedIxs] = useState<ParsedIx[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
+  const [expandedDecoded, setExpandedDecoded] = useState<
+    Record<number, boolean>
+  >({});
 
   const explorerUrl = useMemo(() => {
     if (!signature) return null;
@@ -89,23 +103,44 @@ export default function TransactionDetailPage() {
         const parsed: ParsedIx[] = [];
 
         compiledIxs.forEach((ix, index) => {
-          // Support both TransactionInstruction shape and compiled instruction shape.
+          // Support multiple shapes:
+          // - web3.js TransactionInstruction: { programId, data, keys }
+          // - web3.js MessageCompiledInstruction: { programIdIndex, accountKeyIndexes, data }
+          // - kit Instruction: { programAddress, data, accounts }
           let programId: string;
-          let accountsMeta: { pubkey: string; isSigner: boolean; isWritable: boolean }[] = [];
+          let dataBytes: Uint8Array | undefined;
+          const rawData: unknown = (ix as any).data;
+          let accountsMeta: {
+            pubkey: string;
+            isSigner: boolean;
+            isWritable: boolean;
+          }[] = [];
 
           if ("programId" in ix) {
             // Legacy TransactionInstruction style.
             programId = ix.programId.toBase58();
+            dataBytes = normalizeIxData(ix.data);
             accountsMeta =
               ix.keys?.map((k: any) => ({
                 pubkey: k.pubkey.toBase58(),
                 isSigner: Boolean(k.isSigner),
                 isWritable: Boolean(k.isWritable),
               })) ?? [];
+          } else if ("programAddress" in ix) {
+            // Kit Instruction style.
+            programId = String(ix.programAddress);
+            dataBytes = normalizeIxData(ix.data);
+            accountsMeta =
+              ix.accounts?.map((m: any) => ({
+                pubkey: String(m.address ?? m.pubkey ?? m),
+                isSigner: Boolean(m.isSigner),
+                isWritable: Boolean(m.isWritable),
+              })) ?? [];
           } else {
-            // Compiled instruction: use account indices.
+            // Compiled instruction: use accountKeyIndexes.
             const programKey = accountKeys[ix.programIdIndex];
             programId = programKey?.toBase58?.() ?? String(programKey);
+            dataBytes = normalizeIxData(ix.data);
             const isSigner = (accountIndex: number) =>
               typeof message.isAccountSigner === "function"
                 ? message.isAccountSigner(accountIndex)
@@ -114,21 +149,29 @@ export default function TransactionDetailPage() {
               typeof message.isAccountWritable === "function"
                 ? message.isAccountWritable(accountIndex)
                 : false;
-            accountsMeta =
-              ix.accounts?.map((acctIndex: number) => {
-                const key = accountKeys[acctIndex];
-                return {
-                  pubkey: key?.toBase58?.() ?? String(key),
-                  isSigner: isSigner(acctIndex),
-                  isWritable: isWritable(acctIndex),
-                };
-              }) ?? [];
+            const indices: number[] =
+              (ix.accountKeyIndexes as number[] | undefined) ??
+              (ix.accounts as number[] | undefined) ??
+              [];
+            accountsMeta = indices.map((acctIndex: number) => {
+              const key = accountKeys[acctIndex];
+              return {
+                pubkey: key?.toBase58?.() ?? String(key),
+                isSigner: isSigner(acctIndex),
+                isWritable: isWritable(acctIndex),
+              };
+            });
           }
 
           const base: ParsedIx = {
             programId,
             index,
             kind: "other",
+            rawDataType: typeof rawData,
+            rawDataIsUint8: rawData instanceof Uint8Array,
+            rawDataIsString: typeof rawData === "string",
+            rawDataPreview: previewRawData(rawData),
+            normalizedDataLength: dataBytes?.length ?? null,
             accounts: accountsMeta,
           };
 
@@ -138,7 +181,7 @@ export default function TransactionDetailPage() {
             try {
               const decoded = parseFairCreditInstruction({
                 programAddress: FAIR_CREDIT_PROGRAM_ADDRESS,
-                data: ix.data,
+                data: dataBytes ?? new Uint8Array(),
                 accounts: accountsMeta.map((a) => ({
                   address: a.pubkey,
                   isSigner: a.isSigner,
@@ -149,9 +192,15 @@ export default function TransactionDetailPage() {
                 ...base,
                 kind: "fairCredit",
                 fairCreditType: decoded.instructionType,
+                fairCreditDecoded: decoded,
               });
-            } catch (_e) {
-              parsed.push({ ...base, kind: "fairCredit" });
+            } catch (e) {
+              parsed.push({
+                ...base,
+                kind: "fairCredit",
+                fairCreditDecodeError:
+                  e instanceof Error ? e.message : String(e),
+              });
             }
           } else {
             parsed.push(base);
@@ -282,21 +331,86 @@ export default function TransactionDetailPage() {
                     <span className="font-mono break-all">{ix.programId}</span>
                   </div>
                   <div>
-                    Accounts:
+                    <p className="text-[14px] font-[1000]">Accounts</p>
                     <ul className="mt-1 space-y-0.5">
-                      {ix.accounts.map((a, idx) => (
-                        <li key={`${a.pubkey}-${idx}`} className="flex gap-1">
-                          <span className="font-mono break-all">
-                            {shortPubkey(a.pubkey)}
-                          </span>
-                          <span className="text-[10px] uppercase">
-                            {a.isSigner ? "signer" : ""}
-                            {a.isWritable ? " writable" : " readonly"}
-                          </span>
-                        </li>
-                      ))}
+                      {ix.accounts.map((a, idx) => {
+                        const label = getAccountLabel(ix, a.pubkey, idx);
+                        return (
+                          <li
+                            key={`${a.pubkey}-${idx}`}
+                            className="flex flex-wrap items-center gap-2"
+                          >
+                            {label && (
+                              <span className="text-[11px] font-[800] underline">
+                                {label}:
+                              </span>
+                            )}
+                            <span className="font-mono break-all text-xs">
+                              {a.pubkey}
+                            </span>
+                            {a.isSigner && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] uppercase"
+                              >
+                                SIGNER
+                              </Badge>
+                            )}
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] uppercase"
+                            >
+                              {a.isWritable ? "WRITABLE" : "READONLY"}
+                            </Badge>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
+                  {ix.kind === "fairCredit" &&
+                    !!ix.fairCreditDecoded &&
+                    getFairCreditDataEntries(ix).length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-[14px] font-[1000]">Data</p>
+                        <ul className="space-y-0.5">
+                          {getFairCreditDataEntries(ix).map(
+                            ({ key, value }) => (
+                              <li key={key} className="text-xs">
+                                <span className="font-[800] underline">
+                                  {key}:{" "}
+                                </span>
+                                <span className="font-mono break-all">
+                                  {value}
+                                </span>
+                              </li>
+                            ),
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  {ix.kind === "fairCredit" && !!ix.fairCreditDecoded && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        className="mb-1 text-[11px] text-primary underline"
+                        onClick={() =>
+                          setExpandedDecoded((prev) => ({
+                            ...prev,
+                            [ix.index]: !prev[ix.index],
+                          }))
+                        }
+                      >
+                        {expandedDecoded[ix.index]
+                          ? "Hide decoded (Codama/IDL)"
+                          : "Show decoded (Codama/IDL)"}
+                      </button>
+                      {expandedDecoded[ix.index] && (
+                        <pre className="max-h-64 overflow-auto rounded bg-muted p-2 font-mono text-[10px] leading-snug">
+                          {JSON.stringify(ix.fairCreditDecoded, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -308,10 +422,36 @@ export default function TransactionDetailPage() {
           the FairCredit client, not by a third-party explorer.
         </div>
 
-        <div className="pt-4">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/transactions">Back to history</Link>
-          </Button>
+        <div className="pt-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/transactions">Back to history</Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDebug((v) => !v)}
+            >
+              {showDebug ? "Hide debugging info" : "Show debugging info"}
+            </Button>
+          </div>
+
+          {showDebug && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Debugging Info</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Internal debugging payload for the transaction instruction
+                  parser.
+                </p>
+                <pre className="max-h-[400px] overflow-auto rounded bg-muted p-2 font-mono text-[10px] leading-snug whitespace-pre-wrap">
+                  {JSON.stringify(parsedIxs, null, 2)}
+                </pre>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
     </div>
@@ -323,3 +463,159 @@ function shortPubkey(value: string) {
   return `${value.slice(0, 4)}…${value.slice(-4)}`;
 }
 
+function normalizeIxData(raw: unknown): Uint8Array | undefined {
+  if (!raw) return undefined;
+  if (raw instanceof Uint8Array) return raw;
+  // TypedArray / Buffer-like with buffer + byteLength.
+  if (
+    typeof raw === "object" &&
+    raw !== null &&
+    "buffer" in (raw as any) &&
+    "byteLength" in (raw as any)
+  ) {
+    const view = raw as {
+      buffer: ArrayBufferLike;
+      byteLength: number;
+      byteOffset?: number;
+    };
+    return new Uint8Array(view.buffer, view.byteOffset ?? 0, view.byteLength);
+  }
+  if (Array.isArray(raw)) {
+    return new Uint8Array(raw as number[]);
+  }
+  if (typeof raw === "string") {
+    // Some RPC shapes return compiled instruction data as base58 strings.
+    try {
+      return bs58.decode(raw);
+    } catch {
+      return undefined;
+    }
+  }
+  try {
+    if (raw instanceof ArrayBuffer) {
+      return new Uint8Array(raw);
+    }
+    return new Uint8Array(raw as ArrayLike<number>);
+  } catch {
+    return undefined;
+  }
+}
+
+function previewRawData(raw: unknown): string {
+  if (raw == null) return "null";
+  if (typeof raw === "string") {
+    return raw.length > 80 ? `${raw.slice(0, 80)}…` : raw;
+  }
+  if (raw instanceof Uint8Array) {
+    return `Uint8Array(len=${raw.length})`;
+  }
+  if (Array.isArray(raw)) {
+    return `Array(len=${raw.length})`;
+  }
+  if (typeof raw === "object") {
+    try {
+      const json = JSON.stringify(raw);
+      return json.length > 80 ? `${json.slice(0, 80)}…` : json;
+    } catch {
+      return "[object]";
+    }
+  }
+  return String(raw);
+}
+
+function getAccountLabel(
+  ix: ParsedIx,
+  pubkey: string,
+  index: number,
+): string | null {
+  if (ix.kind !== "fairCredit" || !ix.fairCreditDecoded) return null;
+  const decoded: any = ix.fairCreditDecoded;
+  const accounts = decoded.accounts;
+  if (!accounts || typeof accounts !== "object") return null;
+
+  // Try to match by address field when available.
+  const entries = Object.entries(accounts) as [string, any][];
+  for (const [name, meta] of entries) {
+    const addr =
+      typeof meta?.address === "string"
+        ? meta.address
+        : typeof meta?.pubkey === "string"
+        ? meta.pubkey
+        : undefined;
+    if (addr === pubkey) {
+      return name;
+    }
+  }
+
+  // Fallback: if we have no match but we know the order (closeCourse has exactly 4 accounts).
+  if (
+    decoded.instructionType === FairCreditInstruction.CloseCourse &&
+    entries.length === 4
+  ) {
+    const orderedNames = ["course", "provider", "hub", "providerAuthority"];
+    return orderedNames[index] ?? null;
+  }
+
+  return null;
+}
+
+function getFairCreditDataEntries(
+  ix: ParsedIx,
+): { key: string; value: string }[] {
+  if (ix.kind !== "fairCredit" || !ix.fairCreditDecoded) return [];
+  const decoded: any = ix.fairCreditDecoded;
+  const data = decoded.data;
+  if (!data || typeof data !== "object") return [];
+
+  const entries: { key: string; value: string }[] = [];
+  for (const [key, raw] of Object.entries(data as Record<string, unknown>)) {
+    if (key === "discriminator") continue;
+    entries.push({ key, value: formatDataValue(raw) });
+  }
+  return entries;
+}
+
+function formatDataValue(raw: unknown): string {
+  if (raw == null) return "null";
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "number" || typeof raw === "boolean") {
+    return String(raw);
+  }
+  if (raw instanceof Uint8Array) {
+    return formatBytes(raw);
+  }
+  if (
+    typeof raw === "object" &&
+    raw !== null &&
+    "type" in (raw as any) &&
+    (raw as any).type === "Buffer" &&
+    Array.isArray((raw as any).data)
+  ) {
+    return formatBytes(new Uint8Array((raw as any).data as number[]));
+  }
+  if (Array.isArray(raw)) {
+    const arr = raw as unknown[];
+    if (arr.length <= 10) {
+      try {
+        return JSON.stringify(arr);
+      } catch {
+        return `Array(${arr.length})`;
+      }
+    }
+    return `Array(${arr.length})`;
+  }
+  try {
+    const json = JSON.stringify(raw);
+    return json.length > 80 ? `${json.slice(0, 80)}…` : json;
+  } catch {
+    return String(raw);
+  }
+}
+
+function formatBytes(bytes: Uint8Array): string {
+  const prefix = Array.from(bytes.slice(0, 256))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  const suffix = bytes.length > 256 ? "…" : "";
+  return `0x${prefix}${suffix}`;
+}
