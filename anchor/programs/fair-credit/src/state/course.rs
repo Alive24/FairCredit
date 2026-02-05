@@ -32,6 +32,11 @@ pub struct Course {
     pub college_id: String,
     #[max_len(32)]
     pub degree_id: Option<String>,
+    /// Optional Nostr "d" tag used to locate the latest editable course metadata event
+    #[max_len(96)]
+    pub nostr_d_tag: Option<String>,
+    /// Nostr author public key bytes (32 bytes). All-zero means "not set".
+    pub nostr_author_pubkey: [u8; 32],
     /// Credential PDAs approved by this provider for this course
     #[max_len(200)]
     pub approved_credentials: Vec<Pubkey>,
@@ -75,5 +80,9 @@ impl Course {
         self.approved_credentials.push(credential_pubkey);
         self.updated = Clock::get()?.unix_timestamp;
         Ok(())
+    }
+
+    pub fn is_nostr_ref_set(&self) -> bool {
+        self.nostr_d_tag.is_some() || self.nostr_author_pubkey != [0u8; 32]
     }
 }

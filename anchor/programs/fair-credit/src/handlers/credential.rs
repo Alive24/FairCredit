@@ -34,7 +34,7 @@ pub struct CreateCredential<'info> {
         ],
         bump,
         constraint = course.provider == provider.wallet,
-        constraint = course.status == CourseStatus::Verified @ CourseError::CourseNotActive
+        constraint = course.status == CourseStatus::Accepted @ CourseError::CourseNotActive
     )]
     pub course: Account<'info, Course>,
     #[account(

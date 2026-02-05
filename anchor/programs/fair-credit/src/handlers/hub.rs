@@ -1,6 +1,6 @@
 use crate::events::*;
 use crate::state::{Course, CourseList, Hub, HubConfig, Provider};
-use crate::types::HubError;
+use crate::types::{CourseStatus, HubError};
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
@@ -174,12 +174,13 @@ pub struct AddAcceptedCourse<'info> {
     )]
     pub hub: Account<'info, Hub>,
     pub authority: Signer<'info>,
+    #[account(mut)]
     pub course: Account<'info, Course>,
 }
 
 pub fn add_accepted_course(ctx: Context<AddAcceptedCourse>) -> Result<()> {
     let hub = &mut ctx.accounts.hub;
-    let course = &ctx.accounts.course;
+    let course = &mut ctx.accounts.course;
 
     require!(
         hub.is_provider_accepted(&course.provider),
@@ -187,6 +188,7 @@ pub fn add_accepted_course(ctx: Context<AddAcceptedCourse>) -> Result<()> {
     );
 
     hub.add_course(course.key())?;
+    course.update_status(CourseStatus::Accepted, None)?;
 
     emit!(CourseAccepted {
         hub_authority: hub.authority,
@@ -208,14 +210,16 @@ pub struct RemoveAcceptedCourse<'info> {
     )]
     pub hub: Account<'info, Hub>,
     pub authority: Signer<'info>,
+    #[account(mut)]
     pub course: Account<'info, Course>,
 }
 
 pub fn remove_accepted_course(ctx: Context<RemoveAcceptedCourse>) -> Result<()> {
     let hub = &mut ctx.accounts.hub;
-    let course = &ctx.accounts.course;
+    let course = &mut ctx.accounts.course;
 
     hub.remove_course(&course.key())?;
+    course.update_status(CourseStatus::InReview, None)?;
 
     emit!(CourseRemovedFromHub {
         hub_authority: hub.authority,

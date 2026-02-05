@@ -66,6 +66,8 @@ pub fn create_course(
     course.workload = 0;
     course.college_id = ctx.accounts.provider.wallet.to_string();
     course.degree_id = degree_id;
+    course.nostr_d_tag = None;
+    course.nostr_author_pubkey = [0u8; 32];
     course.approved_credentials = Vec::new();
 
     Ok(())
@@ -145,4 +147,105 @@ pub struct UpdateCourseStatus<'info> {
     pub hub: Account<'info, Hub>,
     #[account(mut)]
     pub provider_authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct SetCourseNostrRef<'info> {
+    #[account(
+        mut,
+        seeds = [
+            Course::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider.key().as_ref(),
+            &course.creation_timestamp.to_le_bytes(),
+        ],
+        bump
+    )]
+    pub course: Account<'info, Course>,
+    #[account(
+        seeds = [
+            Provider::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider_authority.key().as_ref(),
+        ],
+        bump
+    )]
+    pub provider: Account<'info, Provider>,
+    #[account(seeds = [Hub::SEED_PREFIX.as_bytes()], bump)]
+    pub hub: Account<'info, Hub>,
+    #[account(mut)]
+    pub provider_authority: Signer<'info>,
+}
+
+pub fn set_course_nostr_ref(
+    ctx: Context<SetCourseNostrRef>,
+    nostr_d_tag: String,
+    nostr_author_pubkey: [u8; 32],
+    force: bool,
+) -> Result<()> {
+    let course = &mut ctx.accounts.course;
+
+    require!(
+        ctx.accounts.provider_authority.key() == course.provider,
+        CourseError::UnauthorizedCourseAuthority
+    );
+
+    if !force {
+        require!(
+            !course.is_nostr_ref_set(),
+            CourseError::NostrRefAlreadySet
+        );
+    }
+
+    course.nostr_d_tag = Some(nostr_d_tag);
+    course.nostr_author_pubkey = nostr_author_pubkey;
+    course.updated = Clock::get()?.unix_timestamp;
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct CloseCourse<'info> {
+    #[account(
+        mut,
+        close = provider_authority,
+        seeds = [
+            Course::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider.key().as_ref(),
+            &course.creation_timestamp.to_le_bytes(),
+        ],
+        bump,
+        constraint = course.provider == provider_authority.key()
+    )]
+    pub course: Account<'info, Course>,
+    #[account(
+        mut,
+        seeds = [
+            Provider::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider_authority.key().as_ref(),
+        ],
+        bump
+    )]
+    pub provider: Account<'info, Provider>,
+    #[account(
+        mut,
+        seeds = [Hub::SEED_PREFIX.as_bytes()],
+        bump
+    )]
+    pub hub: Account<'info, Hub>,
+    #[account(mut)]
+    pub provider_authority: Signer<'info>,
+}
+
+/// Close a course account and reclaim its lamports back to the provider authority.
+/// If the course was accepted by the hub, it is also removed from the hub's accepted list.
+pub fn close_course(ctx: Context<CloseCourse>) -> Result<()> {
+    // Best-effort remove from hub accepted courses; ignore if not present.
+    ctx.accounts
+        .hub
+        .remove_course(&ctx.accounts.course.key())?;
+
+    Ok(())
 }

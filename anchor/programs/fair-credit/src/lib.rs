@@ -170,6 +170,19 @@ pub mod fair_credit {
         handlers::course::update_course_status(ctx, status, rejection_reason)
     }
 
+    pub fn set_course_nostr_ref(
+        ctx: Context<SetCourseNostrRef>,
+        nostr_d_tag: String,
+        nostr_author_pubkey: [u8; 32],
+        force: bool,
+    ) -> Result<()> {
+        handlers::course::set_course_nostr_ref(ctx, nostr_d_tag, nostr_author_pubkey, force)
+    }
+
+    pub fn close_course(ctx: Context<CloseCourse>) -> Result<()> {
+        handlers::course::close_course(ctx)
+    }
+
     pub fn add_resource(
         ctx: Context<AddResource>,
         creation_timestamp: i64,

@@ -24,6 +24,10 @@ pub enum CourseError {
     TooManyApprovedCredentials,
     #[msg("Course must be Verified (active) to create credentials")]
     CourseNotActive,
+    #[msg("Caller is not authorized to update this course")]
+    UnauthorizedCourseAuthority,
+    #[msg("Nostr reference already set; use force=true to override")]
+    NostrRefAlreadySet,
 }
 
 #[error_code]
