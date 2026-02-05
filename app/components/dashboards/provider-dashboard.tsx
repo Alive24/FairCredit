@@ -91,7 +91,7 @@ export function ProviderDashboard() {
   const [acceptedCourseAddresses, setAcceptedCourseAddresses] = useState<
     Set<string>
   >(new Set());
-  const [tagFilter, setTagFilter] = useState<string>("");
+  const [creatorFilter, setCreatorFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<
     "all" | "draft" | "in-review" | "accepted"
   >("all");
@@ -209,7 +209,7 @@ export function ProviderDashboard() {
   ).length;
 
   const filteredCourseEntries = providerCourseEntries.filter((entry) => {
-    if (tagFilter && entry.course.collegeId !== tagFilter) return false;
+    if (creatorFilter && entry.course.collegeId !== creatorFilter) return false;
     const isDraft = entry.course?.status === CourseStatus.Draft;
     const isInReview = entry.course?.status === CourseStatus.InReview;
     const isAccepted = entry.course?.status === CourseStatus.Accepted;
@@ -262,7 +262,7 @@ export function ProviderDashboard() {
   const [removingEndorser, setRemovingEndorser] = useState<string | null>(null);
   const endorserCount = providerData?.endorsers?.length ?? 0;
 
-  const uniqueTags = Array.from(
+  const uniqueCreators = Array.from(
     new Set(
       providerCourseEntries
         .map((e) => e.course.collegeId)
@@ -579,12 +579,14 @@ export function ProviderDashboard() {
                     Courses created and maintained by your provider account
                   </CardDescription>
                   {providerCourseEntries.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <span className="text-xs text-muted-foreground self-center mr-1">
-                        Status:
-                      </span>
-                      {(["all", "draft", "in-review", "accepted"] as const).map(
-                        (f) => (
+                    <div className="flex flex-col gap-2 mt-2">
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <span className="text-xs text-muted-foreground">
+                          Status:
+                        </span>
+                        {(
+                          ["all", "draft", "in-review", "accepted"] as const
+                        ).map((f) => (
                           <Badge
                             key={f}
                             variant={statusFilter === f ? "default" : "outline"}
@@ -597,35 +599,37 @@ export function ProviderDashboard() {
                               ? "In Review"
                               : f.charAt(0).toUpperCase() + f.slice(1)}
                           </Badge>
-                        ),
-                      )}
-                      {uniqueTags.length > 0 && (
-                        <>
-                          <span className="text-xs text-muted-foreground self-center mx-2">
-                            Tag:
+                        ))}
+                      </div>
+                      {uniqueCreators.length > 0 && (
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <span className="text-xs text-muted-foreground">
+                            Creator:
                           </span>
                           <Badge
-                            variant={!tagFilter ? "default" : "outline"}
+                            variant={!creatorFilter ? "default" : "outline"}
                             className="cursor-pointer hover:opacity-80"
-                            onClick={() => setTagFilter("")}
+                            onClick={() => setCreatorFilter("")}
                           >
-                            All Tags
+                            All creators
                           </Badge>
-                          {uniqueTags.map((tag) => (
+                          {uniqueCreators.map((creator) => (
                             <Badge
-                              key={tag}
+                              key={creator}
                               variant={
-                                tagFilter === tag ? "default" : "outline"
+                                creatorFilter === creator ? "default" : "outline"
                               }
                               className="cursor-pointer hover:opacity-80"
                               onClick={() =>
-                                setTagFilter(tagFilter === tag ? "" : tag)
+                                setCreatorFilter(
+                                  creatorFilter === creator ? "" : creator,
+                                )
                               }
                             >
-                              {tag}
+                              {creator}
                             </Badge>
                           ))}
-                        </>
+                        </div>
                       )}
                     </div>
                   )}

@@ -228,7 +228,7 @@ export default function EditCoursePage() {
     {
       number: 5,
       title: "Review & Publish",
-      description: "Confirm and publish to Nostr",
+      description: "Publish Nostr first, then bind on-chain",
     },
   ];
 
@@ -345,13 +345,22 @@ export default function EditCoursePage() {
         neventValue = null;
       }
 
+      let confirmed = false;
       for (let attempt = 0; attempt < 3; attempt++) {
         const event = await fetchLatestCourseEvent({
           dTag,
           authorPubkey: published.authorPubkey,
         });
-        if (event?.id === published.eventId) break;
+        if (event?.id === published.eventId) {
+          confirmed = true;
+          break;
+        }
         await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+      if (!confirmed) {
+        throw new Error(
+          "Nostr event not confirmed on relays yet. Please retry.",
+        );
       }
 
       setNostrPendingEvent({
@@ -370,7 +379,7 @@ export default function EditCoursePage() {
         description: `Event ${published.eventId.slice(0, 8)}… is ready. Confirm to bind on-chain.`,
       });
     } catch (e) {
-      console.error("Publish/bind failed:", e);
+      console.error("Publish failed:", e);
       setNostrPublishStatus("error");
       setNostrPublishError(e instanceof Error ? e.message : String(e));
       toast({
@@ -1050,7 +1059,7 @@ export default function EditCoursePage() {
                         On-Chain Metadata (Nostr)
                       </CardTitle>
                       <CardDescription>
-                        Publish course metadata to a replaceable Nostr event and
+                        Publish course metadata to Nostr first, then confirm to
                         bind the pointer on-chain.
                       </CardDescription>
                     </CardHeader>
@@ -1066,7 +1075,59 @@ export default function EditCoursePage() {
                             ? `${nostrAuthorHex.slice(0, 8)}…`
                             : "Not set"}
                         </div>
+                        <div>
+                          <span className="text-muted-foreground">Status:</span>{" "}
+                          {nostrPublishStatus === "published"
+                            ? "Published"
+                            : nostrPublishStatus === "publishing"
+                            ? "Publishing…"
+                            : nostrPublishStatus === "error"
+                            ? "Error"
+                            : "Not published"}
+                        </div>
                       </div>
+                      {nostrPendingEvent && (
+                        <div className="space-y-1 text-xs">
+                          <div>
+                            <span className="text-muted-foreground">
+                              Event ID:
+                            </span>{" "}
+                            <span className="font-mono break-all">
+                              {nostrPendingEvent.eventId}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">
+                              nevent:
+                            </span>{" "}
+                            <span className="font-mono break-all">
+                              {nostrPendingEvent.nevent ?? "—"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">
+                              Verified URL:
+                            </span>{" "}
+                            {nostrPendingEvent.verifyUrl ? (
+                              <a
+                                href={nostrPendingEvent.verifyUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-mono break-all underline"
+                              >
+                                {nostrPendingEvent.verifyUrl}
+                              </a>
+                            ) : (
+                              <span className="font-mono break-all">—</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {nostrPublishError && (
+                        <p className="text-xs text-destructive">
+                          {nostrPublishError}
+                        </p>
+                      )}
                       <div className="flex flex-wrap gap-3">
                         <Button
                           variant="outline"
@@ -1078,12 +1139,26 @@ export default function EditCoursePage() {
                             : "Sync from Nostr"}
                         </Button>
                         <Button
-                          onClick={publishToNostrAndBind}
+                          onClick={publishNostrEvent}
                           disabled={busy != null || isSending}
                         >
                           {busy === "publish"
                             ? "Publishing…"
-                            : "Publish to Nostr + Bind"}
+                            : "Publish Nostr Event"}
+                        </Button>
+                        <Button
+                          onClick={confirmBindOnChain}
+                          disabled={
+                            busy != null ||
+                            isSending ||
+                            !nostrPendingEvent ||
+                            (!forceRebind &&
+                              course?.nostrDTag?.__option === "Some")
+                          }
+                        >
+                          {busy === "bind"
+                            ? "Binding…"
+                            : "Confirm Bind on-chain"}
                         </Button>
                         <label className="ml-2 flex items-center gap-2 text-xs">
                           <input
@@ -1104,7 +1179,7 @@ export default function EditCoursePage() {
                       ) : (
                         <Save className="h-4 w-4 mr-2" />
                       )}
-                      Publish to Nostr + Bind
+                      Publish Nostr Event
                     </Button>
                     <Link href={`/courses/${courseAddress}`}>
                       <Button variant="outline">View Course</Button>
@@ -1147,7 +1222,7 @@ export default function EditCoursePage() {
                       ) : (
                         <Save className="h-4 w-4 mr-2" />
                       )}
-                      Publish to Nostr + Bind
+                      Publish Nostr Event
                     </Button>
                   )}
                 </div>

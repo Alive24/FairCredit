@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,7 +81,7 @@ export default function CreateCourse() {
   const [nostrNevent, setNostrNevent] = useState<string | null>(null);
   const [nostrVerifyUrl, setNostrVerifyUrl] = useState<string | null>(null);
   const [nostrDraft, setNostrDraft] = useState<{
-    courseAddress: string;
+    courseAddress: Address<string>;
     creationTimestamp: number;
     profile: CourseProfile;
     workloadRequired: number;
@@ -150,7 +150,7 @@ export default function CreateCourse() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (isDraft = false) => {
+  const handleSubmit = useCallback(async () => {
     if (!walletAddress || !hubAddress || !providerPda) {
       toast({
         title: "Wallet or provider not ready",
@@ -220,7 +220,7 @@ export default function CreateCourse() {
         creationTimestamp: creationTimestampNum,
       });
       const payload = buildCourseMetadataPayload(profileSnapshot, {
-        courseAddress: derivedAddress,
+        courseAddress: String(derivedAddress),
         creationTimestamp: creationTimestampNum,
       });
       const published = await publishCourseEvent({
@@ -290,7 +290,18 @@ export default function CreateCourse() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [
+    formData,
+    hubAddress,
+    providerPda,
+    requirements,
+    sendTransaction,
+    skills,
+    tags,
+    toast,
+    walletAddress,
+    walletProvider,
+  ]);
 
   const confirmNostrEvent = async (params: {
     dTag: string;
@@ -351,7 +362,7 @@ export default function CreateCourse() {
       });
 
       await sendTransaction([createIx, nostrIx]);
-      setCreatedCourseAddress(nostrDraft.courseAddress);
+      setCreatedCourseAddress(String(nostrDraft.courseAddress));
       setProgramCreated(true);
       toast({
         title: "Course created on-chain",
@@ -408,6 +419,13 @@ export default function CreateCourse() {
 
   const isActionDisabled =
     isSubmitting || isSending || resolvingProvider || !isConnected;
+
+  useEffect(() => {
+    if (currentStep !== 5) return;
+    if (nostrPublishStatus !== "idle") return;
+    if (isActionDisabled) return;
+    handleSubmit();
+  }, [currentStep, handleSubmit, isActionDisabled, nostrPublishStatus]);
 
   useEffect(() => {
     let mounted = true;
@@ -537,7 +555,15 @@ export default function CreateCourse() {
                 )}
                 {nostrVerifyUrl && (
                   <p className="text-xs text-muted-foreground font-mono mb-4 break-all">
-                    Verified URL: {nostrVerifyUrl}
+                    Verified URL:{" "}
+                    <a
+                      href={nostrVerifyUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
+                      {nostrVerifyUrl}
+                    </a>
                   </p>
                 )}
                 <div className="space-y-4">
@@ -1059,7 +1085,9 @@ export default function CreateCourse() {
                         <div>
                           <strong>Course Address (PDA):</strong>
                           <p className="font-mono text-xs break-all">
-                            {nostrDraft?.courseAddress ?? "—"}
+                            {nostrDraft?.courseAddress
+                              ? String(nostrDraft.courseAddress)
+                              : "—"}
                           </p>
                         </div>
                         <div>
@@ -1082,12 +1110,22 @@ export default function CreateCourse() {
                         </div>
                         <div className="md:col-span-2">
                           <strong>Verified URL:</strong>
-                          <p className="font-mono text-xs break-all">
-                            {nostrVerifyUrl ??
-                              (nostrNevent
+                          {nostrVerifyUrl ? (
+                            <a
+                              href={nostrVerifyUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-mono text-xs break-all underline"
+                            >
+                              {nostrVerifyUrl}
+                            </a>
+                          ) : (
+                            <p className="font-mono text-xs break-all">
+                              {nostrNevent
                                 ? "Pending confirmation…"
-                                : "—")}
-                          </p>
+                                : "—"}
+                            </p>
+                          )}
                         </div>
                       </div>
                       {nostrPublishError && (
@@ -1118,7 +1156,7 @@ export default function CreateCourse() {
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
-                        onClick={() => handleSubmit(false)}
+                        onClick={handleSubmit}
                         disabled={
                           isActionDisabled || nostrPublishStatus === "publishing"
                         }
@@ -1131,7 +1169,9 @@ export default function CreateCourse() {
                         ) : (
                           <>
                             <Eye className="h-4 w-4 mr-2" />
-                            Publish Nostr Event
+                            {nostrPublishStatus === "published"
+                              ? "Republish Nostr Event"
+                              : "Publish Nostr Event"}
                           </>
                         )}
                       </Button>
