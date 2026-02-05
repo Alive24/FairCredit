@@ -47,7 +47,7 @@ export function ReviewCoursesPanel() {
   const acceptedProviderWallets =
     hubData?.acceptedProviders?.map((p: unknown) => String(p)) ?? [];
   const { courses, loading, refetch } = useCourses(
-    acceptedProviderWallets.length > 0 ? acceptedProviderWallets : null
+    acceptedProviderWallets.length > 0 ? acceptedProviderWallets : null,
   );
   const {
     address: walletAddress,
@@ -56,14 +56,14 @@ export function ReviewCoursesPanel() {
     isSending,
   } = useAppKitTransaction();
   const [selectedCourse, setSelectedCourse] = useState<CourseEntry | null>(
-    null
+    null,
   );
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [acceptingCourseId, setAcceptingCourseId] = useState<string | null>(
-    null
+    null,
   );
   const [acceptedCourseSet, setAcceptedCourseSet] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
 
   useEffect(() => {
@@ -75,11 +75,11 @@ export function ReviewCoursesPanel() {
       }
       const resolved = await resolveAcceptedCourses(
         rpc,
-        hubData.acceptedCourses ?? []
+        hubData.acceptedCourses ?? [],
       );
       if (!cancelled) {
         setAcceptedCourseSet(
-          new Set(resolved.map(({ address }) => String(address)))
+          new Set(resolved.map(({ address }) => String(address))),
         );
       }
     }
@@ -95,7 +95,7 @@ export function ReviewCoursesPanel() {
   const pendingCourses = courses.filter(
     (entry) =>
       !isCourseAccepted(String(entry.address)) &&
-      entry.course.status !== CourseStatus.Draft
+      entry.course.status !== CourseStatus.Draft,
   );
 
   const getProviderName = (providerWallet: string) => {
@@ -160,22 +160,22 @@ export function ReviewCoursesPanel() {
             Draft
           </Badge>
         );
-      case CourseStatus.Verified:
+      case CourseStatus.InReview:
         return (
           <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-            Verified
+            In Review
+          </Badge>
+        );
+      case CourseStatus.Accepted:
+        return (
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+            Accepted
           </Badge>
         );
       case CourseStatus.Archived:
         return (
           <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
             Archived
-          </Badge>
-        );
-      case CourseStatus.Rejected:
-        return (
-          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-            Rejected
           </Badge>
         );
       default:
@@ -265,7 +265,7 @@ export function ReviewCoursesPanel() {
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
                             {new Date(
-                              Number(course.created) * 1000
+                              Number(course.created) * 1000,
                             ).toLocaleDateString()}
                           </span>
                           <span>ts={String(course.creationTimestamp)}</span>

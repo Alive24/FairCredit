@@ -52,6 +52,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const pageMap = await getPageMap();
+  const filteredPageMap = withFallbackPageMap(filterDynamicRoutes(pageMap));
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -67,7 +68,7 @@ export default async function RootLayout({
               <Layout
                 navbar={navbar}
                 footer={footer}
-                pageMap={pageMap}
+                pageMap={filteredPageMap}
                 docsRepositoryBase="https://github.com/Alive24/FairCredit/tree/main/app/content"
               >
                 <ClientLayout>{children}</ClientLayout>
@@ -79,4 +80,40 @@ export default async function RootLayout({
       </body>
     </html>
   );
+}
+
+function filterDynamicRoutes(input: unknown): unknown[] {
+  if (!Array.isArray(input)) return [];
+  return input.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Record<string, unknown>;
+    const route = typeof record.route === "string" ? record.route : null;
+    if (route && route.includes("[")) {
+      return [];
+    }
+    const next: Record<string, unknown> = { ...record };
+    if (Array.isArray(record.children)) {
+      const filteredChildren = filterDynamicRoutes(record.children);
+      if (filteredChildren.length > 0) {
+        next.children = filteredChildren;
+      } else {
+        // Avoid passing empty pageMap lists into nextra normalizePages (it assumes list[0] exists).
+        delete next.children;
+      }
+    }
+    if (Array.isArray(record.items)) {
+      const filteredItems = filterDynamicRoutes(record.items);
+      if (filteredItems.length > 0) {
+        next.items = filteredItems;
+      } else {
+        delete next.items;
+      }
+    }
+    return [next];
+  });
+}
+
+function withFallbackPageMap(items: unknown[]): unknown[] {
+  if (items.length > 0) return items;
+  return [{ data: {} }];
 }

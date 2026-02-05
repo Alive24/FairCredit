@@ -61,6 +61,7 @@
     "next-themes": "latest",
     "nextra": "^4.6.1",
     "nextra-theme-docs": "^4.6.1",
+    "nostr-tools": "^2.23.0",
     "react": "^19",
     "react-day-picker": "8.10.1",
     "react-dom": "^19",

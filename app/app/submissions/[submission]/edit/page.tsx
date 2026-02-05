@@ -45,7 +45,8 @@ export default function SubmissionEditPage() {
 
   const { rpc } = useFairCredit();
   const { address: walletAddress, isConnected } = useAppKitAccount();
-  const { sendTransaction, isSending } = useAppKitTransaction();
+  const { sendTransaction, isSending, walletProvider } =
+    useAppKitTransaction();
 
   const [content, setContent] = useState("");
   const [loadingOnChain, setLoadingOnChain] = useState(false);
@@ -160,7 +161,14 @@ export default function SubmissionEditPage() {
     try {
       const submittedAt = Number(onChainData.submittedAt);
       const dTag = `faircredit:submission:${submissionAddress}:${submittedAt}`;
-      const published = await publishResourceEvent({ dTag, content });
+      const published = await publishResourceEvent({
+        dTag,
+        content,
+        walletAddress,
+        signMessage: walletProvider?.signMessage
+          ? (message) => walletProvider.signMessage(message)
+          : undefined,
+      });
       const authorBytes = hexToBytes32(published.authorPubkey);
 
       const ix = getSetSubmissionNostrRefInstruction({
@@ -200,6 +208,7 @@ export default function SubmissionEditPage() {
     submissionAddress,
     toast,
     walletAddress,
+    walletProvider,
   ]);
 
   const finalizeToWalrus = useCallback(async () => {

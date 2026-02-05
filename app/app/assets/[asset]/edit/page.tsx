@@ -44,7 +44,8 @@ export default function AssetEditPage() {
 
   const { rpc } = useFairCredit();
   const { address: walletAddress, isConnected } = useAppKitAccount();
-  const { sendTransaction, isSending } = useAppKitTransaction();
+  const { sendTransaction, isSending, walletProvider } =
+    useAppKitTransaction();
 
   const [content, setContent] = useState("");
   const [loadingOnChain, setLoadingOnChain] = useState(false);
@@ -158,7 +159,14 @@ export default function AssetEditPage() {
     try {
       const created = Number(onChainData.created);
       const dTag = `faircredit:asset:${assetAddress}:${created}`;
-      const published = await publishResourceEvent({ dTag, content });
+      const published = await publishResourceEvent({
+        dTag,
+        content,
+        walletAddress,
+        signMessage: walletProvider?.signMessage
+          ? (message) => walletProvider.signMessage(message)
+          : undefined,
+      });
       const authorBytes = hexToBytes32(published.authorPubkey);
 
       const ix = getSetAssetNostrRefInstruction({
@@ -198,6 +206,7 @@ export default function AssetEditPage() {
     sendTransaction,
     toast,
     walletAddress,
+    walletProvider,
   ]);
 
   const finalizeToWalrus = useCallback(async () => {

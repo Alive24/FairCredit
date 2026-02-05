@@ -44,6 +44,7 @@ import {
   fetchMaybeProvider,
 } from "@/lib/solana/generated/accounts";
 import type { Hub, Provider } from "@/lib/solana/generated/accounts";
+import { resolveAcceptedCourses } from "@/lib/solana/course-ref-resolver";
 import { getUpdateHubConfigInstructionAsync } from "@/lib/solana/generated/instructions/updateHubConfig";
 import { getAddAcceptedProviderInstructionAsync } from "@/lib/solana/generated/instructions/addAcceptedProvider";
 import { getApproveCredentialInstructionAsync } from "@/lib/solana/generated/instructions/approveCredential";
@@ -58,6 +59,15 @@ import { CredentialStatus } from "@/lib/solana/generated/types/credentialStatus"
 import { CourseStatus } from "@/lib/solana/generated/types/courseStatus";
 import { useCourses } from "@/hooks/use-courses";
 import { Input } from "@/components/ui/input";
+
+function unwrapDegreeId(val: unknown): string | null {
+  if (val == null) return null;
+  if (typeof val === "object" && "__option" in (val as object)) {
+    const opt = val as { __option: string; value?: string };
+    return opt.__option === "Some" && opt.value ? opt.value : null;
+  }
+  return typeof val === "string" ? val : null;
+}
 
 export function ProviderDashboard() {
   const { rpc } = useFairCredit();
@@ -78,6 +88,14 @@ export function ProviderDashboard() {
   const [hubAddress, setHubAddress] = useState<Address | null>(null);
   const [providerAccountAddress, setProviderAccountAddress] =
     useState<Address | null>(null);
+  const [acceptedCourseAddresses, setAcceptedCourseAddresses] = useState<
+    Set<string>
+  >(new Set());
+  const [tagFilter, setTagFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "draft" | "in-review" | "accepted"
+  >("all");
+  const [selectedEndorser, setSelectedEndorser] = useState<string | null>(null);
   const {
     courses: providerCourseEntries,
     loading: coursesLoading,
@@ -143,26 +161,65 @@ export function ProviderDashboard() {
     loadProviderData();
   }, [loadProviderData]);
 
+  useEffect(() => {
+    if (!hubData?.acceptedCourses?.length || !rpc) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const resolved = await resolveAcceptedCourses(
+          rpc,
+          hubData.acceptedCourses,
+        );
+        if (mounted) {
+          setAcceptedCourseAddresses(
+            new Set(resolved.map((r) => String(r.address))),
+          );
+        }
+      } catch (e) {
+        console.warn("Failed to resolve accepted courses:", e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [hubData?.acceptedCourses, rpc]);
+
   const hasProviderAccount = !!providerData;
   const isAcceptedProvider = Boolean(
     hubData?.acceptedProviders?.some((p: Address) => {
       const providerAddress = typeof p === "string" ? p : String(p);
       return providerAddress === walletAddress;
-    })
+    }),
   );
 
   // Calculate stats based on real data (providerCourseEntries = { course, address }[])
-  const verifiedCourseCount = providerCourseEntries.filter(
-    (entry) => entry.course?.status === CourseStatus.Verified
+  const hubAcceptedCourseCount = providerCourseEntries.filter((entry) =>
+    acceptedCourseAddresses.has(String(entry.address)),
+  ).length;
+  const inReviewCourseCount = providerCourseEntries.filter(
+    (entry) => entry.course?.status === CourseStatus.InReview,
   ).length;
   const draftCourseCount = providerCourseEntries.filter(
-    (entry) => entry.course?.status === CourseStatus.Draft
+    (entry) => entry.course?.status === CourseStatus.Draft,
   ).length;
-  const issuedCredentialCount = credentials.filter(
+  const acceptedCredentialCount = credentials.filter(
     ({ credential }) =>
       credential.status === CredentialStatus.Verified ||
-      credential.status === CredentialStatus.Minted
+      credential.status === CredentialStatus.Minted,
   ).length;
+
+  const filteredCourseEntries = providerCourseEntries.filter((entry) => {
+    if (tagFilter && entry.course.collegeId !== tagFilter) return false;
+    const isDraft = entry.course?.status === CourseStatus.Draft;
+    const isInReview = entry.course?.status === CourseStatus.InReview;
+    const isAccepted = entry.course?.status === CourseStatus.Accepted;
+    const isArchived = entry.course?.status === CourseStatus.Archived;
+    if (statusFilter === "draft" && !isDraft) return false;
+    if (statusFilter === "in-review" && !isInReview) return false;
+    if (statusFilter === "accepted" && !isAccepted) return false;
+    return true;
+  });
+
   const stats = [
     {
       title: "Total Courses",
@@ -172,38 +229,46 @@ export function ProviderDashboard() {
       subtitle: "Across all statuses",
     },
     {
-      title: "Verified Courses",
-      value: verifiedCourseCount.toString(),
+      title: "Hub Accepted",
+      value: hubAcceptedCourseCount.toString(),
       icon: CheckCircle,
       color: "text-green-600",
-      subtitle: "Ready for hub acceptance",
+      subtitle: "Accepted by Hub",
     },
     {
-      title: "Draft Courses",
-      value: draftCourseCount.toString(),
+      title: "Draft / In Review",
+      value: `${draftCourseCount} / ${inReviewCourseCount}`,
       icon: Clock,
       color: "text-yellow-600",
-      subtitle: "Still being prepared",
+      subtitle: "Draft | In Review",
     },
     {
-      title: "Credentials Issued",
-      value: issuedCredentialCount.toString(),
+      title: "Accepted Credentials",
+      value: acceptedCredentialCount.toString(),
       icon: Award,
       color: "text-purple-600",
-      subtitle: "Verified or minted",
+      subtitle: "Endorsed & accepted",
     },
   ];
 
   const [approvingCredential, setApprovingCredential] = useState<string | null>(
-    null
+    null,
   );
   const [submittingForReview, setSubmittingForReview] = useState<string | null>(
-    null
+    null,
   );
   const [newEndorser, setNewEndorser] = useState("");
   const [addingEndorser, setAddingEndorser] = useState(false);
   const [removingEndorser, setRemovingEndorser] = useState<string | null>(null);
   const endorserCount = providerData?.endorsers?.length ?? 0;
+
+  const uniqueTags = Array.from(
+    new Set(
+      providerCourseEntries
+        .map((e) => e.course.collegeId)
+        .filter(Boolean) as string[],
+    ),
+  ).sort();
 
   const handleSubmitForHubReview = async (courseAddress: string) => {
     if (!walletAddress) return;
@@ -212,7 +277,7 @@ export function ProviderDashboard() {
       const ix = await getUpdateCourseStatusInstructionAsync({
         course: address(courseAddress),
         providerAuthority: createPlaceholderSigner(walletAddress),
-        status: CourseStatus.Verified,
+        status: CourseStatus.InReview,
         rejectionReason: null,
       });
       await sendTransaction([ix]);
@@ -299,7 +364,7 @@ export function ProviderDashboard() {
 
   const handleApproveCredential = async (
     credentialAddress: string,
-    courseAddress: string
+    courseAddress: string,
   ) => {
     if (!walletAddress) return;
     setApprovingCredential(credentialAddress);
@@ -328,10 +393,18 @@ export function ProviderDashboard() {
   };
 
   const endorsedCredentials = credentials.filter(
-    (e) => e.credential.status === CredentialStatus.Endorsed
+    (e) => e.credential.status === CredentialStatus.Endorsed,
   );
 
-  const getStatusBadge = (status?: CourseStatus | string) => {
+  const credentialsBySelectedEndorser = selectedEndorser
+    ? endorsedCredentials.filter(
+        (e) =>
+          String(e.credential.mentorWallet).toLowerCase() ===
+          selectedEndorser.toLowerCase(),
+      )
+    : [];
+
+  const getCourseStatusBadge = (status?: CourseStatus | string) => {
     switch (status) {
       case CourseStatus.Draft:
         return (
@@ -339,16 +412,16 @@ export function ProviderDashboard() {
             Draft
           </Badge>
         );
-      case CourseStatus.Verified:
+      case CourseStatus.InReview:
         return (
-          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-            Verified
+          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+            In Review
           </Badge>
         );
-      case CourseStatus.Rejected:
+      case CourseStatus.Accepted:
         return (
-          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-            Rejected
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+            Accepted
           </Badge>
         );
       case CourseStatus.Archived:
@@ -497,7 +570,7 @@ export function ProviderDashboard() {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-8">
               {/* Provider Courses */}
               <Card>
                 <CardHeader>
@@ -505,6 +578,57 @@ export function ProviderDashboard() {
                   <CardDescription>
                     Courses created and maintained by your provider account
                   </CardDescription>
+                  {providerCourseEntries.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <span className="text-xs text-muted-foreground self-center mr-1">
+                        Status:
+                      </span>
+                      {(["all", "draft", "in-review", "accepted"] as const).map(
+                        (f) => (
+                          <Badge
+                            key={f}
+                            variant={statusFilter === f ? "default" : "outline"}
+                            className="cursor-pointer hover:opacity-80"
+                            onClick={() => setStatusFilter(f)}
+                          >
+                            {f === "all"
+                              ? "All"
+                              : f === "in-review"
+                              ? "In Review"
+                              : f.charAt(0).toUpperCase() + f.slice(1)}
+                          </Badge>
+                        ),
+                      )}
+                      {uniqueTags.length > 0 && (
+                        <>
+                          <span className="text-xs text-muted-foreground self-center mx-2">
+                            Tag:
+                          </span>
+                          <Badge
+                            variant={!tagFilter ? "default" : "outline"}
+                            className="cursor-pointer hover:opacity-80"
+                            onClick={() => setTagFilter("")}
+                          >
+                            All Tags
+                          </Badge>
+                          {uniqueTags.map((tag) => (
+                            <Badge
+                              key={tag}
+                              variant={
+                                tagFilter === tag ? "default" : "outline"
+                              }
+                              className="cursor-pointer hover:opacity-80"
+                              onClick={() =>
+                                setTagFilter(tagFilter === tag ? "" : tag)
+                              }
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
                   {providerCourseEntries.length === 0 ? (
@@ -512,12 +636,17 @@ export function ProviderDashboard() {
                       You have not created any courses yet. Use the Create
                       Course action to deploy your first credential experience.
                     </p>
+                  ) : filteredCourseEntries.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No courses match the selected filters.
+                    </p>
                   ) : (
                     <div className="space-y-4">
-                      {providerCourseEntries.map(({ course, address }) => (
-                        <div
+                      {filteredCourseEntries.map(({ course, address }) => (
+                        <Link
                           key={String(address)}
-                          className="border rounded-lg p-4"
+                          href={`/courses/${address}`}
+                          className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors"
                         >
                           <div className="flex justify-between items-start gap-3">
                             <div className="flex-1">
@@ -525,7 +654,9 @@ export function ProviderDashboard() {
                                 {course.name ||
                                   String(address).slice(0, 8) + "…"}
                               </h3>
-                              {getStatusBadge(course.status as CourseStatus)}
+                              {getCourseStatusBadge(
+                                course.status as CourseStatus,
+                              )}
                             </div>
                             <p className="text-xs text-muted-foreground">
                               Created {formatCourseTimestamp(course.created)}
@@ -534,6 +665,18 @@ export function ProviderDashboard() {
                           <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
                             {course.description || "No description provided."}
                           </p>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {course.collegeId && (
+                              <Badge variant="secondary" className="text-xs">
+                                {course.collegeId}
+                              </Badge>
+                            )}
+                            {unwrapDegreeId(course.degreeId) && (
+                              <Badge variant="outline" className="text-xs">
+                                {unwrapDegreeId(course.degreeId)}
+                              </Badge>
+                            )}
+                          </div>
                           <div className="grid grid-cols-2 gap-4 text-sm mt-4">
                             <div>
                               <p className="text-muted-foreground text-xs">
@@ -553,7 +696,10 @@ export function ProviderDashboard() {
                             </div>
                           </div>
                           {course.status === CourseStatus.Draft && (
-                            <div className="mt-4">
+                            <div
+                              className="mt-4"
+                              onClick={(e) => e.preventDefault()}
+                            >
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -561,9 +707,11 @@ export function ProviderDashboard() {
                                   isSending ||
                                   submittingForReview === String(address)
                                 }
-                                onClick={() =>
-                                  handleSubmitForHubReview(String(address))
-                                }
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleSubmitForHubReview(String(address));
+                                }}
                               >
                                 {submittingForReview === String(address) ? (
                                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -572,78 +720,16 @@ export function ProviderDashboard() {
                               </Button>
                             </div>
                           )}
-                        </div>
+                        </Link>
                       ))}
                       <Link href="/courses">
                         <Button
                           variant="outline"
                           className="w-full bg-transparent"
                         >
-                          Manage All Courses
+                          View All Courses
                         </Button>
                       </Link>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Credentials (Endorsed → Approve) */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Credentials</CardTitle>
-                  <CardDescription>
-                    Endorsed credentials awaiting your approval to add to course
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {credentialsLoading ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading credentials…
-                    </div>
-                  ) : endorsedCredentials.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No endorsed credentials. Students create credentials;
-                      mentors endorse; you approve here.
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {endorsedCredentials.map(
-                        ({ credential, address: credAddr }) => (
-                          <div
-                            key={credAddr}
-                            className="flex items-center justify-between p-3 border rounded-lg"
-                          >
-                            <div>
-                              <p className="font-medium">
-                                {credential.metadata?.title ?? "Credential"}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                Student:{" "}
-                                {String(credential.studentWallet).slice(0, 8)}…
-                              </p>
-                            </div>
-                            <Button
-                              size="sm"
-                              disabled={
-                                isSending || approvingCredential === credAddr
-                              }
-                              onClick={() =>
-                                handleApproveCredential(
-                                  credAddr,
-                                  String(credential.course)
-                                )
-                              }
-                            >
-                              {approvingCredential === credAddr ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                "Approve"
-                              )}
-                            </Button>
-                          </div>
-                        )
-                      )}
                     </div>
                   )}
                 </CardContent>
@@ -678,7 +764,7 @@ export function ProviderDashboard() {
                       className="w-full h-20 flex flex-col gap-2 bg-transparent"
                     >
                       <Eye className="h-6 w-6" />
-                      Manage Endorsers
+                      Endorser & Credential
                     </Button>
                   </Link>
                   {isHubAuthority && (
@@ -698,63 +784,174 @@ export function ProviderDashboard() {
 
             <Card id="endorsers" className="mt-8">
               <CardHeader>
-                <CardTitle>Endorser Management</CardTitle>
+                <CardTitle>Endorser & Credential Management</CardTitle>
                 <CardDescription>
-                  Grant or revoke permission for wallets to endorse your
-                  students.
+                  Manage endorsers and review endorsed credentials (accept to
+                  add to course).
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col gap-2 md:flex-row">
-                  <Input
-                    placeholder="Endorser wallet address"
-                    value={newEndorser}
-                    onChange={(e) => setNewEndorser(e.target.value)}
-                  />
-                  <Button
-                    onClick={handleAddEndorser}
-                    disabled={addingEndorser || !newEndorser}
-                  >
-                    {addingEndorser && (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <CardContent className="space-y-8">
+                <div>
+                  <h4 className="font-medium mb-3">Endorsers</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Grant or revoke permission for wallets to endorse your
+                    students.
+                  </p>
+                  <div className="flex flex-col gap-2 md:flex-row">
+                    <Input
+                      placeholder="Endorser wallet address"
+                      value={newEndorser}
+                      onChange={(e) => setNewEndorser(e.target.value)}
+                    />
+                    <Button
+                      onClick={handleAddEndorser}
+                      disabled={addingEndorser || !newEndorser}
+                    >
+                      {addingEndorser && (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      )}
+                      Add Endorser
+                    </Button>
+                  </div>
+                  <div className="space-y-2 mt-3">
+                    {(providerData?.endorsers ?? []).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No endorsers yet. Add at least one wallet so
+                        endorsements can be issued.
+                      </p>
+                    ) : (
+                      (providerData?.endorsers ?? []).map(
+                        (endorser: Address) => {
+                          const value = String(endorser);
+                          const isSelected =
+                            selectedEndorser?.toLowerCase() ===
+                            value.toLowerCase();
+                          return (
+                            <div
+                              key={value}
+                              className={`flex items-center justify-between rounded border px-3 py-2 text-sm ${
+                                isSelected ? "ring-2 ring-primary" : ""
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                className="flex-1 text-left font-mono text-xs hover:text-primary"
+                                onClick={() =>
+                                  setSelectedEndorser(isSelected ? null : value)
+                                }
+                              >
+                                {value.slice(0, 8)}…{value.slice(-8)}
+                              </button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={
+                                  removingEndorser === value ||
+                                  endorserCount <= 1
+                                }
+                                onClick={() => handleRemoveEndorser(value)}
+                              >
+                                {removingEndorser === value ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  "Remove"
+                                )}
+                              </Button>
+                            </div>
+                          );
+                        },
+                      )
                     )}
-                    Add Endorser
-                  </Button>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  {(providerData?.endorsers ?? []).length === 0 ? (
+
+                <div className="border-t pt-6">
+                  <h4 className="font-medium mb-3">Endorsed Credentials</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Select an endorser above to view their endorsed credentials.
+                    Provider accepts to add them to the course.
+                  </p>
+                  {!selectedEndorser ? (
                     <p className="text-sm text-muted-foreground">
-                      No endorsers yet. Add at least one wallet so endorsements
-                      can be issued.
+                      Select an endorser to list credentials they endorsed.
                     </p>
+                  ) : credentialsLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading credentials…
+                    </div>
                   ) : (
-                    (providerData?.endorsers ?? []).map((endorser: Address) => {
-                      const value = String(endorser);
-                      return (
-                        <div
-                          key={value}
-                          className="flex items-center justify-between rounded border px-3 py-2 text-sm"
-                        >
-                          <span className="font-mono text-xs">
-                            {value.slice(0, 8)}…{value.slice(-8)}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={
-                              removingEndorser === value || endorserCount <= 1
-                            }
-                            onClick={() => handleRemoveEndorser(value)}
-                          >
-                            {removingEndorser === value ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              "Remove"
+                    <div className="space-y-4">
+                      <p className="text-xs text-muted-foreground">
+                        Showing credentials endorsed by{" "}
+                        {selectedEndorser.slice(0, 8)}…
+                        {selectedEndorser.slice(-8)}
+                      </p>
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-2">
+                          Pending acceptance
+                        </p>
+                        {credentialsBySelectedEndorser.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            No endorsed credentials from this endorser.
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {credentialsBySelectedEndorser.map(
+                              ({ credential, address: credAddr }) => (
+                                <div
+                                  key={credAddr}
+                                  className="flex items-center justify-between p-3 border rounded-lg"
+                                >
+                                  <div>
+                                    <p className="font-medium">
+                                      {credential.metadata?.title ??
+                                        "Credential"}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Student:{" "}
+                                      {String(credential.studentWallet).slice(
+                                        0,
+                                        8,
+                                      )}
+                                      …
+                                    </p>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    disabled={
+                                      isSending ||
+                                      approvingCredential === credAddr
+                                    }
+                                    onClick={() =>
+                                      handleApproveCredential(
+                                        credAddr,
+                                        String(credential.course),
+                                      )
+                                    }
+                                  >
+                                    {approvingCredential === credAddr ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      "Accept"
+                                    )}
+                                  </Button>
+                                </div>
+                              ),
                             )}
-                          </Button>
-                        </div>
-                      );
-                    })
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-2">
+                          Accepted (all endorsers)
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {acceptedCredentialCount} credentials accepted
+                          (verified or minted).
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </div>
               </CardContent>

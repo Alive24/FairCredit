@@ -88,16 +88,80 @@ export function TransactionQueueProvider({
 
   const enqueue = useCallback(
     (entry: Omit<QueueEntry, "id" | "createdAt"> & { id?: string }) => {
-      setPending((prev) => [
-        ...prev,
-        {
-          ...entry,
-          id: entry.id ?? crypto.randomUUID(),
-          createdAt: Date.now(),
-        },
-      ]);
+      const fullEntry: QueueEntry = {
+        ...entry,
+        id: entry.id ?? crypto.randomUUID(),
+        createdAt: Date.now(),
+      };
+
+      // If combine-submit is OFF, wallet is idle, and we have sendTransaction,
+      // treat this as a "single-shot" operation: send immediately instead of
+      // leaving it in the pending queue.
+      if (!combineSubmit && sendTransaction && !isSubmitting && !isSending) {
+        (async () => {
+          setIsSubmitting(true);
+          setLastError(null);
+          try {
+            const built = await fullEntry.build();
+            const instructions: Instruction[] = Array.isArray(built)
+              ? built
+              : [built];
+            if (instructions.length === 0) {
+              return;
+            }
+            const operationsSnapshot: QueueSnapshot[] = [
+              {
+                module: fullEntry.module,
+                label: fullEntry.label,
+                createdAt: fullEntry.createdAt,
+              },
+            ];
+            const signature = await sendTransaction(instructions);
+            setLastSignature(signature);
+            setHistory((prev) => {
+              const next: SubmittedTransaction[] = [
+                {
+                  signature,
+                  submittedAt: Date.now(),
+                  operations: operationsSnapshot,
+                  instructionCount: instructions.length,
+                },
+                ...prev,
+              ];
+              return next.slice(0, MAX_HISTORY_ENTRIES);
+            });
+            toast({
+              title: "Transaction submitted",
+              description: `Signature: ${signature.slice(0, 8)}...`,
+            });
+          } catch (error) {
+            console.error("Transaction queue error", error);
+            const err =
+              error instanceof Error ? error : new Error(String(error));
+            setLastError(err);
+            toast({
+              title: "Transaction failed",
+              description: err.message,
+              variant: "destructive",
+            });
+          } finally {
+            setIsSubmitting(false);
+          }
+        })();
+        return;
+      }
+
+      // Default behaviour: enqueue and let the queue (or manual submit)
+      // handle sending.
+      setPending((prev) => [...prev, fullEntry]);
     },
-    []
+    [
+      combineSubmit,
+      sendTransaction,
+      isSubmitting,
+      isSending,
+      toast,
+    ]
   );
 
   const remove = useCallback((id: string) => {

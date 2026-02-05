@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -191,17 +192,27 @@ export function TransactionMonitor({
 
           {recentHistory.length > 0 && (
             <div className="space-y-2 rounded-md border border-dashed border-muted px-3 py-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium">Recent transactions</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={clearHistory}
-                  disabled={history.length === 0}
-                >
-                  Clear history
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    asChild
+                  >
+                    <Link href="/transactions">View all</Link>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={clearHistory}
+                    disabled={history.length === 0}
+                  >
+                    Clear
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 {recentHistory.map((tx) => (
@@ -237,23 +248,29 @@ export function TransactionMonitor({
                         </div>
                       )}
                     </div>
-                    {explorerBaseUrl ? (
+                    <div className="flex flex-col items-end gap-2">
                       <Button variant="outline" size="sm" asChild>
-                        <a
-                          href={getExplorerUrl(
-                            explorerBaseUrl,
-                            tx.signature,
-                            SOLANA_CLUSTER
-                          )}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-1"
-                        >
-                          View
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
+                        <Link href={`/transactions/${tx.signature}`}>
+                          Inspect
+                        </Link>
                       </Button>
-                    ) : null}
+                      {explorerBaseUrl ? (
+                        <Button variant="ghost" size="icon" asChild>
+                          <a
+                            href={getExplorerUrl(
+                              explorerBaseUrl,
+                              tx.signature,
+                              SOLANA_CLUSTER
+                            )}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="View on Solscan"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>

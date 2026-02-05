@@ -41,10 +41,10 @@ export default function CreateCredential() {
   const acceptedProviderWallets =
     hubData?.acceptedProviders?.map((p: unknown) => String(p)) ?? [];
   const { courses, loading: coursesLoading } = useCourses(
-    acceptedProviderWallets.length > 0 ? acceptedProviderWallets : null
+    acceptedProviderWallets.length > 0 ? acceptedProviderWallets : null,
   );
-  const verifiedCourses = courses.filter(
-    (c) => c.course.status === CourseStatus.Verified
+  const acceptedCourses = courses.filter(
+    (c) => c.course.status === CourseStatus.Accepted,
   );
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -53,7 +53,7 @@ export default function CreateCredential() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [credentialCreated, setCredentialCreated] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<CourseEntry | null>(
-    null
+    null,
   );
 
   const [formData, setFormData] = useState({
@@ -332,7 +332,7 @@ export default function CreateCredential() {
                       onChange={(e) =>
                         handleInputChange(
                           "supervisorInstitution",
-                          e.target.value
+                          e.target.value,
                         )
                       }
                       placeholder="Imperial College London"
@@ -373,8 +373,8 @@ export default function CreateCredential() {
                     <Select
                       value={selectedCourse?.address ?? ""}
                       onValueChange={(addr) => {
-                        const c = verifiedCourses.find(
-                          (x) => x.address === addr
+                        const c = acceptedCourses.find(
+                          (x) => x.address === addr,
                         );
                         setSelectedCourse(c ?? null);
                       }}
@@ -389,7 +389,7 @@ export default function CreateCredential() {
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {verifiedCourses.map((c) => (
+                        {acceptedCourses.map((c) => (
                           <SelectItem key={c.address} value={c.address}>
                             {c.course.name} (ts=
                             {String(c.course.creationTimestamp)})
@@ -398,7 +398,7 @@ export default function CreateCredential() {
                       </SelectContent>
                     </Select>
                     {!coursesLoading &&
-                      verifiedCourses.length === 0 &&
+                      acceptedCourses.length === 0 &&
                       isConnected && (
                         <p className="text-sm text-muted-foreground">
                           No verified courses. Create and get a course accepted
@@ -457,7 +457,7 @@ export default function CreateCredential() {
                       onChange={(e) =>
                         handleInputChange(
                           "credentialDescription",
-                          e.target.value
+                          e.target.value,
                         )
                       }
                       placeholder="Detailed description of the academic achievement..."

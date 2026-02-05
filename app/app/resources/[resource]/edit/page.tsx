@@ -45,7 +45,8 @@ export default function ResourceEditPage() {
 
   const { rpc } = useFairCredit();
   const { address: walletAddress, isConnected } = useAppKitAccount();
-  const { sendTransaction, isSending } = useAppKitTransaction();
+  const { sendTransaction, isSending, walletProvider } =
+    useAppKitTransaction();
 
   const { content, setContent, lastSavedAt, loaded } =
     useResourceDraft(resourceAddress);
@@ -133,7 +134,14 @@ export default function ResourceEditPage() {
     try {
       const created = Number(onChainData.created);
       const dTag = `faircredit:resource:${resourceAddress}:${created}`;
-      const published = await publishResourceEvent({ dTag, content });
+      const published = await publishResourceEvent({
+        dTag,
+        content,
+        walletAddress,
+        signMessage: walletProvider?.signMessage
+          ? (message) => walletProvider.signMessage(message)
+          : undefined,
+      });
       const authorBytes = hexToBytes32(published.authorPubkey);
 
       const ix = getSetResourceNostrRefInstruction({
@@ -173,6 +181,7 @@ export default function ResourceEditPage() {
     sendTransaction,
     toast,
     walletAddress,
+    walletProvider,
   ]);
 
   const syncFromNostr = useCallback(async () => {
@@ -305,12 +314,23 @@ export default function ResourceEditPage() {
 
         // If not found on relays but we have local content, try rebroadcast.
         if (!event) {
-          if (content.trim() && now - lastAutoPublishAtRef.current > 60_000) {
+          if (
+            content.trim() &&
+            walletAddress &&
+            now - lastAutoPublishAtRef.current > 60_000
+          ) {
             try {
-              await publishResourceEvent({ dTag: nostrDTag, content });
+              await publishResourceEvent({
+                dTag: nostrDTag,
+                content,
+                walletAddress,
+                signMessage: walletProvider?.signMessage
+                  ? (message) => walletProvider.signMessage(message)
+                  : undefined,
+              });
               lastAutoPublishAtRef.current = now;
             } catch {
-              // If NIP-07 signer isn't available, we can't rebroadcast.
+              // If the wallet-derived key isn't available, we can't rebroadcast.
             }
           }
           return;
@@ -329,10 +349,18 @@ export default function ResourceEditPage() {
         if (
           localUpdatedAt > remoteUpdatedAt + driftMs &&
           content.trim() &&
+          walletAddress &&
           now - lastAutoPublishAtRef.current > 60_000
         ) {
           try {
-            await publishResourceEvent({ dTag: nostrDTag, content });
+            await publishResourceEvent({
+              dTag: nostrDTag,
+              content,
+              walletAddress,
+              signMessage: walletProvider?.signMessage
+                ? (message) => walletProvider.signMessage(message)
+                : undefined,
+            });
             lastAutoPublishAtRef.current = now;
           } catch {
             // ignore
@@ -347,7 +375,16 @@ export default function ResourceEditPage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [content, lastSavedAt, loaded, nostrAuthorHex, nostrDTag, setContent]);
+  }, [
+    content,
+    lastSavedAt,
+    loaded,
+    nostrAuthorHex,
+    nostrDTag,
+    setContent,
+    walletAddress,
+    walletProvider,
+  ]);
 
   return (
     <div className="min-h-screen bg-background">

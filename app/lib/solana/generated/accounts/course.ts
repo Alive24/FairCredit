@@ -84,6 +84,10 @@ export type Course = {
   workload: number;
   collegeId: string;
   degreeId: Option<string>;
+  /** Optional Nostr "d" tag used to locate the latest editable course metadata event */
+  nostrDTag: Option<string>;
+  /** Nostr author public key bytes (32 bytes). All-zero means "not set". */
+  nostrAuthorPubkey: ReadonlyUint8Array;
   /** Credential PDAs approved by this provider for this course */
   approvedCredentials: Array<Address>;
 };
@@ -104,6 +108,10 @@ export type CourseArgs = {
   workload: number;
   collegeId: string;
   degreeId: OptionOrNullable<string>;
+  /** Optional Nostr "d" tag used to locate the latest editable course metadata event */
+  nostrDTag: OptionOrNullable<string>;
+  /** Nostr author public key bytes (32 bytes). All-zero means "not set". */
+  nostrAuthorPubkey: ReadonlyUint8Array;
   /** Credential PDAs approved by this provider for this course */
   approvedCredentials: Array<Address>;
 };
@@ -136,6 +144,13 @@ export function getCourseEncoder(): Encoder<CourseArgs> {
           addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
+      [
+        "nostrDTag",
+        getOptionEncoder(
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
+        ),
+      ],
+      ["nostrAuthorPubkey", fixEncoderSize(getBytesEncoder(), 32)],
       ["approvedCredentials", getArrayEncoder(getAddressEncoder())],
     ]),
     (value) => ({ ...value, discriminator: COURSE_DISCRIMINATOR }),
@@ -165,6 +180,11 @@ export function getCourseDecoder(): Decoder<Course> {
       "degreeId",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
+    [
+      "nostrDTag",
+      getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
+    ],
+    ["nostrAuthorPubkey", fixDecoderSize(getBytesDecoder(), 32)],
     ["approvedCredentials", getArrayDecoder(getAddressDecoder())],
   ]);
 }

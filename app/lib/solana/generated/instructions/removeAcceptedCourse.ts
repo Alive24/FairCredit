@@ -25,7 +25,6 @@ import {
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
-  type ReadonlyAccount,
   type ReadonlySignerAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
@@ -60,7 +59,7 @@ export type RemoveAcceptedCourseInstruction<
             AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
       TAccountCourse extends string
-        ? ReadonlyAccount<TAccountCourse>
+        ? WritableAccount<TAccountCourse>
         : TAccountCourse,
       ...TRemainingAccounts,
     ]
@@ -135,7 +134,7 @@ export async function getRemoveAcceptedCourseInstructionAsync<
   const originalAccounts = {
     hub: { value: input.hub ?? null, isWritable: true },
     authority: { value: input.authority ?? null, isWritable: false },
-    course: { value: input.course ?? null, isWritable: false },
+    course: { value: input.course ?? null, isWritable: true },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -202,7 +201,7 @@ export function getRemoveAcceptedCourseInstruction<
   const originalAccounts = {
     hub: { value: input.hub ?? null, isWritable: true },
     authority: { value: input.authority ?? null, isWritable: false },
-    course: { value: input.course ?? null, isWritable: false },
+    course: { value: input.course ?? null, isWritable: true },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,

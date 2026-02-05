@@ -17,8 +17,8 @@ import {
 
 export enum CourseStatus {
   Draft,
-  Rejected,
-  Verified,
+  InReview,
+  Accepted,
   Archived,
 }
 

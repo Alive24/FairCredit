@@ -21,7 +21,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, X, Eye, CheckCircle, Wand2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  X,
+  Eye,
+  CheckCircle,
+  Wand2,
+  Loader2,
+} from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { useAppKitAccount } from "@reown/appkit/react";
@@ -33,22 +41,54 @@ import {
 import { getUpdateHubConfigInstructionAsync } from "@/lib/solana/generated/instructions/updateHubConfig";
 import { getInitializeProviderInstructionAsync } from "@/lib/solana/generated/instructions/initializeProvider";
 import { getCreateCourseInstructionAsync } from "@/lib/solana/generated/instructions/createCourse";
+import { getSetCourseNostrRefInstructionAsync } from "@/lib/solana/generated/instructions/setCourseNostrRef";
 import type { Address } from "@solana/kit";
+import { type CourseProfile } from "@/lib/course-profile";
+import { buildCourseMetadataPayload } from "@/lib/course-metadata";
+import {
+  buildCourseDTag,
+  DEFAULT_RELAYS,
+  fetchLatestCourseEvent,
+  publishCourseEvent,
+} from "@/lib/nostr/client";
+import { nip19 } from "nostr-tools";
 
 export default function CreateCourse() {
   const { toast } = useToast();
   const { address: walletAddress, isConnected } = useAppKitAccount();
-  const { sendTransaction, isSending } = useAppKitTransaction();
+  const { sendTransaction, isSending, walletProvider } =
+    useAppKitTransaction();
   const [currentStep, setCurrentStep] = useState(1);
   const [skills, setSkills] = useState<string[]>([]);
   const [requirements, setRequirements] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState("");
   const [newRequirement, setNewRequirement] = useState("");
+  const [newTag, setNewTag] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [programCreated, setProgramCreated] = useState(false);
   const [createdCourseAddress, setCreatedCourseAddress] = useState<
     string | null
   >(null);
+  const [nostrPublishStatus, setNostrPublishStatus] = useState<
+    "idle" | "publishing" | "published" | "error"
+  >("idle");
+  const [nostrPublishError, setNostrPublishError] = useState<string | null>(
+    null,
+  );
+  const [nostrEventId, setNostrEventId] = useState<string | null>(null);
+  const [nostrDTag, setNostrDTag] = useState<string | null>(null);
+  const [nostrNevent, setNostrNevent] = useState<string | null>(null);
+  const [nostrVerifyUrl, setNostrVerifyUrl] = useState<string | null>(null);
+  const [nostrDraft, setNostrDraft] = useState<{
+    courseAddress: string;
+    creationTimestamp: number;
+    profile: CourseProfile;
+    workloadRequired: number;
+    dTag: string;
+    authorPubkey: string;
+    eventId: string;
+  } | null>(null);
   const [hubAddress, setHubAddress] = useState<Address | null>(null);
   const [providerPda, setProviderPda] = useState<Address | null>(null);
   const [resolvingProvider, setResolvingProvider] = useState(false);
@@ -95,6 +135,17 @@ export default function CreateCourse() {
     setRequirements(requirements.filter((req) => req !== reqToRemove));
   };
 
+  const addTag = () => {
+    if (newTag.trim() && !tags.includes(newTag.trim())) {
+      setTags([...tags, newTag.trim()]);
+      setNewTag("");
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter((tag) => tag !== tagToRemove));
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -119,11 +170,19 @@ export default function CreateCourse() {
       return;
     }
 
+    setNostrPublishStatus("publishing");
+    setNostrPublishError(null);
+    setNostrEventId(null);
+    setNostrDTag(null);
+    setNostrNevent(null);
+    setNostrVerifyUrl(null);
+    setNostrDraft(null);
+    setCreatedCourseAddress(null);
     setIsSubmitting(true);
     try {
       const creationTimestamp = BigInt(Math.floor(Date.now() / 1000));
       const workloadRequired = Number(formData.durationValue) || 0;
-      const ix = await getCreateCourseInstructionAsync({
+      const createIx = await getCreateCourseInstructionAsync({
         course: undefined,
         provider: providerPda,
         hub: hubAddress,
@@ -134,13 +193,169 @@ export default function CreateCourse() {
         workloadRequired,
         degreeId: null,
       });
+      const derivedAddress = createIx.accounts[0].address;
+      const creationTimestampNum = Number(creationTimestamp);
+      const profileSnapshot: CourseProfile = {
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        durationValue: formData.durationValue,
+        durationUnit: formData.durationUnit,
+        supervisorName: formData.supervisorName,
+        supervisorEmail: formData.supervisorEmail,
+        supervisorInstitution: formData.supervisorInstitution,
+        learningObjectives: formData.learningObjectives,
+        methodology: formData.methodology,
+        assessmentCriteria: formData.assessmentCriteria,
+        deliverables: formData.deliverables,
+        prerequisites: formData.prerequisites,
+        status: formData.status,
+        skills,
+        requirements,
+        tags,
+        updatedAt: null,
+      };
+      const dTag = buildCourseDTag({
+        coursePubkey: derivedAddress,
+        creationTimestamp: creationTimestampNum,
+      });
+      const payload = buildCourseMetadataPayload(profileSnapshot, {
+        courseAddress: derivedAddress,
+        creationTimestamp: creationTimestampNum,
+      });
+      const published = await publishCourseEvent({
+        dTag,
+        content: JSON.stringify(payload),
+        walletAddress,
+        signMessage: walletProvider?.signMessage
+          ? (message) => walletProvider.signMessage(message)
+          : undefined,
+      });
 
-      await sendTransaction([ix]);
-      setCreatedCourseAddress(ix.accounts[0].address);
+      setNostrEventId(published.eventId);
+      setNostrDTag(dTag);
+      let neventValue: string | null = null;
+      try {
+        neventValue = nip19.neventEncode({
+          id: published.eventId,
+          author: published.authorPubkey,
+          relays: DEFAULT_RELAYS.map((relay) => relay.url),
+        });
+        setNostrNevent(neventValue);
+      } catch {
+        setNostrNevent(null);
+      }
+
+      const confirmed = await confirmNostrEvent({
+        dTag,
+        authorPubkey: published.authorPubkey,
+        eventId: published.eventId,
+      });
+      if (!confirmed) {
+        throw new Error(
+          "Nostr event not confirmed on relays yet. Please retry.",
+        );
+      }
+      if (neventValue) {
+        setNostrVerifyUrl(`https://njump.me/${neventValue}`);
+      }
+
+      setNostrDraft({
+        courseAddress: derivedAddress,
+        creationTimestamp: creationTimestampNum,
+        profile: profileSnapshot,
+        workloadRequired,
+        dTag,
+        authorPubkey: published.authorPubkey,
+        eventId: published.eventId,
+      });
+      setNostrPublishStatus("published");
+      toast({
+        title: "Nostr event published",
+        description: "Review the event, then confirm to create on-chain.",
+      });
+    } catch (error) {
+      console.error("Nostr publish failed:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Wallet-derived Nostr signing unavailable.";
+      setNostrPublishStatus("error");
+      setNostrPublishError(message);
+      toast({
+        title: "Nostr publish failed",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const confirmNostrEvent = async (params: {
+    dTag: string;
+    authorPubkey: string;
+    eventId: string;
+  }) => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const event = await fetchLatestCourseEvent({
+        dTag: params.dTag,
+        authorPubkey: params.authorPubkey,
+      });
+      if (event?.id === params.eventId) return true;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    return false;
+  };
+
+  const handleConfirmCreate = async () => {
+    if (!nostrDraft) return;
+    if (!walletAddress || !hubAddress || !providerPda) {
+      toast({
+        title: "Wallet or provider not ready",
+        description:
+          "Connect your provider wallet and make sure the provider account exists on-chain.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!isConnected) {
+      toast({
+        title: "Wallet not connected",
+        description: "Connect your wallet to submit the on-chain transaction.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const createIx = await getCreateCourseInstructionAsync({
+        course: nostrDraft.courseAddress,
+        provider: providerPda,
+        hub: hubAddress,
+        providerAuthority: createPlaceholderSigner(walletAddress),
+        creationTimestamp: nostrDraft.creationTimestamp,
+        name: nostrDraft.profile.title,
+        description: nostrDraft.profile.description,
+        workloadRequired: nostrDraft.workloadRequired,
+        degreeId: null,
+      });
+      const authorBytes = hexToBytes32(nostrDraft.authorPubkey);
+      const nostrIx = await getSetCourseNostrRefInstructionAsync({
+        course: nostrDraft.courseAddress,
+        providerAuthority: createPlaceholderSigner(walletAddress),
+        nostrDTag: nostrDraft.dTag,
+        nostrAuthorPubkey: authorBytes,
+        force: false,
+      });
+
+      await sendTransaction([createIx, nostrIx]);
+      setCreatedCourseAddress(nostrDraft.courseAddress);
       setProgramCreated(true);
       toast({
-        title: `Course ${isDraft ? "saved" : "published"} on-chain`,
-        description: "Submit it to the hub so students can enroll.",
+        title: "Course created on-chain",
+        description: "Nostr pointer has been bound to the course account.",
       });
     } catch (error) {
       console.error("Create course failed:", error);
@@ -184,6 +399,7 @@ export default function CreateCourse() {
       "Technical writing",
     ]);
     setRequirements(["Supervisor reference", "Motivation letter"]);
+    setTags(["research", "quantum", "fellowship"]);
     toast({
       title: "Test data populated",
       description: "Fields have been filled with sample content.",
@@ -278,7 +494,7 @@ export default function CreateCourse() {
     {
       number: 5,
       title: "Review & Publish",
-      description: "Final review and publication",
+      description: "Publish Nostr first, then confirm on-chain",
     },
   ];
 
@@ -302,6 +518,26 @@ export default function CreateCourse() {
                 {createdCourseAddress && (
                   <p className="text-xs text-muted-foreground font-mono mb-4 break-all">
                     Course Address: {createdCourseAddress}
+                  </p>
+                )}
+                {nostrDTag && (
+                  <p className="text-xs text-muted-foreground font-mono mb-2 break-all">
+                    Nostr dTag: {nostrDTag}
+                  </p>
+                )}
+                {nostrNevent && (
+                  <p className="text-xs text-muted-foreground font-mono mb-2 break-all">
+                    Nostr nevent: {nostrNevent}
+                  </p>
+                )}
+                {nostrEventId && (
+                  <p className="text-xs text-muted-foreground font-mono mb-4 break-all">
+                    Nostr Event: {nostrEventId}
+                  </p>
+                )}
+                {nostrVerifyUrl && (
+                  <p className="text-xs text-muted-foreground font-mono mb-4 break-all">
+                    Verified URL: {nostrVerifyUrl}
                   </p>
                 )}
                 <div className="space-y-4">
@@ -667,6 +903,36 @@ export default function CreateCourse() {
                   </div>
 
                   <div className="space-y-2">
+                    <Label>Tags for Discovery</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={newTag}
+                        onChange={(e) => setNewTag(e.target.value)}
+                        placeholder="Add a tag..."
+                        onKeyPress={(e) => e.key === "Enter" && addTag()}
+                      />
+                      <Button type="button" onClick={addTag} size="icon">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {tags.map((tag, index) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="flex items-center gap-1"
+                        >
+                          {tag}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => removeTag(tag)}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="prerequisites">
                       Additional Prerequisites
                     </Label>
@@ -751,6 +1017,84 @@ export default function CreateCourse() {
                           </ul>
                         </div>
                       )}
+                      {tags.length > 0 && (
+                        <div>
+                          <strong>Tags:</strong>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {tags.map((tag, index) => (
+                              <Badge
+                                key={index}
+                                variant="outline"
+                                className="text-xs"
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Nostr Event</CardTitle>
+                      <CardDescription>
+                        Publish the course metadata to Nostr first, then confirm
+                        to write the pointer on-chain.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div>
+                        <strong>Status:</strong>{" "}
+                        {nostrPublishStatus === "published"
+                          ? "Published"
+                          : nostrPublishStatus === "publishing"
+                          ? "Publishing…"
+                          : nostrPublishStatus === "error"
+                          ? "Error"
+                          : "Not published"}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <strong>Course Address (PDA):</strong>
+                          <p className="font-mono text-xs break-all">
+                            {nostrDraft?.courseAddress ?? "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <strong>dTag:</strong>
+                          <p className="font-mono text-xs break-all">
+                            {nostrDTag ?? "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <strong>Event ID:</strong>
+                          <p className="font-mono text-xs break-all">
+                            {nostrEventId ?? "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <strong>nevent:</strong>
+                          <p className="font-mono text-xs break-all">
+                            {nostrNevent ?? "—"}
+                          </p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <strong>Verified URL:</strong>
+                          <p className="font-mono text-xs break-all">
+                            {nostrVerifyUrl ??
+                              (nostrNevent
+                                ? "Pending confirmation…"
+                                : "—")}
+                          </p>
+                        </div>
+                      </div>
+                      {nostrPublishError && (
+                        <p className="text-xs text-destructive">
+                          {nostrPublishError}
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -771,22 +1115,45 @@ export default function CreateCourse() {
                       Next
                     </Button>
                   ) : (
-                    <Button
-                      onClick={() => handleSubmit(false)}
-                      disabled={isActionDisabled}
-                    >
-                      {isSubmitting || isSending ? (
-                        <>
-                          <Eye className="h-4 w-4 mr-2 animate-spin" />
-                          Creating...
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="h-4 w-4 mr-2" />
-                          Create Course
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleSubmit(false)}
+                        disabled={
+                          isActionDisabled || nostrPublishStatus === "publishing"
+                        }
+                      >
+                        {nostrPublishStatus === "publishing" ? (
+                          <>
+                            <Eye className="h-4 w-4 mr-2 animate-spin" />
+                            Publishing Nostr…
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Publish Nostr Event
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={handleConfirmCreate}
+                        disabled={
+                          isActionDisabled || nostrPublishStatus !== "published"
+                        }
+                      >
+                        {isSubmitting || isSending ? (
+                          <>
+                            <Eye className="h-4 w-4 mr-2 animate-spin" />
+                            Creating…
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Confirm & Create Course
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -803,4 +1170,16 @@ function formatTimestamp(date: Date) {
   return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(
     date.getHours()
   )}:${pad(date.getMinutes())}`;
+}
+
+function hexToBytes32(hex: string): Uint8Array {
+  const normalized = hex.trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(normalized)) {
+    throw new Error("Invalid Nostr pubkey (expected 64 hex chars)");
+  }
+  const bytes = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) {
+    bytes[i] = Number.parseInt(normalized.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
 }

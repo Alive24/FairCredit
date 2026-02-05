@@ -66,6 +66,7 @@
         "npm:next@16.1.1",
         "npm:nextra-theme-docs@^4.6.1",
         "npm:nextra@^4.6.1",
+        "npm:nostr-tools@^2.23.0",
         "npm:postcss@^8.5.0",
         "npm:react-day-picker@8.10.1",
         "npm:react-dom@19",

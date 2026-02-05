@@ -1,6 +1,7 @@
 "use client";
 
 import type { Address } from "@solana/kit";
+import { finalizeEvent } from "nostr-tools";
 
 export type NostrEvent = {
   id: string;
@@ -27,10 +28,15 @@ export const DEFAULT_RELAYS: RelayConfig[] = [
   { url: "wss://relay.snort.social" },
 ];
 
-// Application-specific kind used to filter resource events.
+// Application-specific kinds used to filter events.
 const RESOURCE_EVENT_KIND = 30000;
+const COURSE_EVENT_KIND = 30001;
 
 type WebSocketLike = WebSocket;
+type SignMessageFn = (message: Uint8Array) => Promise<Uint8Array> | Uint8Array;
+
+const NOSTR_SEED_MESSAGE = "FairCredit Nostr seed v1";
+const cachedSecrets = new Map<string, Uint8Array>();
 
 async function openRelay(url: string): Promise<WebSocketLike> {
   return new Promise((resolve, reject) => {
@@ -51,31 +57,87 @@ async function openRelay(url: string): Promise<WebSocketLike> {
   });
 }
 
-// Demo-only helper: use a browser-side signer (e.g. NIP-07 extension) to sign the event.
-async function signEventWithNip07(
-  draft: Omit<NostrEvent, "id" | "sig">,
-): Promise<NostrEvent> {
-  const anyWindow = window as unknown as {
-    nostr?: {
-      signEvent: (event: Omit<NostrEvent, "id" | "sig">) => Promise<NostrEvent>;
-    };
-  };
-  if (!anyWindow.nostr?.signEvent) {
-    throw new Error("Nostr signer (NIP-07) not available in this browser");
+type NostrEventTemplate = Pick<
+  NostrEvent,
+  "kind" | "tags" | "content" | "created_at"
+>;
+
+async function sha256Bytes(input: Uint8Array): Promise<Uint8Array> {
+  const digest = await crypto.subtle.digest("SHA-256", input);
+  return new Uint8Array(digest);
+}
+
+function normalizeSignatureBytes(sig: Uint8Array | ArrayBuffer | number[]) {
+  if (sig instanceof Uint8Array) return sig;
+  if (sig instanceof ArrayBuffer) return new Uint8Array(sig);
+  return new Uint8Array(sig);
+}
+
+async function deriveSecretKeyFromSignature(params: {
+  walletAddress: string;
+  signMessage: SignMessageFn;
+}): Promise<Uint8Array> {
+  const normalized = params.walletAddress.trim();
+  const message = new TextEncoder().encode(
+    `${NOSTR_SEED_MESSAGE}:${normalized}`,
+  );
+  const signature = await params.signMessage(message);
+  let seed = await sha256Bytes(normalizeSignatureBytes(signature));
+  if (seed.every((b) => b === 0)) {
+    seed = await sha256Bytes(seed);
   }
-  return anyWindow.nostr.signEvent(draft);
+  return seed;
+}
+
+async function getCachedOrDerivedSecretKey(params: {
+  walletAddress: string;
+  signMessage?: SignMessageFn;
+}): Promise<Uint8Array> {
+  const normalized = params.walletAddress.trim();
+  const cached = cachedSecrets.get(normalized);
+  if (cached) return cached;
+  if (!params.signMessage) {
+    throw new Error("Wallet does not support message signing");
+  }
+  const seed = await deriveSecretKeyFromSignature({
+    walletAddress: normalized,
+    signMessage: params.signMessage,
+  });
+  cachedSecrets.set(normalized, seed);
+  return seed;
+}
+
+async function signEventWithWalletSeed(
+  draft: NostrEventTemplate,
+  walletAddress: string,
+  signMessage?: SignMessageFn,
+): Promise<NostrEvent> {
+  if (!walletAddress) {
+    throw new Error("Wallet address required for deterministic Nostr signing");
+  }
+  const secretKey = await getCachedOrDerivedSecretKey({
+    walletAddress,
+    signMessage,
+  });
+  try {
+    return finalizeEvent(draft, secretKey) as unknown as NostrEvent;
+  } catch {
+    const fallbackKey = await sha256Bytes(secretKey);
+    return finalizeEvent(draft, fallbackKey) as unknown as NostrEvent;
+  }
 }
 
 export async function publishResourceEvent(params: {
   relays?: RelayConfig[];
   dTag: string;
   content: string;
+  walletAddress: string;
+  signMessage?: SignMessageFn;
 }): Promise<PublishResult> {
   const relays = params.relays ?? DEFAULT_RELAYS;
   const createdAt = Math.floor(Date.now() / 1000);
 
-  const draft: Omit<NostrEvent, "id" | "sig"> = {
-    pubkey: "",
+  const draft: NostrEventTemplate = {
     kind: RESOURCE_EVENT_KIND,
     created_at: createdAt,
     tags: [
@@ -83,9 +145,13 @@ export async function publishResourceEvent(params: {
       ["t", "faircredit-resource"],
     ],
     content: params.content,
-  } as unknown as Omit<NostrEvent, "id" | "sig">;
+  };
 
-  const event = await signEventWithNip07(draft);
+  const event = await signEventWithWalletSeed(
+    draft,
+    params.walletAddress,
+    params.signMessage,
+  );
 
   const payload = ["EVENT", event] as const;
   const json = JSON.stringify(payload);
@@ -101,6 +167,53 @@ export async function publishResourceEvent(params: {
         // Ignore individual relay failure; higher-level retry logic can handle it.
       }
     }),
+  );
+
+  return {
+    eventId: event.id,
+    authorPubkey: event.pubkey,
+  };
+}
+
+export async function publishCourseEvent(params: {
+  relays?: RelayConfig[];
+  dTag: string;
+  content: string;
+  walletAddress: string;
+  signMessage?: SignMessageFn;
+}): Promise<PublishResult> {
+  const relays = params.relays ?? DEFAULT_RELAYS;
+  const createdAt = Math.floor(Date.now() / 1000);
+
+  const draft: NostrEventTemplate = {
+    kind: COURSE_EVENT_KIND,
+    created_at: createdAt,
+    tags: [
+      ["d", params.dTag],
+      ["t", "faircredit-course"],
+    ],
+    content: params.content,
+  };
+
+  const event = await signEventWithWalletSeed(
+    draft,
+    params.walletAddress,
+    params.signMessage,
+  );
+
+  const payload = ["EVENT", event] as const;
+  const json = JSON.stringify(payload);
+
+  await Promise.allSettled(
+    relays.map(async ({ url }) => {
+      try {
+        const ws = await openRelay(url);
+        ws.send(json);
+        setTimeout(() => ws.close(), 2000);
+      } catch {
+        // ignore relay failure
+      }
+    })
   );
 
   return {
@@ -169,6 +282,66 @@ export async function fetchLatestResourceEvent(params: {
   return latest;
 }
 
+export async function fetchLatestCourseEvent(params: {
+  relays?: RelayConfig[];
+  dTag: string;
+  authorPubkey: string;
+}): Promise<NostrEvent | null> {
+  const relays = params.relays ?? DEFAULT_RELAYS;
+  const filters = [
+    {
+      kinds: [COURSE_EVENT_KIND],
+      authors: [params.authorPubkey],
+      "#d": [params.dTag],
+      limit: 1,
+    },
+  ];
+
+  const subPayload = ["REQ", "faircredit-course-sub", ...filters] as const;
+  const json = JSON.stringify(subPayload);
+
+  let latest: NostrEvent | null = null;
+
+  await Promise.allSettled(
+    relays.map(async ({ url }) => {
+      try {
+        const ws = await openRelay(url);
+        ws.send(json);
+
+        await new Promise<void>((resolve) => {
+          const timeout = setTimeout(() => {
+            ws.close();
+            resolve();
+          }, 4000);
+
+          ws.onmessage = (ev) => {
+            try {
+              const msg = JSON.parse(ev.data as string);
+              if (Array.isArray(msg) && msg[0] === "EVENT") {
+                const event = msg[2] as NostrEvent;
+                if (!latest || event.created_at > latest.created_at) {
+                  latest = event;
+                }
+              }
+              if (Array.isArray(msg) && msg[0] === "EOSE") {
+                clearTimeout(timeout);
+                ws.close();
+                resolve();
+              }
+            } catch {
+              // ignore parse errors
+            }
+          };
+        });
+      } catch {
+        // ignore relay errors
+      }
+    })
+  );
+
+  return latest;
+}
+
 /**
  * Fetch all resource events for a given author from a set of relays.
  * Intended for multi-device synchronization.
@@ -228,6 +401,61 @@ export async function syncAllResourceEventsForAuthor(params: {
   return events;
 }
 
+export async function syncAllCourseEventsForAuthor(params: {
+  relays?: RelayConfig[];
+  authorPubkey: string;
+}): Promise<NostrEvent[]> {
+  const relays = params.relays ?? DEFAULT_RELAYS;
+  const filters = [
+    {
+      kinds: [COURSE_EVENT_KIND],
+      authors: [params.authorPubkey],
+      "#t": ["faircredit-course"],
+    },
+  ];
+  const subPayload = ["REQ", "faircredit-course-sync", ...filters] as const;
+  const json = JSON.stringify(subPayload);
+
+  const events: NostrEvent[] = [];
+
+  await Promise.allSettled(
+    relays.map(async ({ url }) => {
+      try {
+        const ws = await openRelay(url);
+        ws.send(json);
+
+        await new Promise<void>((resolve) => {
+          const timeout = setTimeout(() => {
+            ws.close();
+            resolve();
+          }, 5000);
+
+          ws.onmessage = (ev) => {
+            try {
+              const msg = JSON.parse(ev.data as string);
+              if (Array.isArray(msg) && msg[0] === "EVENT") {
+                const event = msg[2] as NostrEvent;
+                events.push(event);
+              }
+              if (Array.isArray(msg) && msg[0] === "EOSE") {
+                clearTimeout(timeout);
+                ws.close();
+                resolve();
+              }
+            } catch {
+              // ignore parse errors
+            }
+          };
+        });
+      } catch {
+        // ignore relay error
+      }
+    })
+  );
+
+  return events;
+}
+
 /**
  * Build a stable d-tag from the resource pubkey and created timestamp.
  * Convention: base58(resourcePubkey) + ":" + created
@@ -239,3 +467,13 @@ export function buildResourceDTag(params: {
   return `${params.resourcePubkey}:${params.created}`;
 }
 
+/**
+ * Build a stable d-tag from the course pubkey and creation timestamp.
+ * Convention: base58(coursePubkey) + ":" + creationTimestamp
+ */
+export function buildCourseDTag(params: {
+  coursePubkey: Address<string>;
+  creationTimestamp: number;
+}): string {
+  return `${params.coursePubkey}:${params.creationTimestamp}`;
+}

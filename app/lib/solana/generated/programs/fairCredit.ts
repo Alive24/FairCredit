@@ -24,6 +24,7 @@ import {
   parseAddProviderEndorserInstruction,
   parseAddResourceInstruction,
   parseApproveCredentialInstruction,
+  parseCloseCourseInstruction,
   parseCloseHubInstruction,
   parseCloseProviderInstruction,
   parseCreateAssetInstruction,
@@ -45,6 +46,7 @@ import {
   parseSetAssetNostrRefInstruction,
   parseSetAssetWalrusRefInstruction,
   parseSetCourseListNextInstruction,
+  parseSetCourseNostrRefInstruction,
   parseSetResourceNostrRefInstruction,
   parseSetResourceWalrusRefInstruction,
   parseSetSubmissionNostrRefInstruction,
@@ -60,6 +62,7 @@ import {
   type ParsedAddProviderEndorserInstruction,
   type ParsedAddResourceInstruction,
   type ParsedApproveCredentialInstruction,
+  type ParsedCloseCourseInstruction,
   type ParsedCloseHubInstruction,
   type ParsedCloseProviderInstruction,
   type ParsedCreateAssetInstruction,
@@ -81,6 +84,7 @@ import {
   type ParsedSetAssetNostrRefInstruction,
   type ParsedSetAssetWalrusRefInstruction,
   type ParsedSetCourseListNextInstruction,
+  type ParsedSetCourseNostrRefInstruction,
   type ParsedSetResourceNostrRefInstruction,
   type ParsedSetResourceWalrusRefInstruction,
   type ParsedSetSubmissionNostrRefInstruction,
@@ -222,6 +226,7 @@ export enum FairCreditInstruction {
   AddProviderEndorser,
   AddResource,
   ApproveCredential,
+  CloseCourse,
   CloseHub,
   CloseProvider,
   CreateAsset,
@@ -243,6 +248,7 @@ export enum FairCreditInstruction {
   SetAssetNostrRef,
   SetAssetWalrusRef,
   SetCourseListNext,
+  SetCourseNostrRef,
   SetResourceNostrRef,
   SetResourceWalrusRef,
   SetSubmissionNostrRef,
@@ -333,6 +339,17 @@ export function identifyFairCreditInstruction(
     )
   ) {
     return FairCreditInstruction.ApproveCredential;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([157, 252, 239, 166, 213, 174, 160, 34]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.CloseCourse;
   }
   if (
     containsBytes(
@@ -569,6 +586,17 @@ export function identifyFairCreditInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([225, 153, 208, 14, 232, 109, 136, 29]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.SetCourseNostrRef;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([46, 8, 175, 130, 13, 80, 221, 250]),
       ),
       0,
@@ -683,6 +711,9 @@ export type ParsedFairCreditInstruction<
       instructionType: FairCreditInstruction.ApproveCredential;
     } & ParsedApproveCredentialInstruction<TProgram>)
   | ({
+      instructionType: FairCreditInstruction.CloseCourse;
+    } & ParsedCloseCourseInstruction<TProgram>)
+  | ({
       instructionType: FairCreditInstruction.CloseHub;
     } & ParsedCloseHubInstruction<TProgram>)
   | ({
@@ -745,6 +776,9 @@ export type ParsedFairCreditInstruction<
   | ({
       instructionType: FairCreditInstruction.SetCourseListNext;
     } & ParsedSetCourseListNextInstruction<TProgram>)
+  | ({
+      instructionType: FairCreditInstruction.SetCourseNostrRef;
+    } & ParsedSetCourseNostrRefInstruction<TProgram>)
   | ({
       instructionType: FairCreditInstruction.SetResourceNostrRef;
     } & ParsedSetResourceNostrRefInstruction<TProgram>)
@@ -822,6 +856,13 @@ export function parseFairCreditInstruction<TProgram extends string>(
       return {
         instructionType: FairCreditInstruction.ApproveCredential,
         ...parseApproveCredentialInstruction(instruction),
+      };
+    }
+    case FairCreditInstruction.CloseCourse: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.CloseCourse,
+        ...parseCloseCourseInstruction(instruction),
       };
     }
     case FairCreditInstruction.CloseHub: {
@@ -970,6 +1011,13 @@ export function parseFairCreditInstruction<TProgram extends string>(
         ...parseSetCourseListNextInstruction(instruction),
       };
     }
+    case FairCreditInstruction.SetCourseNostrRef: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.SetCourseNostrRef,
+        ...parseSetCourseNostrRefInstruction(instruction),
+      };
+    }
     case FairCreditInstruction.SetResourceNostrRef: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -1027,6 +1075,8 @@ export function parseFairCreditInstruction<TProgram extends string>(
       };
     }
     default:
-      throw new Error("Unrecognized instruction type: " + instructionType);
+      throw new Error(
+        `Unrecognized instruction type: ${instructionType as string}`,
+      );
   }
 }

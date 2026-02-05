@@ -8,6 +8,7 @@ import {
 import { getTestContext, type TestContext } from "./setup/test-context";
 import { getCreateCourseInstructionAsync } from "../lib/solana/generated/instructions/createCourse";
 import { getUpdateCourseStatusInstructionAsync } from "../lib/solana/generated/instructions/updateCourseStatus";
+import { getAddAcceptedCourseInstructionAsync } from "../lib/solana/generated/instructions/addAcceptedCourse";
 import { getCreateCredentialInstructionAsync } from "../lib/solana/generated/instructions/createCredential";
 import { getEndorseCredentialInstruction } from "../lib/solana/generated/instructions/endorseCredential";
 import { getApproveCredentialInstructionAsync } from "../lib/solana/generated/instructions/approveCredential";
@@ -47,10 +48,18 @@ describe("Credential Management", () => {
       provider: ctx.providerPDA,
       hub: ctx.hubPDA,
       providerAuthority: ctx.providerWallet,
-      status: CourseStatus.Verified,
+      status: CourseStatus.InReview,
       rejectionReason: null,
     });
     await sendInstructions(ctx.rpcUrl, [updateStatusIx], ctx.providerWallet);
+    await sleep(1000);
+
+    const addAcceptedIx = await getAddAcceptedCourseInstructionAsync({
+      hub: ctx.hubPDA,
+      authority: ctx.hubAuthority,
+      course: credentialCoursePDA,
+    });
+    await sendInstructions(ctx.rpcUrl, [addAcceptedIx], ctx.hubAuthority);
     await sleep(1000);
   });
 
@@ -67,7 +76,7 @@ describe("Credential Management", () => {
     const tx = await sendInstructions(
       ctx.rpcUrl,
       [instruction],
-      ctx.studentWallet
+      ctx.studentWallet,
     );
     console.log("Credential created:", tx);
     await sleep(1000);
@@ -87,7 +96,7 @@ describe("Credential Management", () => {
     const tx = await sendInstructions(
       ctx.rpcUrl,
       [instruction],
-      ctx.mentorWallet
+      ctx.mentorWallet,
     );
     console.log("Credential endorsed:", tx);
     await sleep(1000);
@@ -106,7 +115,7 @@ describe("Credential Management", () => {
     const tx = await sendInstructions(
       ctx.rpcUrl,
       [instruction],
-      ctx.providerWallet
+      ctx.providerWallet,
     );
     console.log("Credential approved:", tx);
     await sleep(1000);
@@ -123,19 +132,19 @@ describe("Credential Management", () => {
           new Uint8Array([
             99, 114, 101, 100, 101, 110, 116, 105, 97, 108, 95, 110, 102, 116,
             95, 109, 105, 110, 116,
-          ])
+          ]),
         ),
         getAddressEncoder().encode(address(credentialPDA)),
       ],
     });
     const metadataProgram = address(
-      "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+      "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
     );
     const [metadataPda] = await getProgramDerivedAddress({
       programAddress: metadataProgram,
       seeds: [
         getBytesEncoder().encode(
-          new Uint8Array([109, 101, 116, 97, 100, 97, 116, 97])
+          new Uint8Array([109, 101, 116, 97, 100, 97, 116, 97]),
         ),
         getAddressEncoder().encode(metadataProgram),
         getAddressEncoder().encode(mintPda),
@@ -155,7 +164,7 @@ describe("Credential Management", () => {
     const tx = await sendInstructions(
       ctx.rpcUrl,
       [instruction],
-      ctx.studentWallet
+      ctx.studentWallet,
     );
     console.log("Credential NFT minted:", tx);
     await sleep(1000);

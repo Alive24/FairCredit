@@ -29,6 +29,8 @@ interface Course {
   created: Date;
   updated: Date;
   approvedCredentialsCount: number;
+  collegeId?: string;
+  degreeId?: string | null;
 }
 
 export function CourseList() {
@@ -62,19 +64,33 @@ export function CourseList() {
 
         const resolvedCourses = await resolveAcceptedCourses(
           rpc,
-          hub.acceptedCourses ?? []
+          hub.acceptedCourses ?? [],
         );
-        const enrichedCourses = resolvedCourses.map(({ address, course }) => ({
-          address: String(address),
-          name: course.name,
-          description: course.description,
-          status: course.status,
-          workloadRequired: course.workloadRequired,
-          provider: String(course.provider),
-          created: new Date(Number(course.created) * 1000),
-          updated: new Date(Number(course.updated) * 1000),
-          approvedCredentialsCount: course.approvedCredentials?.length ?? 0,
-        }));
+        const enrichedCourses = resolvedCourses.map(({ address, course }) => {
+          const opt = course.degreeId as
+            | { __option: string; value?: string }
+            | undefined;
+          const deg =
+            opt &&
+            typeof opt === "object" &&
+            opt.__option === "Some" &&
+            opt.value
+              ? opt.value
+              : null;
+          return {
+            address: String(address),
+            name: course.name,
+            description: course.description,
+            status: course.status,
+            workloadRequired: course.workloadRequired,
+            provider: String(course.provider),
+            created: new Date(Number(course.created) * 1000),
+            updated: new Date(Number(course.updated) * 1000),
+            approvedCredentialsCount: course.approvedCredentials?.length ?? 0,
+            collegeId: course.collegeId ?? undefined,
+            degreeId: deg ?? undefined,
+          };
+        });
 
         setCourses(enrichedCourses);
       } catch (err) {
@@ -146,10 +162,10 @@ export function CourseList() {
               <Badge variant="secondary">
                 {course.status === CourseStatus.Draft
                   ? "Draft"
-                  : course.status === CourseStatus.Verified
-                  ? "Verified"
-                  : course.status === CourseStatus.Rejected
-                  ? "Rejected"
+                  : course.status === CourseStatus.InReview
+                  ? "In Review"
+                  : course.status === CourseStatus.Accepted
+                  ? "Accepted"
                   : course.status === CourseStatus.Archived
                   ? "Archived"
                   : "Unknown"}
@@ -160,6 +176,21 @@ export function CourseList() {
             <p className="text-sm text-muted-foreground mb-4">
               {course.description}
             </p>
+
+            {(course.collegeId || course.degreeId) && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {course.collegeId && (
+                  <Badge variant="secondary" className="text-xs">
+                    {course.collegeId}
+                  </Badge>
+                )}
+                {course.degreeId && (
+                  <Badge variant="outline" className="text-xs">
+                    {course.degreeId}
+                  </Badge>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
