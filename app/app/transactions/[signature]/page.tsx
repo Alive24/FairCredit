@@ -43,11 +43,153 @@ type ParsedIx = {
   accounts: { pubkey: string; isSigner: boolean; isWritable: boolean }[];
 };
 
+type IdlType =
+  | string
+  | { array: [string, number] }
+  | { option: IdlType }
+  | { defined: string }
+  | { vec: IdlType }
+  | { coption: IdlType };
+
+type IdlInstruction = {
+  name: string;
+  discriminator: number[];
+  args: Array<{ name: string; type: IdlType }>;
+};
+
+type Idl = {
+  instructions: IdlInstruction[];
+};
+
+let cachedIdl: Idl | null = null;
+
+async function loadIdl(): Promise<Idl | null> {
+  if (cachedIdl) return cachedIdl;
+  try {
+    // Try fetching from public directory first
+    const response = await fetch("/fair_credit.json");
+    if (response.ok) {
+      cachedIdl = (await response.json()) as Idl;
+      return cachedIdl;
+    }
+  } catch {
+    // Ignore
+  }
+  try {
+    // Try fetching from target/idl
+    const response = await fetch("/target/idl/fair_credit.json");
+    if (response.ok) {
+      cachedIdl = (await response.json()) as Idl;
+      return cachedIdl;
+    }
+  } catch {
+    // Ignore
+  }
+  try {
+    // Try dynamic import (works in dev, may need build-time copy for prod)
+    const idlModule = await import("@/../../target/idl/fair_credit.json");
+    cachedIdl = (idlModule.default ?? idlModule) as Idl;
+    return cachedIdl;
+  } catch {
+    return null;
+  }
+}
+
+function instructionTypeToIdlName(
+  instructionType: FairCreditInstruction,
+): string {
+  const names: Record<FairCreditInstruction, string> = {
+    [FairCreditInstruction.AddAcceptedCourse]: "add_accepted_course",
+    [FairCreditInstruction.AddAcceptedProvider]: "add_accepted_provider",
+    [FairCreditInstruction.AddCourseModule]: "add_course_module",
+    [FairCreditInstruction.AddCourseToList]: "add_course_to_list",
+    [FairCreditInstruction.AddProviderEndorser]: "add_provider_endorser",
+    [FairCreditInstruction.AddResource]: "add_resource",
+    [FairCreditInstruction.ApproveCredential]: "approve_credential",
+    [FairCreditInstruction.CloseCourse]: "close_course",
+    [FairCreditInstruction.CloseHub]: "close_hub",
+    [FairCreditInstruction.CloseProvider]: "close_provider",
+    [FairCreditInstruction.CreateAsset]: "create_asset",
+    [FairCreditInstruction.CreateCourse]: "create_course",
+    [FairCreditInstruction.CreateCourseList]: "create_course_list",
+    [FairCreditInstruction.CreateCredential]: "create_credential",
+    [FairCreditInstruction.CreateSubmission]: "create_submission",
+    [FairCreditInstruction.EndorseCredential]: "endorse_credential",
+    [FairCreditInstruction.GradeSubmission]: "grade_submission",
+    [FairCreditInstruction.Initialize]: "initialize",
+    [FairCreditInstruction.InitializeHub]: "initialize_hub",
+    [FairCreditInstruction.InitializeProvider]: "initialize_provider",
+    [FairCreditInstruction.LinkActivityToCredential]:
+      "link_activity_to_credential",
+    [FairCreditInstruction.MintCredentialNft]: "mint_credential_nft",
+    [FairCreditInstruction.RemoveAcceptedCourse]: "remove_accepted_course",
+    [FairCreditInstruction.RemoveAcceptedProvider]:
+      "remove_accepted_provider",
+    [FairCreditInstruction.RemoveCourseFromList]: "remove_course_from_list",
+    [FairCreditInstruction.RemoveProviderEndorser]: "remove_provider_endorser",
+    [FairCreditInstruction.SetAssetNostrRef]: "set_asset_nostr_ref",
+    [FairCreditInstruction.SetAssetWalrusRef]: "set_asset_walrus_ref",
+    [FairCreditInstruction.SetCourseListNext]: "set_course_list_next",
+    [FairCreditInstruction.SetCourseNostrRef]: "set_course_nostr_ref",
+    [FairCreditInstruction.SetResourceNostrRef]: "set_resource_nostr_ref",
+    [FairCreditInstruction.SetResourceWalrusRef]: "set_resource_walrus_ref",
+    [FairCreditInstruction.SetSubmissionNostrRef]: "set_submission_nostr_ref",
+    [FairCreditInstruction.SetSubmissionWalrusRef]:
+      "set_submission_walrus_ref",
+    [FairCreditInstruction.TransferHubAuthority]: "transfer_hub_authority",
+    [FairCreditInstruction.UpdateCourseStatus]: "update_course_status",
+    [FairCreditInstruction.UpdateHubConfig]: "update_hub_config",
+    [FairCreditInstruction.UpdateResourceData]: "update_resource_data",
+  };
+  return names[instructionType] ?? "";
+}
+
+function idlTypeToRustType(idlType: IdlType): string {
+  if (typeof idlType === "string") {
+    const typeMap: Record<string, string> = {
+      string: "String",
+      bool: "bool",
+      u8: "u8",
+      u16: "u16",
+      u32: "u32",
+      u64: "u64",
+      i8: "i8",
+      i16: "i16",
+      i32: "i32",
+      i64: "i64",
+      f32: "f32",
+      f64: "f64",
+      bytes: "Vec<u8>",
+      pubkey: "Pubkey",
+    };
+    return typeMap[idlType] ?? idlType;
+  }
+  if ("array" in idlType && Array.isArray(idlType.array)) {
+    const [innerType, length] = idlType.array;
+    const rustInner = idlTypeToRustType(innerType);
+    return `[${rustInner}; ${length}]`;
+  }
+  if ("option" in idlType) {
+    return `Option<${idlTypeToRustType(idlType.option)}>`;
+  }
+  if ("vec" in idlType) {
+    return `Vec<${idlTypeToRustType(idlType.vec)}>`;
+  }
+  if ("coption" in idlType) {
+    return `COption<${idlTypeToRustType(idlType.coption)}>`;
+  }
+  if ("defined" in idlType) {
+    return idlType.defined;
+  }
+  return "unknown";
+}
+
 export default function TransactionDetailPage() {
   const params = useParams<{ signature: string }>();
   const signature =
     typeof params?.signature === "string" ? params.signature : "";
   const { connection } = useAppKitConnection();
+  const [idl, setIdl] = useState<Idl | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +211,10 @@ export default function TransactionDetailPage() {
       ? `${base}${signature}?cluster=${SOLANA_CLUSTER}`
       : `${base}${signature}`;
   }, [signature]);
+
+  useEffect(() => {
+    loadIdl().then(setIdl).catch(() => setIdl(null));
+  }, []);
 
   useEffect(() => {
     if (!connection || !signature) return;
@@ -369,16 +515,29 @@ export default function TransactionDetailPage() {
                   </div>
                   {ix.kind === "fairCredit" &&
                     !!ix.fairCreditDecoded &&
-                    getFairCreditDataEntries(ix).length > 0 && (
+                    getFairCreditDataEntries(ix, idl, ix.fairCreditType).length >
+                      0 && (
                       <div className="mt-2 space-y-1">
                         <p className="text-[14px] font-[1000]">Data</p>
                         <ul className="space-y-0.5">
-                          {getFairCreditDataEntries(ix).map(
-                            ({ key, value }) => (
-                              <li key={key} className="text-xs">
+                          {getFairCreditDataEntries(
+                            ix,
+                            idl,
+                            ix.fairCreditType,
+                          ).map(({ key, value, type }) => (
+                              <li
+                                key={key}
+                                className="flex flex-wrap items-center gap-2 text-xs"
+                              >
                                 <span className="font-[800] underline">
-                                  {key}:{" "}
+                                  {key}
                                 </span>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] uppercase"
+                                >
+                                  {type}
+                                </Badge>
                                 <span className="font-mono break-all">
                                   {value}
                                 </span>
@@ -561,18 +720,109 @@ function getAccountLabel(
 
 function getFairCreditDataEntries(
   ix: ParsedIx,
-): { key: string; value: string }[] {
+  idl: Idl | null,
+  instructionType?: FairCreditInstruction,
+): { key: string; value: string; type: string }[] {
   if (ix.kind !== "fairCredit" || !ix.fairCreditDecoded) return [];
   const decoded: any = ix.fairCreditDecoded;
   const data = decoded.data;
   if (!data || typeof data !== "object") return [];
 
-  const entries: { key: string; value: string }[] = [];
+  // Try to get types from IDL
+  let idlArgTypes: Map<string, IdlType> | null = null;
+  if (idl && instructionType != null) {
+    const idlName = instructionTypeToIdlName(instructionType);
+    const idlIx = idl.instructions.find((i) => i.name === idlName);
+    if (idlIx) {
+      idlArgTypes = new Map(
+        idlIx.args.map((arg) => [arg.name, arg.type]),
+      );
+    }
+  }
+
+  const entries: { key: string; value: string; type: string }[] = [];
   for (const [key, raw] of Object.entries(data as Record<string, unknown>)) {
     if (key === "discriminator") continue;
-    entries.push({ key, value: formatDataValue(raw) });
+    // Convert camelCase to snake_case for IDL lookup
+    const snakeKey = key.replace(
+      /[A-Z]/g,
+      (letter) => `_${letter.toLowerCase()}`,
+    );
+    const idlType =
+      idlArgTypes?.get(key) ?? idlArgTypes?.get(snakeKey) ?? null;
+    const rustType = idlType
+      ? idlTypeToRustType(idlType)
+      : inferRustType(key, raw);
+    entries.push({
+      key,
+      value: formatDataValue(raw),
+      type: rustType,
+    });
   }
   return entries;
+}
+
+function inferRustType(fieldName: string, raw: unknown): string {
+  if (raw == null) return "Option<T>";
+  if (typeof raw === "string") {
+    // Check for common patterns
+    if (fieldName.toLowerCase().includes("tag") || fieldName.toLowerCase().includes("d")) {
+      return "String";
+    }
+    return "String";
+  }
+  if (typeof raw === "number") {
+    // Anchor commonly uses u64 or i64 for timestamps and counts
+    if (fieldName.toLowerCase().includes("timestamp") || fieldName.toLowerCase().includes("time")) {
+      return "i64";
+    }
+    if (fieldName.toLowerCase().includes("count") || fieldName.toLowerCase().includes("index")) {
+      return "u64";
+    }
+    // Default to u64 for most numbers in Anchor
+    return "u64";
+  }
+  if (typeof raw === "boolean") {
+    return "bool";
+  }
+  if (raw instanceof Uint8Array) {
+    const len = raw.length;
+    if (len === 32) {
+      // 32 bytes is often Pubkey or [u8; 32]
+      if (fieldName.toLowerCase().includes("pubkey") || fieldName.toLowerCase().includes("author")) {
+        return "[u8; 32]";
+      }
+      return "[u8; 32]";
+    }
+    if (len === 8) {
+      return "[u8; 8]";
+    }
+    return `Vec<u8>`;
+  }
+  if (
+    typeof raw === "object" &&
+    raw !== null &&
+    "type" in (raw as any) &&
+    (raw as any).type === "Buffer" &&
+    Array.isArray((raw as any).data)
+  ) {
+    const bytes = new Uint8Array((raw as any).data as number[]);
+    const len = bytes.length;
+    if (len === 32) {
+      if (fieldName.toLowerCase().includes("pubkey") || fieldName.toLowerCase().includes("author")) {
+        return "[u8; 32]";
+      }
+      return "[u8; 32]";
+    }
+    if (len === 8) {
+      return "[u8; 8]";
+    }
+    return `Vec<u8>`;
+  }
+  if (Array.isArray(raw)) {
+    return "Vec<T>";
+  }
+  return "unknown";
 }
 
 function formatDataValue(raw: unknown): string {

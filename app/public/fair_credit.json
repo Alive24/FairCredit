@@ -1,0 +1,5065 @@
+{
+  "address": "95asCfd7nbJN5i6REuiuLHj7Wb6DqqAKrhG1tRJ7Dthx",
+  "metadata": {
+    "name": "fair_credit",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "add_accepted_course",
+      "discriminator": [
+        112,
+        34,
+        179,
+        21,
+        127,
+        26,
+        135,
+        187
+      ],
+      "accounts": [
+        {
+          "name": "hub",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "course",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "add_accepted_provider",
+      "discriminator": [
+        254,
+        208,
+        75,
+        70,
+        237,
+        107,
+        97,
+        207
+      ],
+      "accounts": [
+        {
+          "name": "hub",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "provider",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider_wallet"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_wallet"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "add_course_module",
+      "discriminator": [
+        66,
+        48,
+        207,
+        234,
+        168,
+        239,
+        54,
+        244
+      ],
+      "accounts": [
+        {
+          "name": "course",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  117,
+                  114,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              },
+              {
+                "kind": "account",
+                "path": "course.creation_timestamp",
+                "account": "Course"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "resource",
+          "type": "pubkey"
+        },
+        {
+          "name": "percentage",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "add_course_to_list",
+      "discriminator": [
+        250,
+        67,
+        178,
+        236,
+        93,
+        140,
+        18,
+        226
+      ],
+      "accounts": [
+        {
+          "name": "hub",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          },
+          "relations": [
+            "course_list"
+          ]
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "course_list",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  117,
+                  114,
+                  115,
+                  101,
+                  45,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "arg",
+                "path": "course_list_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "course"
+        }
+      ],
+      "args": [
+        {
+          "name": "course_list_index",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "add_provider_endorser",
+      "discriminator": [
+        49,
+        66,
+        186,
+        64,
+        50,
+        121,
+        37,
+        73
+      ],
+      "accounts": [
+        {
+          "name": "provider_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "endorser_wallet"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "add_resource",
+      "discriminator": [
+        83,
+        86,
+        127,
+        113,
+        72,
+        33,
+        236,
+        121
+      ],
+      "accounts": [
+        {
+          "name": "resource",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  111,
+                  117,
+                  114,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "course"
+              },
+              {
+                "kind": "arg",
+                "path": "creation_timestamp"
+              }
+            ]
+          }
+        },
+        {
+          "name": "course",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  117,
+                  114,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              },
+              {
+                "kind": "account",
+                "path": "course.creation_timestamp",
+                "account": "Course"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "creation_timestamp",
+          "type": "i64"
+        },
+        {
+          "name": "kind",
+          "type": {
+            "defined": {
+              "name": "ResourceKind"
+            }
+          }
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "external_id",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "workload",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "tags",
+          "type": {
+            "vec": "string"
+          }
+        }
+      ]
+    },
+    {
+      "name": "approve_credential",
+      "discriminator": [
+        171,
+        247,
+        4,
+        204,
+        54,
+        63,
+        230,
+        24
+      ],
+      "accounts": [
+        {
+          "name": "credential",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  101,
+                  110,
+                  116,
+                  105,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "credential.course",
+                "account": "Credential"
+              },
+              {
+                "kind": "account",
+                "path": "credential.student_wallet",
+                "account": "Credential"
+              }
+            ]
+          }
+        },
+        {
+          "name": "course",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  117,
+                  114,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              },
+              {
+                "kind": "account",
+                "path": "course.creation_timestamp",
+                "account": "Course"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_course",
+      "discriminator": [
+        157,
+        252,
+        239,
+        166,
+        213,
+        174,
+        160,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "course",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  117,
+                  114,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              },
+              {
+                "kind": "account",
+                "path": "course.creation_timestamp",
+                "account": "Course"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_hub",
+      "discriminator": [
+        55,
+        105,
+        65,
+        207,
+        233,
+        226,
+        149,
+        185
+      ],
+      "accounts": [
+        {
+          "name": "hub",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_provider",
+      "discriminator": [
+        165,
+        19,
+        159,
+        160,
+        179,
+        241,
+        87,
+        244
+      ],
+      "accounts": [
+        {
+          "name": "provider_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_asset",
+      "discriminator": [
+        28,
+        42,
+        120,
+        51,
+        7,
+        38,
+        156,
+        136
+      ],
+      "accounts": [
+        {
+          "name": "asset",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "arg",
+                "path": "creation_timestamp"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "creation_timestamp",
+          "type": "i64"
+        },
+        {
+          "name": "content_type",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "file_name",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "file_size",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "resource",
+          "type": {
+            "option": "pubkey"
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_course",
+      "discriminator": [
+        120,
+        121,
+        154,
+        164,
+        107,
+        180,
+        167,
+        241
+      ],
+      "accounts": [
+        {
+          "name": "course",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  117,
+                  114,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              },
+              {
+                "kind": "arg",
+                "path": "creation_timestamp"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "creation_timestamp",
+          "type": "i64"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "workload_required",
+          "type": "u32"
+        },
+        {
+          "name": "degree_id",
+          "type": {
+            "option": "string"
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_course_list",
+      "discriminator": [
+        236,
+        54,
+        193,
+        88,
+        23,
+        242,
+        114,
+        85
+      ],
+      "accounts": [
+        {
+          "name": "hub",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "course_list",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  117,
+                  114,
+                  115,
+                  101,
+                  45,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "arg",
+                "path": "course_list_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "course_list_index",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "create_credential",
+      "discriminator": [
+        205,
+        74,
+        60,
+        212,
+        63,
+        198,
+        196,
+        109
+      ],
+      "accounts": [
+        {
+          "name": "credential",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  101,
+                  110,
+                  116,
+                  105,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "course"
+              },
+              {
+                "kind": "account",
+                "path": "student"
+              }
+            ]
+          }
+        },
+        {
+          "name": "course",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  117,
+                  114,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              },
+              {
+                "kind": "account",
+                "path": "course.creation_timestamp",
+                "account": "Course"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider.wallet",
+                "account": "Provider"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "student",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_submission",
+      "discriminator": [
+        85,
+        217,
+        61,
+        59,
+        157,
+        60,
+        175,
+        220
+      ],
+      "accounts": [
+        {
+          "name": "submission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "resource"
+              },
+              {
+                "kind": "account",
+                "path": "student"
+              },
+              {
+                "kind": "arg",
+                "path": "submission_timestamp"
+              }
+            ]
+          }
+        },
+        {
+          "name": "resource",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  111,
+                  117,
+                  114,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "resource.course",
+                "account": "Resource"
+              },
+              {
+                "kind": "account",
+                "path": "resource.created",
+                "account": "Resource"
+              }
+            ]
+          }
+        },
+        {
+          "name": "student",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "submission_timestamp",
+          "type": "i64"
+        },
+        {
+          "name": "assets",
+          "type": {
+            "vec": "pubkey"
+          }
+        },
+        {
+          "name": "evidence_assets",
+          "type": {
+            "vec": "pubkey"
+          }
+        }
+      ]
+    },
+    {
+      "name": "endorse_credential",
+      "discriminator": [
+        89,
+        7,
+        229,
+        22,
+        151,
+        137,
+        59,
+        148
+      ],
+      "accounts": [
+        {
+          "name": "credential",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  101,
+                  110,
+                  116,
+                  105,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "credential.course",
+                "account": "Credential"
+              },
+              {
+                "kind": "account",
+                "path": "credential.student_wallet",
+                "account": "Credential"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mentor",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "endorsement_message",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "grade_submission",
+      "discriminator": [
+        184,
+        10,
+        237,
+        142,
+        22,
+        63,
+        207,
+        33
+      ],
+      "accounts": [
+        {
+          "name": "submission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "submission.resource",
+                "account": "Submission"
+              },
+              {
+                "kind": "account",
+                "path": "submission.student",
+                "account": "Submission"
+              },
+              {
+                "kind": "account",
+                "path": "submission.submitted_at",
+                "account": "Submission"
+              }
+            ]
+          }
+        },
+        {
+          "name": "grader",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "grade",
+          "type": "f64"
+        },
+        {
+          "name": "feedback",
+          "type": {
+            "option": "string"
+          }
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [],
+      "args": []
+    },
+    {
+      "name": "initialize_hub",
+      "discriminator": [
+        202,
+        27,
+        126,
+        27,
+        54,
+        182,
+        68,
+        169
+      ],
+      "accounts": [
+        {
+          "name": "hub",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_provider",
+      "discriminator": [
+        181,
+        103,
+        225,
+        14,
+        214,
+        210,
+        161,
+        238
+      ],
+      "accounts": [
+        {
+          "name": "provider_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "docs": [
+            "Hub that this provider is registered under"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "website",
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "type": "string"
+        },
+        {
+          "name": "provider_type",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "link_activity_to_credential",
+      "discriminator": [
+        83,
+        101,
+        231,
+        251,
+        95,
+        60,
+        159,
+        90
+      ],
+      "accounts": [
+        {
+          "name": "credential",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  101,
+                  110,
+                  116,
+                  105,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "credential.course",
+                "account": "Credential"
+              },
+              {
+                "kind": "account",
+                "path": "credential.student_wallet",
+                "account": "Credential"
+              }
+            ]
+          }
+        },
+        {
+          "name": "activity",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "activity.provider",
+                "account": "Activity"
+              },
+              {
+                "kind": "account",
+                "path": "activity.student",
+                "account": "Activity"
+              },
+              {
+                "kind": "account",
+                "path": "activity.created",
+                "account": "Activity"
+              }
+            ]
+          }
+        },
+        {
+          "name": "student",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "mint_credential_nft",
+      "discriminator": [
+        143,
+        29,
+        164,
+        159,
+        174,
+        177,
+        145,
+        102
+      ],
+      "accounts": [
+        {
+          "name": "credential",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  101,
+                  110,
+                  116,
+                  105,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "credential.course",
+                "account": "Credential"
+              },
+              {
+                "kind": "account",
+                "path": "credential.student_wallet",
+                "account": "Credential"
+              }
+            ]
+          }
+        },
+        {
+          "name": "student",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  101,
+                  110,
+                  116,
+                  105,
+                  97,
+                  108,
+                  95,
+                  110,
+                  102,
+                  116,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "credential"
+              }
+            ]
+          }
+        },
+        {
+          "name": "student_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "student"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "metadata",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent"
+        },
+        {
+          "name": "mpl_token_metadata_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "remove_accepted_course",
+      "discriminator": [
+        229,
+        110,
+        78,
+        208,
+        100,
+        200,
+        240,
+        217
+      ],
+      "accounts": [
+        {
+          "name": "hub",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "course",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "remove_accepted_provider",
+      "discriminator": [
+        190,
+        139,
+        121,
+        51,
+        91,
+        173,
+        194,
+        22
+      ],
+      "accounts": [
+        {
+          "name": "hub",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "provider_wallet"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "remove_course_from_list",
+      "discriminator": [
+        105,
+        4,
+        156,
+        52,
+        106,
+        61,
+        66,
+        167
+      ],
+      "accounts": [
+        {
+          "name": "hub",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          },
+          "relations": [
+            "course_list"
+          ]
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "course_list",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  117,
+                  114,
+                  115,
+                  101,
+                  45,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "arg",
+                "path": "course_list_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "course"
+        }
+      ],
+      "args": [
+        {
+          "name": "course_list_index",
+          "type": "u16"
+        },
+        {
+          "name": "remove_reference_if_empty",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "remove_provider_endorser",
+      "discriminator": [
+        239,
+        116,
+        68,
+        254,
+        232,
+        180,
+        205,
+        128
+      ],
+      "accounts": [
+        {
+          "name": "provider_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_authority",
+          "signer": true
+        },
+        {
+          "name": "endorser_wallet"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_asset_nostr_ref",
+      "discriminator": [
+        15,
+        110,
+        170,
+        247,
+        86,
+        68,
+        121,
+        78
+      ],
+      "accounts": [
+        {
+          "name": "asset",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "asset.owner",
+                "account": "Asset"
+              },
+              {
+                "kind": "account",
+                "path": "asset.created",
+                "account": "Asset"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "nostr_d_tag",
+          "type": "string"
+        },
+        {
+          "name": "nostr_author_pubkey",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "force",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_asset_walrus_ref",
+      "discriminator": [
+        206,
+        127,
+        86,
+        160,
+        49,
+        81,
+        233,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "asset",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "asset.owner",
+                "account": "Asset"
+              },
+              {
+                "kind": "account",
+                "path": "asset.created",
+                "account": "Asset"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "walrus_blob_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "set_course_list_next",
+      "discriminator": [
+        71,
+        83,
+        198,
+        134,
+        130,
+        250,
+        22,
+        43
+      ],
+      "accounts": [
+        {
+          "name": "hub",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          },
+          "relations": [
+            "course_list"
+          ]
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "course_list",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  117,
+                  114,
+                  115,
+                  101,
+                  45,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "arg",
+                "path": "course_list_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "next_list",
+          "optional": true
+        }
+      ],
+      "args": [
+        {
+          "name": "course_list_index",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "set_course_nostr_ref",
+      "discriminator": [
+        225,
+        153,
+        208,
+        14,
+        232,
+        109,
+        136,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "course",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  117,
+                  114,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              },
+              {
+                "kind": "account",
+                "path": "course.creation_timestamp",
+                "account": "Course"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "nostr_d_tag",
+          "type": "string"
+        },
+        {
+          "name": "nostr_author_pubkey",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "force",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_resource_nostr_ref",
+      "discriminator": [
+        46,
+        8,
+        175,
+        130,
+        13,
+        80,
+        221,
+        250
+      ],
+      "accounts": [
+        {
+          "name": "resource",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  111,
+                  117,
+                  114,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "resource.course",
+                "account": "Resource"
+              },
+              {
+                "kind": "account",
+                "path": "resource.created",
+                "account": "Resource"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "nostr_d_tag",
+          "type": "string"
+        },
+        {
+          "name": "nostr_author_pubkey",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "force",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_resource_walrus_ref",
+      "discriminator": [
+        200,
+        99,
+        100,
+        169,
+        34,
+        105,
+        237,
+        90
+      ],
+      "accounts": [
+        {
+          "name": "resource",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  111,
+                  117,
+                  114,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "resource.course",
+                "account": "Resource"
+              },
+              {
+                "kind": "account",
+                "path": "resource.created",
+                "account": "Resource"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "walrus_blob_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "set_submission_nostr_ref",
+      "discriminator": [
+        250,
+        73,
+        237,
+        180,
+        145,
+        139,
+        156,
+        93
+      ],
+      "accounts": [
+        {
+          "name": "submission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "submission.resource",
+                "account": "Submission"
+              },
+              {
+                "kind": "account",
+                "path": "submission.student",
+                "account": "Submission"
+              },
+              {
+                "kind": "account",
+                "path": "submission.submitted_at",
+                "account": "Submission"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "nostr_d_tag",
+          "type": "string"
+        },
+        {
+          "name": "nostr_author_pubkey",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "force",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_submission_walrus_ref",
+      "discriminator": [
+        24,
+        56,
+        15,
+        133,
+        11,
+        178,
+        121,
+        22
+      ],
+      "accounts": [
+        {
+          "name": "submission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  117,
+                  98,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "submission.resource",
+                "account": "Submission"
+              },
+              {
+                "kind": "account",
+                "path": "submission.student",
+                "account": "Submission"
+              },
+              {
+                "kind": "account",
+                "path": "submission.submitted_at",
+                "account": "Submission"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "walrus_blob_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "transfer_hub_authority",
+      "discriminator": [
+        79,
+        149,
+        16,
+        85,
+        136,
+        102,
+        174,
+        103
+      ],
+      "accounts": [
+        {
+          "name": "hub",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "current_authority",
+          "signer": true
+        },
+        {
+          "name": "new_authority"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_course_status",
+      "discriminator": [
+        212,
+        91,
+        18,
+        222,
+        178,
+        244,
+        1,
+        226
+      ],
+      "accounts": [
+        {
+          "name": "course",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  117,
+                  114,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              },
+              {
+                "kind": "account",
+                "path": "course.creation_timestamp",
+                "account": "Course"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider_authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": {
+              "name": "CourseStatus"
+            }
+          }
+        },
+        {
+          "name": "rejection_reason",
+          "type": {
+            "option": "string"
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_hub_config",
+      "discriminator": [
+        73,
+        46,
+        233,
+        56,
+        245,
+        217,
+        38,
+        134
+      ],
+      "accounts": [
+        {
+          "name": "hub",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": {
+              "name": "HubConfig"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_resource_data",
+      "discriminator": [
+        220,
+        34,
+        31,
+        38,
+        55,
+        239,
+        228,
+        251
+      ],
+      "accounts": [
+        {
+          "name": "resource",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  111,
+                  117,
+                  114,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "resource.course",
+                "account": "Resource"
+              },
+              {
+                "kind": "account",
+                "path": "resource.created",
+                "account": "Resource"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "workload",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "tags",
+          "type": {
+            "option": {
+              "vec": "string"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Activity",
+      "discriminator": [
+        159,
+        236,
+        145,
+        113,
+        221,
+        192,
+        137,
+        112
+      ]
+    },
+    {
+      "name": "Asset",
+      "discriminator": [
+        234,
+        180,
+        241,
+        252,
+        139,
+        224,
+        160,
+        8
+      ]
+    },
+    {
+      "name": "Course",
+      "discriminator": [
+        206,
+        6,
+        78,
+        228,
+        163,
+        138,
+        241,
+        106
+      ]
+    },
+    {
+      "name": "CourseList",
+      "discriminator": [
+        99,
+        177,
+        179,
+        152,
+        14,
+        43,
+        214,
+        96
+      ]
+    },
+    {
+      "name": "Credential",
+      "discriminator": [
+        145,
+        44,
+        68,
+        220,
+        67,
+        46,
+        100,
+        135
+      ]
+    },
+    {
+      "name": "Hub",
+      "discriminator": [
+        143,
+        189,
+        4,
+        120,
+        169,
+        234,
+        14,
+        125
+      ]
+    },
+    {
+      "name": "Provider",
+      "discriminator": [
+        164,
+        180,
+        71,
+        17,
+        75,
+        216,
+        80,
+        195
+      ]
+    },
+    {
+      "name": "Resource",
+      "discriminator": [
+        10,
+        160,
+        2,
+        1,
+        42,
+        207,
+        51,
+        212
+      ]
+    },
+    {
+      "name": "Submission",
+      "discriminator": [
+        58,
+        194,
+        159,
+        158,
+        75,
+        102,
+        178,
+        197
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "ActivityCreated",
+      "discriminator": [
+        77,
+        164,
+        46,
+        249,
+        121,
+        231,
+        67,
+        29
+      ]
+    },
+    {
+      "name": "ActivityGraded",
+      "discriminator": [
+        203,
+        237,
+        203,
+        63,
+        195,
+        202,
+        247,
+        3
+      ]
+    },
+    {
+      "name": "CourseAccepted",
+      "discriminator": [
+        11,
+        182,
+        196,
+        169,
+        71,
+        213,
+        251,
+        235
+      ]
+    },
+    {
+      "name": "CourseCreated",
+      "discriminator": [
+        205,
+        144,
+        55,
+        47,
+        150,
+        170,
+        123,
+        214
+      ]
+    },
+    {
+      "name": "CourseRemovedFromHub",
+      "discriminator": [
+        113,
+        13,
+        247,
+        211,
+        79,
+        240,
+        192,
+        223
+      ]
+    },
+    {
+      "name": "CredentialCreated",
+      "discriminator": [
+        201,
+        102,
+        191,
+        14,
+        62,
+        73,
+        120,
+        9
+      ]
+    },
+    {
+      "name": "CredentialEndorsed",
+      "discriminator": [
+        213,
+        31,
+        8,
+        140,
+        38,
+        98,
+        111,
+        60
+      ]
+    },
+    {
+      "name": "CredentialMinted",
+      "discriminator": [
+        13,
+        15,
+        67,
+        163,
+        30,
+        92,
+        149,
+        213
+      ]
+    },
+    {
+      "name": "CredentialVerified",
+      "discriminator": [
+        242,
+        32,
+        25,
+        117,
+        249,
+        65,
+        220,
+        214
+      ]
+    },
+    {
+      "name": "HubAuthorityTransferred",
+      "discriminator": [
+        187,
+        30,
+        66,
+        212,
+        97,
+        191,
+        43,
+        37
+      ]
+    },
+    {
+      "name": "HubConfigUpdated",
+      "discriminator": [
+        124,
+        226,
+        69,
+        70,
+        103,
+        73,
+        225,
+        206
+      ]
+    },
+    {
+      "name": "HubInitialized",
+      "discriminator": [
+        138,
+        228,
+        8,
+        83,
+        240,
+        141,
+        220,
+        138
+      ]
+    },
+    {
+      "name": "ProviderAccepted",
+      "discriminator": [
+        219,
+        243,
+        54,
+        216,
+        209,
+        127,
+        255,
+        250
+      ]
+    },
+    {
+      "name": "ProviderEndorserAdded",
+      "discriminator": [
+        123,
+        12,
+        4,
+        111,
+        245,
+        43,
+        8,
+        220
+      ]
+    },
+    {
+      "name": "ProviderEndorserRemoved",
+      "discriminator": [
+        186,
+        6,
+        91,
+        70,
+        250,
+        168,
+        195,
+        59
+      ]
+    },
+    {
+      "name": "ProviderRegistered",
+      "discriminator": [
+        38,
+        209,
+        137,
+        78,
+        185,
+        19,
+        147,
+        14
+      ]
+    },
+    {
+      "name": "ProviderRemovedFromHub",
+      "discriminator": [
+        254,
+        251,
+        202,
+        197,
+        8,
+        86,
+        2,
+        126
+      ]
+    },
+    {
+      "name": "ProviderReputationUpdated",
+      "discriminator": [
+        70,
+        120,
+        238,
+        194,
+        223,
+        201,
+        159,
+        3
+      ]
+    },
+    {
+      "name": "ProviderSuspended",
+      "discriminator": [
+        110,
+        44,
+        113,
+        62,
+        139,
+        26,
+        159,
+        15
+      ]
+    },
+    {
+      "name": "ProviderUnsuspended",
+      "discriminator": [
+        185,
+        89,
+        150,
+        58,
+        220,
+        159,
+        129,
+        254
+      ]
+    },
+    {
+      "name": "ResourceAdded",
+      "discriminator": [
+        89,
+        250,
+        118,
+        248,
+        81,
+        53,
+        99,
+        32
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "AlreadyEnrolled",
+      "msg": "Student already enrolled in this degree/course"
+    },
+    {
+      "code": 6001,
+      "name": "TooManyDegrees",
+      "msg": "Too many degrees for student"
+    },
+    {
+      "code": 6002,
+      "name": "TooManyCourses",
+      "msg": "Too many courses for student"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidEmail",
+      "msg": "Invalid email format"
+    },
+    {
+      "code": 6004,
+      "name": "TooManySkills",
+      "msg": "Too many skills"
+    },
+    {
+      "code": 6005,
+      "name": "DuplicateSkill",
+      "msg": "Duplicate skill"
+    },
+    {
+      "code": 6006,
+      "name": "TooManyAchievements",
+      "msg": "Too many achievements"
+    },
+    {
+      "code": 6007,
+      "name": "TooManyCertifications",
+      "msg": "Too many certifications"
+    },
+    {
+      "code": 6008,
+      "name": "DuplicateCertification",
+      "msg": "Duplicate certification"
+    }
+  ],
+  "types": [
+    {
+      "name": "Activity",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "created",
+            "docs": [
+              "Creation timestamp (used in PDA seeds: activity + provider + student + created)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "updated",
+            "type": "i64"
+          },
+          {
+            "name": "student",
+            "docs": [
+              "Uploader / student wallet"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "provider",
+            "docs": [
+              "Provider account (PDA)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "degree_id",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "course",
+            "docs": [
+              "Course account (PDA) if activity is course-related"
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "resource_id",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "data",
+            "type": "string"
+          },
+          {
+            "name": "kind",
+            "type": {
+              "defined": {
+                "name": "ActivityKind"
+              }
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "ActivityStatus"
+              }
+            }
+          },
+          {
+            "name": "resource_kind",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "ResourceKind"
+                }
+              }
+            }
+          },
+          {
+            "name": "grade",
+            "type": {
+              "option": "f64"
+            }
+          },
+          {
+            "name": "assets",
+            "type": {
+              "vec": "string"
+            }
+          },
+          {
+            "name": "evidence_assets",
+            "type": {
+              "vec": "string"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ActivityCreated",
+      "docs": [
+        "Event emitted when an activity is created"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "activity",
+            "type": "pubkey"
+          },
+          {
+            "name": "student",
+            "type": "pubkey"
+          },
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "course",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "kind",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ActivityGraded",
+      "docs": [
+        "Event emitted when an activity is graded"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "activity",
+            "type": "pubkey"
+          },
+          {
+            "name": "grade",
+            "type": "f64"
+          },
+          {
+            "name": "teacher",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ActivityKind",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "AddFeedback"
+          },
+          {
+            "name": "AddGrade"
+          },
+          {
+            "name": "SubmitAssignment"
+          },
+          {
+            "name": "ConsumeResource"
+          },
+          {
+            "name": "AttendMeeting"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ActivityStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Archived"
+          },
+          {
+            "name": "Pending"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Asset",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "created",
+            "docs": [
+              "Creation timestamp (also part of PDA seeds)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "updated",
+            "docs": [
+              "Last update timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "content_type",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "file_name",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "file_size",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "resource",
+            "docs": [
+              "Associated resource PDA (Pubkey::default() if standalone)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "nostr_d_tag",
+            "docs": [
+              "Optional Nostr \"d\" tag used to locate the latest editable content event"
+            ],
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "nostr_author_pubkey",
+            "docs": [
+              "Nostr author public key bytes (32 bytes). All-zero means \"not set\"."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "walrus_blob_id",
+            "docs": [
+              "Optional Walrus blob identifier for the asset file"
+            ],
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "docs": [
+              "Wallet that created this asset and is allowed to update off-chain pointers"
+            ],
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Course",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creation_timestamp",
+            "docs": [
+              "Creation timestamp used in PDA seeds (hub + provider + creation_timestamp)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "created",
+            "type": "i64"
+          },
+          {
+            "name": "updated",
+            "type": "i64"
+          },
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "CourseStatus"
+              }
+            }
+          },
+          {
+            "name": "rejection_reason",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "modules",
+            "docs": [
+              "List of modules: each points to a resource (PDA) and has a percentage weight"
+            ],
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "CourseModule"
+                }
+              }
+            }
+          },
+          {
+            "name": "workload_required",
+            "type": "u32"
+          },
+          {
+            "name": "workload",
+            "type": "u32"
+          },
+          {
+            "name": "college_id",
+            "type": "string"
+          },
+          {
+            "name": "degree_id",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "nostr_d_tag",
+            "docs": [
+              "Optional Nostr \"d\" tag used to locate the latest editable course metadata event"
+            ],
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "nostr_author_pubkey",
+            "docs": [
+              "Nostr author public key bytes (32 bytes). All-zero means \"not set\"."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "approved_credentials",
+            "docs": [
+              "Credential PDAs approved by this provider for this course"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CourseAccepted",
+      "docs": [
+        "Event emitted when a course is accepted by hub"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "hub_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "course",
+            "type": "pubkey"
+          },
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CourseCreated",
+      "docs": [
+        "Event emitted when a course is created"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "course",
+            "type": "pubkey"
+          },
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "workload_required",
+            "type": "u32"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CourseList",
+      "docs": [
+        "Linked list node that stores an extended list of accepted course PDAs."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "hub",
+            "type": "pubkey"
+          },
+          {
+            "name": "index",
+            "type": "u16"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          },
+          {
+            "name": "next",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "courses",
+            "type": {
+              "vec": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CourseModule",
+      "docs": [
+        "One module in a course: points to a resource and its weight (percentage)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "resource",
+            "type": "pubkey"
+          },
+          {
+            "name": "percentage",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CourseRemovedFromHub",
+      "docs": [
+        "Event emitted when a course is removed from hub"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "hub_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "course",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CourseStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Draft"
+          },
+          {
+            "name": "InReview"
+          },
+          {
+            "name": "Accepted"
+          },
+          {
+            "name": "Archived"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Credential",
+      "docs": [
+        "Main credential data structure",
+        "Stores core information of academic credentials including participants, metadata and status"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "created",
+            "docs": [
+              "Creation timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "updated",
+            "docs": [
+              "Last update timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "student_wallet",
+            "docs": [
+              "Student wallet address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "mentor_wallet",
+            "docs": [
+              "Mentor wallet address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "provider_wallet",
+            "docs": [
+              "Educational provider wallet address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "nft_mint",
+            "docs": [
+              "Associated NFT mint address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "course",
+            "docs": [
+              "Course account (PDA) this credential belongs to — single canonical reference"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "metadata",
+            "docs": [
+              "Detailed credential metadata"
+            ],
+            "type": {
+              "defined": {
+                "name": "CredentialMetadata"
+              }
+            }
+          },
+          {
+            "name": "verification_count",
+            "docs": [
+              "Verification count statistics"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "Current status"
+            ],
+            "type": {
+              "defined": {
+                "name": "CredentialStatus"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CredentialCreated",
+      "docs": [
+        "Event emitted when a credential is created"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "credential",
+            "type": "pubkey"
+          },
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "student",
+            "type": "pubkey"
+          },
+          {
+            "name": "mentor",
+            "type": "pubkey"
+          },
+          {
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CredentialEndorsed",
+      "docs": [
+        "Event emitted when a credential is endorsed"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "credential",
+            "type": "pubkey"
+          },
+          {
+            "name": "mentor",
+            "type": "pubkey"
+          },
+          {
+            "name": "endorsement",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CredentialMetadata",
+      "docs": [
+        "Credential metadata structure"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "title",
+            "docs": [
+              "Credential title"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "docs": [
+              "Detailed description"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "skills_acquired",
+            "docs": [
+              "List of acquired skills"
+            ],
+            "type": {
+              "vec": "string"
+            }
+          },
+          {
+            "name": "research_output",
+            "docs": [
+              "Research output (optional)"
+            ],
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "mentor_endorsement",
+            "docs": [
+              "Mentor endorsement content (set when mentor endorses)"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "completion_date",
+            "docs": [
+              "Completion date timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "activities",
+            "docs": [
+              "Activity PDAs created by this student and linked to this credential"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CredentialMinted",
+      "docs": [
+        "Event emitted when a credential NFT is minted"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "credential",
+            "type": "pubkey"
+          },
+          {
+            "name": "student",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CredentialStatus",
+      "docs": [
+        "Credential status enumeration",
+        "Tracks status changes throughout the credential's lifecycle"
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "Endorsed"
+          },
+          {
+            "name": "Minted"
+          },
+          {
+            "name": "Verified"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CredentialVerified",
+      "docs": [
+        "Event emitted when a credential is verified"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "credential",
+            "type": "pubkey"
+          },
+          {
+            "name": "verification_count",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Hub",
+      "docs": [
+        "Hub state account - acts as a curated registry.",
+        "Hub accepts Providers; Providers create Courses which Hub must accept to be usable.",
+        "Endorsers are set by each Provider and do not require Hub acceptance."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "Hub authority (can be multisig or DAO in future)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "accepted_providers",
+            "docs": [
+              "List of accepted provider wallets"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "accepted_courses",
+            "docs": [
+              "List of accepted course PDAs (courses from accepted providers; must be accepted to be usable)",
+              "Entries can be direct course PDAs or CourseList PDAs for sharded storage."
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "created_at",
+            "docs": [
+              "Hub creation timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "docs": [
+              "Last update timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "config",
+            "docs": [
+              "Hub configuration flags"
+            ],
+            "type": {
+              "defined": {
+                "name": "HubConfig"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "HubAuthorityTransferred",
+      "docs": [
+        "Event emitted when hub authority is transferred"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HubConfig",
+      "docs": [
+        "Hub configuration"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "require_provider_approval",
+            "docs": [
+              "Whether new providers need approval"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "min_reputation_score",
+            "docs": [
+              "Minimum reputation score for auto-acceptance"
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HubConfigUpdated",
+      "docs": [
+        "Event emitted when hub config is updated"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HubInitialized",
+      "docs": [
+        "Event emitted when hub is initialized"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Provider",
+      "docs": [
+        "Educational provider state.",
+        "Provider creates Courses (Hub must accept them to be usable) and manages its own Endorsers (no Hub acceptance)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "wallet",
+            "docs": [
+              "Provider wallet address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "docs": [
+              "Organization name"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "docs": [
+              "Organization description"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "website",
+            "docs": [
+              "Website URL"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "email",
+            "docs": [
+              "Contact email"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "provider_type",
+            "docs": [
+              "Provider type (University, College, Institution, etc.)"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "registered_at",
+            "docs": [
+              "Registration timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "endorsers",
+            "docs": [
+              "Endorser wallets set by this provider (no Hub acceptance required)"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProviderAccepted",
+      "docs": [
+        "Event emitted when a provider is accepted by hub"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "hub_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProviderEndorserAdded",
+      "docs": [
+        "Event emitted when a provider adds an endorser (provider-managed; no Hub acceptance)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "endorser",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProviderEndorserRemoved",
+      "docs": [
+        "Event emitted when a provider removes an endorser"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "endorser",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProviderRegistered",
+      "docs": [
+        "Event emitted when a new provider is registered"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "provider_type",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProviderRemovedFromHub",
+      "docs": [
+        "Event emitted when a provider is removed from hub"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "hub_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProviderReputationUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "reputation_score",
+            "type": "u64"
+          },
+          {
+            "name": "note",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProviderSuspended",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProviderUnsuspended",
+      "docs": [
+        "Event emitted when a provider suspension is lifted"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Resource",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "created",
+            "docs": [
+              "Creation timestamp (also part of PDA seeds)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "updated",
+            "docs": [
+              "Last update timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "kind",
+            "type": {
+              "defined": {
+                "name": "ResourceKind"
+              }
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "ResourceStatus"
+              }
+            }
+          },
+          {
+            "name": "external_id",
+            "docs": [
+              "Optional external system identifier"
+            ],
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "workload",
+            "docs": [
+              "Estimated workload in minutes"
+            ],
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "course",
+            "docs": [
+              "Course account (PDA) this resource belongs to"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "assets",
+            "docs": [
+              "Attached asset PDAs"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "tags",
+            "docs": [
+              "Free-form tags for discovery/filtering"
+            ],
+            "type": {
+              "vec": "string"
+            }
+          },
+          {
+            "name": "nostr_d_tag",
+            "docs": [
+              "Optional Nostr \"d\" tag used to locate the latest editable content event"
+            ],
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "nostr_author_pubkey",
+            "docs": [
+              "Nostr author public key bytes (32 bytes). All-zero means \"not set\"."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "walrus_blob_id",
+            "docs": [
+              "Optional Walrus blob identifier for the finalized content bundle"
+            ],
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "owner",
+            "docs": [
+              "Wallet that created this resource and is allowed to update off-chain pointers"
+            ],
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ResourceAdded",
+      "docs": [
+        "Event emitted when a resource is added"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "resource_id",
+            "type": "string"
+          },
+          {
+            "name": "course",
+            "type": "pubkey"
+          },
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "kind",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ResourceKind",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Assignment"
+          },
+          {
+            "name": "AssignmentSummative"
+          },
+          {
+            "name": "Meeting"
+          },
+          {
+            "name": "General"
+          },
+          {
+            "name": "Publication"
+          },
+          {
+            "name": "PublicationReviewed"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ResourceStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Draft"
+          },
+          {
+            "name": "Rejected"
+          },
+          {
+            "name": "Submitted"
+          },
+          {
+            "name": "Verified"
+          },
+          {
+            "name": "Archived"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Submission",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "submitted_at",
+            "docs": [
+              "Submission timestamp (also part of PDA seeds)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "updated",
+            "docs": [
+              "Last update timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "resource",
+            "docs": [
+              "Resource this submission is for"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "student",
+            "docs": [
+              "Student wallet"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "assets",
+            "docs": [
+              "Attached asset PDAs"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "evidence_assets",
+            "docs": [
+              "Evidence asset PDAs"
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "SubmissionStatus"
+              }
+            }
+          },
+          {
+            "name": "grade",
+            "type": {
+              "option": "f64"
+            }
+          },
+          {
+            "name": "feedback",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "graded_by",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "graded_at",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "nostr_d_tag",
+            "docs": [
+              "Optional Nostr \"d\" tag used to locate the latest editable content event"
+            ],
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "nostr_author_pubkey",
+            "docs": [
+              "Nostr author public key bytes (32 bytes). All-zero means \"not set\"."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "walrus_blob_id",
+            "docs": [
+              "Optional Walrus blob identifier for the submission content bundle"
+            ],
+            "type": {
+              "option": "string"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SubmissionStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Submitted"
+          },
+          {
+            "name": "Graded"
+          },
+          {
+            "name": "Returned"
+          },
+          {
+            "name": "Accepted"
+          }
+        ]
+      }
+    }
+  ]
+}

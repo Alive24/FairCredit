@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "copy-idl": "npx tsx scripts/copy-idl.ts",
+    "prebuild": "npm run copy-idl",
     "build": "next build",
+    "predev": "npm run copy-idl",
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
