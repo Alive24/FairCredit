@@ -21,7 +21,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { GraduationCap, Users, UserCheck, Search } from "lucide-react";
-import { TransactionMonitor } from "@/components/transactions/transaction-monitor";
 
 type UserType = "provider" | "student" | "supervisor" | "verifier" | null;
 
@@ -135,10 +134,6 @@ export function NavbarActions() {
               <DropdownMenuItem asChild>
                 <Link href="/profile">Profile</Link>
               </DropdownMenuItem>
-              <div className="border-t my-2" />
-              <div className="px-2 pb-2">
-                <TransactionMonitor variant="dropdown" />
-              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         )}

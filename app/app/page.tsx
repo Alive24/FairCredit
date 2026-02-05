@@ -9,12 +9,12 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       <Header />
       <main>
-        <div className="container mx-auto p-4">
-          <WalletDebug />
-        </div>
         <HeroSection />
         <RoleSlideshowSection />
         <FeaturesSection />
+        <div className="container mx-auto p-4 mt-8">
+          <WalletDebug />
+        </div>
       </main>
     </div>
   )
