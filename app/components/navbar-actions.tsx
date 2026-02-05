@@ -72,26 +72,14 @@ export function NavbarActions() {
         {connected && userType && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 bg-transparent"
-              >
-                <User className="h-4 w-4" />
-                <span>{walletAddress}</span>
+              <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">
                   {roleLabel}
                 </span>
-              </Button>
+                <AppKitButton />
+              </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
-              <div className="px-2 pt-2 pb-3 border-b">
-                <div className="flex justify-center">
-                  <AppKitButton />
-                </div>
-              </div>
-              <div className="px-3 py-2 text-xs text-muted-foreground">
-                Current role: {roleLabel}
-              </div>
               <DropdownMenuItem asChild>
                 <Link href="/dashboard">
                   {userType === "student"
