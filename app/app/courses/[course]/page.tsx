@@ -12,16 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
@@ -29,10 +19,8 @@ import {
   Loader2,
   CheckCircle,
   ChevronDown,
-  Plus,
-  X,
-  Save,
 } from "lucide-react";
+import { CourseProfileEditor } from "@/components/courses/course-profile-editor";
 import { useFairCredit } from "@/hooks/use-fair-credit";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useAppKitTransaction } from "@/hooks/use-appkit-transaction";
@@ -172,8 +160,7 @@ export default function CourseDetailPage() {
 
   const { rpc } = useFairCredit();
   const { address: walletAddress, isConnected } = useAppKitAccount();
-  const { sendTransaction, isSending, walletProvider } =
-    useAppKitTransaction();
+  const { sendTransaction, isSending, walletProvider } = useAppKitTransaction();
   const { toast } = useToast();
   const transactionQueue = useTransactionQueue();
 
@@ -182,26 +169,6 @@ export default function CourseDetailPage() {
   const [submittingForReview, setSubmittingForReview] = useState(false);
   const [profile, setProfile] = useState<CourseProfile>(emptyCourseProfile);
   const [isEditing, setIsEditing] = useState(false);
-  const [draftProfile, setDraftProfile] =
-    useState<CourseProfile>(emptyCourseProfile);
-  const [newSkill, setNewSkill] = useState("");
-  const [newRequirement, setNewRequirement] = useState("");
-  const [newTag, setNewTag] = useState("");
-  const [forceRebind, setForceRebind] = useState(false);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [nostrPublishStatus, setNostrPublishStatus] = useState<
-    "idle" | "publishing" | "published" | "error"
-  >("idle");
-  const [nostrPublishError, setNostrPublishError] = useState<string | null>(
-    null,
-  );
-  const [nostrPendingEvent, setNostrPendingEvent] = useState<{
-    dTag: string;
-    authorPubkey: string;
-    eventId: string;
-    nevent: string | null;
-    verifyUrl: string | null;
-  } | null>(null);
   const [nostrProfile, setNostrProfile] = useState<CourseProfile | null>(null);
   const [nostrEvent, setNostrEvent] = useState<NostrEvent | null>(null);
   const [nostrStatus, setNostrStatus] = useState<
@@ -274,6 +241,10 @@ export default function CourseDetailPage() {
   useEffect(() => {
     loadCourse();
   }, [loadCourse]);
+
+  useEffect(() => {
+    setIsEditing(false);
+  }, [courseAddress]);
 
   useEffect(() => {
     loadCourseAccountRaw();
@@ -370,8 +341,12 @@ export default function CourseDetailPage() {
     isConnected &&
     walletAddress &&
     course &&
-      String(course.provider).toLowerCase() ===
+    String(course.provider).toLowerCase() ===
       String(walletAddress).toLowerCase();
+
+  const handleToggleEdit = () => {
+    setIsEditing((prev) => !prev);
+  };
 
   const handleQuickBindNostr = async () => {
     if (!course || !courseAddress) return;
@@ -395,7 +370,7 @@ export default function CourseDetailPage() {
     if (course?.nostrDTag?.__option === "Some") {
       toast({
         title: "Nostr pointer already set",
-        description: "Use the Edit page with Force rebind to overwrite.",
+        description: "Use the editor with Force rebind to overwrite.",
         variant: "destructive",
       });
       return;
@@ -558,12 +533,10 @@ export default function CourseDetailPage() {
             </Button>
           </Link>
           {isProvider && (
-            <Link href={`/courses/${courseAddress}/edit`}>
-              <Button variant="outline" size="sm">
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit Course Profile
-              </Button>
-            </Link>
+            <Button variant="outline" size="sm" onClick={handleToggleEdit}>
+              <Pencil className="h-4 w-4 mr-2" />
+              {isEditing ? "Close Editor" : "Edit Course Profile"}
+            </Button>
           )}
         </div>
 
@@ -578,218 +551,234 @@ export default function CourseDetailPage() {
                   Created {formatTimestamp(course.created)}
                   {course.collegeId ? ` · ${course.collegeId}` : ""}
                 </CardDescription>
+                {isEditing && (
+                  <CardDescription className="mt-1">
+                    Editing course metadata
+                  </CardDescription>
+                )}
               </div>
               {getStatusBadge(course.status as CourseStatus)}
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                Description
-              </h3>
-              <p className="text-sm">
-                {displayProfile.description ||
-                  course.description ||
-                  "No description provided."}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Workload</p>
-                <p className="font-medium">{course.workloadRequired}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Modules</p>
-                <p className="font-medium">{course.modules?.length ?? 0}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  Approved Credentials
-                </p>
-                <p className="font-medium">
-                  {course.approvedCredentials?.length ?? 0}
-                </p>
-              </div>
-              {unwrapOption<string>(course.degreeId) && (
+            {isEditing && courseAddress ? (
+              <CourseProfileEditor
+                variant="embedded"
+                course={course}
+                courseAddress={courseAddress}
+                initialProfile={nostrProfile ?? profile}
+                nostrDTag={nostrDTag}
+                nostrAuthorHex={nostrAuthorHex}
+                hasNostrEvent={nostrStatus === "loaded"}
+                isProvider={Boolean(isProvider ?? false)}
+                walletAddress={walletAddress ?? null}
+                isConnected={isConnected}
+                isSending={isSending}
+                walletProvider={walletProvider}
+                sendTransaction={sendTransaction}
+                onCourseReload={loadCourse}
+                onProfileChange={(next) => setNostrProfile(next)}
+                showDangerZone={Boolean(isProvider ?? false)}
+                onCloseCourse={handleCloseCourse}
+                closeSubmitting={closeSubmitting}
+              />
+            ) : (
+              <>
                 <div>
-                  <p className="text-xs text-muted-foreground">Degree</p>
-                  <p className="font-medium text-sm">
-                    {unwrapOption<string>(course.degreeId)}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="border-t pt-6 space-y-4">
-              <h3 className="font-medium">Course Profile</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground">Category</p>
-                  <p className="font-medium">
-                    {displayProfile.category || "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Duration</p>
-                  <p className="font-medium">
-                    {displayProfile.durationValue
-                      ? `${displayProfile.durationValue} ${displayProfile.durationUnit}`
-                      : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Supervisor</p>
-                  <p className="font-medium">
-                    {displayProfile.supervisorName || "—"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {displayProfile.supervisorInstitution || ""}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Contact</p>
-                  <p className="font-medium">
-                    {displayProfile.supervisorEmail || "—"}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  Learning Objectives
-                </p>
-                <p className="text-sm mt-1">
-                  {displayProfile.learningObjectives || "Not provided."}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Methodology</p>
-                <p className="text-sm mt-1">
-                  {displayProfile.methodology || "Not provided."}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  Assessment Criteria
-                </p>
-                <p className="text-sm mt-1">
-                  {displayProfile.assessmentCriteria || "Not provided."}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Deliverables</p>
-                <p className="text-sm mt-1">
-                  {displayProfile.deliverables || "Not provided."}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Prerequisites</p>
-                <p className="text-sm mt-1">
-                  {displayProfile.prerequisites || "Not provided."}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground">Skills</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {displayProfile.skills.length > 0 ? (
-                    displayProfile.skills.map((skill) => (
-                      <Badge key={skill} variant="secondary">
-                        {skill}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-sm text-muted-foreground">
-                      No skills added.
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground">Requirements</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {displayProfile.requirements.length > 0 ? (
-                    displayProfile.requirements.map((req) => (
-                      <Badge key={req} variant="secondary">
-                        {req}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-sm text-muted-foreground">
-                      No requirements added.
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground">Tags</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {displayProfile.tags.length > 0 ? (
-                    displayProfile.tags.map((tag) => (
-                      <Badge key={tag} variant="outline">
-                        {tag}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-sm text-muted-foreground">
-                      No tags added.
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {displayProfile.updatedAt && (
-                <p className="text-xs text-muted-foreground">
-                  Last updated{" "}
-                  {new Date(displayProfile.updatedAt).toLocaleString()}
-                </p>
-              )}
-            </div>
-
-            {isProvider && (
-              <div className="border-t pt-6 space-y-6">
-                <div className="space-y-4">
-                  <h3 className="font-medium">Provider Actions</h3>
-                  {course.status === CourseStatus.Draft && (
-                    <Button
-                      onClick={handleSubmitForHubReview}
-                      disabled={isSending || submittingForReview}
-                    >
-                      {submittingForReview ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                      )}
-                      Submit for Hub Review
-                    </Button>
-                  )}
-                </div>
-
-                <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-4">
-                  <h3 className="text-sm font-semibold text-destructive">
-                    Danger zone
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                    Description
                   </h3>
-                  <p className="text-xs text-muted-foreground">
-                    Closing a course will permanently remove it from the network
-                    and reclaim its rent to your wallet. Existing credentials
-                    and hub references may become invalid.
+                  <p className="text-sm">
+                    {displayProfile.description ||
+                      course.description ||
+                      "No description provided."}
                   </p>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleCloseCourse}
-                    disabled={closeSubmitting}
-                  >
-                    {closeSubmitting ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : null}
-                    Close Course Account
-                  </Button>
                 </div>
-              </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Workload</p>
+                    <p className="font-medium">{course.workloadRequired}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Modules</p>
+                    <p className="font-medium">{course.modules?.length ?? 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Approved Credentials
+                    </p>
+                    <p className="font-medium">
+                      {course.approvedCredentials?.length ?? 0}
+                    </p>
+                  </div>
+                  {unwrapOption<string>(course.degreeId) && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Degree</p>
+                      <p className="font-medium text-sm">
+                        {unwrapOption<string>(course.degreeId)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t pt-6 space-y-4">
+                  <h3 className="font-medium">Course Profile</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Category</p>
+                      <p className="font-medium">
+                        {displayProfile.category || "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Duration</p>
+                      <p className="font-medium">
+                        {displayProfile.durationValue
+                          ? `${displayProfile.durationValue} ${displayProfile.durationUnit}`
+                          : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Supervisor
+                      </p>
+                      <p className="font-medium">
+                        {displayProfile.supervisorName || "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {displayProfile.supervisorInstitution || ""}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Contact</p>
+                      <p className="font-medium">
+                        {displayProfile.supervisorEmail || "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Learning Objectives
+                    </p>
+                    <p className="text-sm mt-1">
+                      {displayProfile.learningObjectives || "Not provided."}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Methodology</p>
+                    <p className="text-sm mt-1">
+                      {displayProfile.methodology || "Not provided."}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Assessment Criteria
+                    </p>
+                    <p className="text-sm mt-1">
+                      {displayProfile.assessmentCriteria || "Not provided."}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Deliverables
+                    </p>
+                    <p className="text-sm mt-1">
+                      {displayProfile.deliverables || "Not provided."}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Prerequisites
+                    </p>
+                    <p className="text-sm mt-1">
+                      {displayProfile.prerequisites || "Not provided."}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-muted-foreground">Skills</p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {displayProfile.skills.length > 0 ? (
+                        displayProfile.skills.map((skill) => (
+                          <Badge key={skill} variant="secondary">
+                            {skill}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">
+                          No skills added.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Requirements
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {displayProfile.requirements.length > 0 ? (
+                        displayProfile.requirements.map((req) => (
+                          <Badge key={req} variant="secondary">
+                            {req}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">
+                          No requirements added.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-muted-foreground">Tags</p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {displayProfile.tags.length > 0 ? (
+                        displayProfile.tags.map((tag) => (
+                          <Badge key={tag} variant="outline">
+                            {tag}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">
+                          No tags added.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {displayProfile.updatedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Last updated{" "}
+                      {new Date(displayProfile.updatedAt).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+
+                {isProvider && (
+                  <div className="border-t pt-6 space-y-6">
+                    <div className="space-y-4">
+                      <h3 className="font-medium">Provider Actions</h3>
+                      {course.status === CourseStatus.Draft && (
+                        <Button
+                          onClick={handleSubmitForHubReview}
+                          disabled={isSending || submittingForReview}
+                        >
+                          {submittingForReview ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                          )}
+                          Submit for Hub Review
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -815,110 +804,110 @@ export default function CourseDetailPage() {
           </CardHeader>
           {debugOpen && (
             <CardContent className="space-y-4 text-sm">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Course Address</p>
-                <p className="font-mono break-all">
-                  {courseAddress ?? "—"}
-                </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Course Address
+                  </p>
+                  <p className="font-mono break-all">{courseAddress ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Nostr dTag</p>
+                  <p className="font-mono break-all">
+                    {nostrDTag ?? "(not set)"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Nostr Author Pubkey (hex)
+                  </p>
+                  <p className="font-mono break-all">
+                    {nostrAuthorHex ?? "(not set)"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Nostr Event Status
+                  </p>
+                  <p className="font-medium">
+                    {formatNostrStatus(nostrStatus)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Nostr Event ID (hex)
+                  </p>
+                  <p className="font-mono break-all">{nostrEvent?.id ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">nevent</p>
+                  <p className="font-mono break-all">{neventId ?? "—"}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Nostr dTag</p>
-                <p className="font-mono break-all">
-                  {nostrDTag ?? "(not set)"}
-                </p>
+
+              {isProvider && (!nostrDTag || !nostrAuthorHex) && (
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    onClick={handleQuickBindNostr}
+                    disabled={bindingNostr || isSending}
+                  >
+                    {bindingNostr ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                    )}
+                    Quick Bind dTag/pubkey
+                  </Button>
+                </div>
+              )}
+
+              {nostrError && (
+                <p className="text-xs text-destructive">{nostrError}</p>
+              )}
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                <div>
+                  <p className="text-muted-foreground">Lamports</p>
+                  <p className="font-mono">
+                    {courseAccountMeta?.lamports ?? "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Owner</p>
+                  <p className="font-mono break-all">
+                    {courseAccountMeta?.owner ?? "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Executable</p>
+                  <p className="font-mono">
+                    {courseAccountMeta
+                      ? courseAccountMeta.executable
+                        ? "true"
+                        : "false"
+                      : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Rent Epoch</p>
+                  <p className="font-mono">
+                    {courseAccountMeta?.rentEpoch ?? "—"}
+                  </p>
+                </div>
               </div>
+
+              {courseAccountError && (
+                <p className="text-xs text-destructive">{courseAccountError}</p>
+              )}
+
               <div>
                 <p className="text-xs text-muted-foreground">
-                  Nostr Author Pubkey (hex)
+                  Course Account Decoded (JSON)
                 </p>
-                <p className="font-mono break-all">
-                  {nostrAuthorHex ?? "(not set)"}
-                </p>
+                <pre className="text-xs bg-muted/40 p-3 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
+                  {courseDebugJson ?? "—"}
+                </pre>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  Nostr Event Status
-                </p>
-                <p className="font-medium">{formatNostrStatus(nostrStatus)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  Nostr Event ID (hex)
-                </p>
-                <p className="font-mono break-all">
-                  {nostrEvent?.id ?? "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">nevent</p>
-                <p className="font-mono break-all">{neventId ?? "—"}</p>
-              </div>
-            </div>
-
-            {isProvider && (!nostrDTag || !nostrAuthorHex) && (
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  onClick={handleQuickBindNostr}
-                  disabled={bindingNostr || isSending}
-                >
-                  {bindingNostr ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                  )}
-                  Quick Bind dTag/pubkey
-                </Button>
-              </div>
-            )}
-
-            {nostrError && (
-              <p className="text-xs text-destructive">{nostrError}</p>
-            )}
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-              <div>
-                <p className="text-muted-foreground">Lamports</p>
-                <p className="font-mono">
-                  {courseAccountMeta?.lamports ?? "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Owner</p>
-                <p className="font-mono break-all">
-                  {courseAccountMeta?.owner ?? "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Executable</p>
-                <p className="font-mono">
-                  {courseAccountMeta
-                    ? courseAccountMeta.executable
-                      ? "true"
-                      : "false"
-                    : "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Rent Epoch</p>
-                <p className="font-mono">
-                  {courseAccountMeta?.rentEpoch ?? "—"}
-                </p>
-              </div>
-            </div>
-
-            {courseAccountError && (
-              <p className="text-xs text-destructive">{courseAccountError}</p>
-            )}
-
-            <div>
-              <p className="text-xs text-muted-foreground">
-                Course Account Decoded (JSON)
-              </p>
-              <pre className="text-xs bg-muted/40 p-3 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
-                {courseDebugJson ?? "—"}
-              </pre>
-            </div>
             </CardContent>
           )}
         </Card>
