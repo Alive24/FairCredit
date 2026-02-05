@@ -1058,6 +1058,23 @@
           "type": {
             "option": "string"
           }
+        },
+        {
+          "name": "nostr_d_tag",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "nostr_author_pubkey",
+          "type": {
+            "option": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
         }
       ]
     },

@@ -3,10 +3,17 @@
 import { useEffect, useState } from "react";
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 export function WalletDebug() {
   const { address, isConnected: connected } = useAppKitAccount();
   const { open } = useAppKit();
+  const [isOpen, setIsOpen] = useState(false);
   // Map AppKit state to legacy wallet-adapter-like interface for compatibility
   const wallet = {
     connected,
@@ -81,11 +88,22 @@ export function WalletDebug() {
   };
 
   return (
-    <Card className="mb-4">
-      <CardHeader>
-        <CardTitle>Wallet Debug Info</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2 text-sm">
+    <Card className="mt-8">
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+            <div className="flex items-center justify-between">
+              <CardTitle>Wallet Debug Info</CardTitle>
+              {isOpen ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="space-y-2 text-sm">
         <div>
           <strong>Wallet Connected:</strong>{" "}
           {hasMounted ? (wallet.connected ? "Yes" : "No") : "Detecting..."}
@@ -173,6 +191,8 @@ export function WalletDebug() {
           </button>
         </div>
       </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }

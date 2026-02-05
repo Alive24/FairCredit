@@ -524,9 +524,6 @@ export function ProviderDashboard() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container py-8">
-        {/* Debug info - remove in production */}
-        {process.env.NODE_ENV === "development" && <WalletDebug />}
-
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Provider Dashboard</h1>
@@ -1090,6 +1087,9 @@ export function ProviderDashboard() {
             />
           </>
         )}
+
+        {/* Debug info - remove in production */}
+        {process.env.NODE_ENV === "development" && <WalletDebug />}
       </main>
     </div>
   );

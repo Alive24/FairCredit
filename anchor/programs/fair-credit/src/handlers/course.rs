@@ -42,6 +42,8 @@ pub fn create_course(
     description: String,
     workload_required: u32,
     degree_id: Option<String>,
+    nostr_d_tag: Option<String>,
+    nostr_author_pubkey: Option<[u8; 32]>,
 ) -> Result<()> {
     let course = &mut ctx.accounts.course;
     let clock = Clock::get()?;
@@ -66,8 +68,8 @@ pub fn create_course(
     course.workload = 0;
     course.college_id = ctx.accounts.provider.wallet.to_string();
     course.degree_id = degree_id;
-    course.nostr_d_tag = None;
-    course.nostr_author_pubkey = [0u8; 32];
+    course.nostr_d_tag = nostr_d_tag;
+    course.nostr_author_pubkey = nostr_author_pubkey.unwrap_or([0u8; 32]);
     course.approved_credentials = Vec::new();
 
     Ok(())

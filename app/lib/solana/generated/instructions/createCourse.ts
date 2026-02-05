@@ -100,6 +100,8 @@ export type CreateCourseInstructionData = {
   description: string;
   workloadRequired: number;
   degreeId: Option<string>;
+  nostrDTag: Option<string>;
+  nostrAuthorPubkey: Option<ReadonlyUint8Array>;
 };
 
 export type CreateCourseInstructionDataArgs = {
@@ -108,6 +110,8 @@ export type CreateCourseInstructionDataArgs = {
   description: string;
   workloadRequired: number;
   degreeId: OptionOrNullable<string>;
+  nostrDTag: OptionOrNullable<string>;
+  nostrAuthorPubkey: OptionOrNullable<ReadonlyUint8Array>;
 };
 
 export function getCreateCourseInstructionDataEncoder(): Encoder<CreateCourseInstructionDataArgs> {
@@ -124,6 +128,16 @@ export function getCreateCourseInstructionDataEncoder(): Encoder<CreateCourseIns
           addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
+      [
+        "nostrDTag",
+        getOptionEncoder(
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
+        ),
+      ],
+      [
+        "nostrAuthorPubkey",
+        getOptionEncoder(fixEncoderSize(getBytesEncoder(), 32)),
+      ],
     ]),
     (value) => ({ ...value, discriminator: CREATE_COURSE_DISCRIMINATOR }),
   );
@@ -139,6 +153,14 @@ export function getCreateCourseInstructionDataDecoder(): Decoder<CreateCourseIns
     [
       "degreeId",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
+    ],
+    [
+      "nostrDTag",
+      getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
+    ],
+    [
+      "nostrAuthorPubkey",
+      getOptionDecoder(fixDecoderSize(getBytesDecoder(), 32)),
     ],
   ]);
 }
@@ -170,6 +192,8 @@ export type CreateCourseAsyncInput<
   description: CreateCourseInstructionDataArgs["description"];
   workloadRequired: CreateCourseInstructionDataArgs["workloadRequired"];
   degreeId: CreateCourseInstructionDataArgs["degreeId"];
+  nostrDTag: CreateCourseInstructionDataArgs["nostrDTag"];
+  nostrAuthorPubkey: CreateCourseInstructionDataArgs["nostrAuthorPubkey"];
 };
 
 export async function getCreateCourseInstructionAsync<
@@ -297,6 +321,8 @@ export type CreateCourseInput<
   description: CreateCourseInstructionDataArgs["description"];
   workloadRequired: CreateCourseInstructionDataArgs["workloadRequired"];
   degreeId: CreateCourseInstructionDataArgs["degreeId"];
+  nostrDTag: CreateCourseInstructionDataArgs["nostrDTag"];
+  nostrAuthorPubkey: CreateCourseInstructionDataArgs["nostrAuthorPubkey"];
 };
 
 export function getCreateCourseInstruction<

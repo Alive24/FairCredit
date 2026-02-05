@@ -143,6 +143,8 @@ pub mod fair_credit {
         description: String,
         workload_required: u32,
         degree_id: Option<String>,
+        nostr_d_tag: Option<String>,
+        nostr_author_pubkey: Option<[u8; 32]>,
     ) -> Result<()> {
         handlers::course::create_course(
             ctx,
@@ -151,6 +153,8 @@ pub mod fair_credit {
             description,
             workload_required,
             degree_id,
+            nostr_d_tag,
+            nostr_author_pubkey,
         )
     }
 

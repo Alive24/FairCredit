@@ -41,7 +41,6 @@ import {
 import { getUpdateHubConfigInstructionAsync } from "@/lib/solana/generated/instructions/updateHubConfig";
 import { getInitializeProviderInstructionAsync } from "@/lib/solana/generated/instructions/initializeProvider";
 import { getCreateCourseInstructionAsync } from "@/lib/solana/generated/instructions/createCourse";
-import { getSetCourseNostrRefInstructionAsync } from "@/lib/solana/generated/instructions/setCourseNostrRef";
 import type { Address } from "@solana/kit";
 import { type CourseProfile } from "@/lib/course-profile";
 import { buildCourseMetadataPayload } from "@/lib/course-metadata";
@@ -189,7 +188,6 @@ export default function CreateCourse() {
       const creationTimestamp = BigInt(Math.floor(Date.now() / 1000));
       const workloadRequired = Number(formData.durationValue) || 0;
       const createIx = await getCreateCourseInstructionAsync({
-        course: undefined,
         provider: providerPda,
         hub: hubAddress,
         providerAuthority: createPlaceholderSigner(walletAddress),
@@ -198,6 +196,8 @@ export default function CreateCourse() {
         description: formData.description,
         workloadRequired,
         degreeId: null,
+        nostrDTag: null,
+        nostrAuthorPubkey: null,
       });
       const derivedAddress = createIx.accounts[0].address;
       const creationTimestampNum = Number(creationTimestamp);
@@ -351,6 +351,7 @@ export default function CreateCourse() {
         module: "Courses",
         label: "Create course",
         build: async () => {
+          const authorBytes = hexToBytes32(nostrDraft.authorPubkey);
           const createIx = await getCreateCourseInstructionAsync({
             course: nostrDraft.courseAddress,
             provider: providerPda,
@@ -361,16 +362,10 @@ export default function CreateCourse() {
             description: nostrDraft.profile.description,
             workloadRequired: nostrDraft.workloadRequired,
             degreeId: null,
-          });
-          const authorBytes = hexToBytes32(nostrDraft.authorPubkey);
-          const nostrIx = await getSetCourseNostrRefInstructionAsync({
-            course: nostrDraft.courseAddress,
-            providerAuthority: createPlaceholderSigner(walletAddress),
             nostrDTag: nostrDraft.dTag,
             nostrAuthorPubkey: authorBytes,
-            force: false,
           });
-          return [createIx, nostrIx];
+          return [createIx];
         },
       });
       setCreatedCourseAddress(String(nostrDraft.courseAddress));
