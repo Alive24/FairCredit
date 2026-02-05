@@ -59,6 +59,8 @@ import { CredentialStatus } from "@/lib/solana/generated/types/credentialStatus"
 import { CourseStatus } from "@/lib/solana/generated/types/courseStatus";
 import { useCourses } from "@/hooks/use-courses";
 import { Input } from "@/components/ui/input";
+import { buildCourseDTag, ensureCourseEventAvailable } from "@/lib/nostr/client";
+import { parseCourseMetadataPayload } from "@/lib/course-metadata";
 
 function unwrapDegreeId(val: unknown): string | null {
   if (val == null) return null;
@@ -95,12 +97,17 @@ export function ProviderDashboard() {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "draft" | "in-review" | "accepted"
   >("all");
+  const [tagFilter, setTagFilter] = useState<string>("");
   const [selectedEndorser, setSelectedEndorser] = useState<string | null>(null);
   const {
     courses: providerCourseEntries,
     loading: coursesLoading,
     refetch: refetchCourses,
   } = useCourses(walletAddress ? [walletAddress] : null);
+
+  const [courseTagsByAddress, setCourseTagsByAddress] = useState<
+    Record<string, string[]>
+  >({});
 
   const loadProviderData = useCallback(async () => {
     if (!isWalletConnected || !publicKey || !walletAddress) {
@@ -217,6 +224,10 @@ export function ProviderDashboard() {
     if (statusFilter === "draft" && !isDraft) return false;
     if (statusFilter === "in-review" && !isInReview) return false;
     if (statusFilter === "accepted" && !isAccepted) return false;
+
+    const tags = courseTagsByAddress[String(entry.address)] ?? [];
+    if (tagFilter && !tags.includes(tagFilter)) return false;
+
     return true;
   });
 
@@ -269,6 +280,78 @@ export function ProviderDashboard() {
         .filter(Boolean) as string[],
     ),
   ).sort();
+
+  const uniqueCourseTags = Array.from(
+    new Set(
+      Object.values(courseTagsByAddress)
+        .flat()
+        .filter(Boolean),
+    ),
+  ).sort();
+
+  useEffect(() => {
+    if (!providerCourseEntries.length) {
+      setCourseTagsByAddress({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadTags = async () => {
+      const next: Record<string, string[]> = {};
+
+      for (const entry of providerCourseEntries) {
+        // 优先使用 on-chain 记录的 nostrDTag（如果已经绑定）
+        let dTag: string | null = null;
+        const rawDTag: any = (entry.course as any).nostrDTag;
+        if (rawDTag && typeof rawDTag === "object" && "__option" in rawDTag) {
+          dTag = rawDTag.__option === "Some" ? rawDTag.value ?? null : null;
+        } else if (typeof rawDTag === "string") {
+          dTag = rawDTag;
+        }
+
+        // 没有绑定过 nostrDTag 的课程，用 creationTimestamp 构造 d-tag
+        if (!dTag) {
+          const ts = Number(
+            (entry.course as any).creationTimestamp ??
+              (entry.course as any).created ??
+              0,
+          );
+          if (!ts) continue;
+          dTag = buildCourseDTag({
+            coursePubkey: entry.address as Address<string>,
+            creationTimestamp: ts,
+          });
+        }
+        if (!dTag) continue;
+
+        try {
+          const event = await ensureCourseEventAvailable({ dTag });
+          if (!event) continue;
+          const payload = parseCourseMetadataPayload(event.content);
+          const tags = payload?.tags ?? [];
+          if (tags.length) {
+            next[String(entry.address)] = tags;
+          }
+        } catch (e) {
+          console.warn("Failed to load course tags from Nostr:", e);
+        }
+      }
+
+      if (!cancelled) {
+        setCourseTagsByAddress(next);
+      }
+    };
+
+    loadTags();
+
+    const interval = setInterval(loadTags, 5 * 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [providerCourseEntries]);
 
   const handleSubmitForHubReview = async (courseAddress: string) => {
     if (!walletAddress) return;
@@ -631,6 +714,32 @@ export function ProviderDashboard() {
                           ))}
                         </div>
                       )}
+                      {uniqueCourseTags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <span className="text-xs text-muted-foreground">
+                            Tags:
+                          </span>
+                          <Badge
+                            variant={!tagFilter ? "default" : "outline"}
+                            className="cursor-pointer hover:opacity-80"
+                            onClick={() => setTagFilter("")}
+                          >
+                            All tags
+                          </Badge>
+                          {uniqueCourseTags.map((tag) => (
+                            <Badge
+                              key={tag}
+                              variant={tagFilter === tag ? "default" : "outline"}
+                              className="cursor-pointer hover:opacity-80"
+                              onClick={() =>
+                                setTagFilter(tagFilter === tag ? "" : tag)
+                              }
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardHeader>
@@ -679,6 +788,17 @@ export function ProviderDashboard() {
                               <Badge variant="outline" className="text-xs">
                                 {unwrapDegreeId(course.degreeId)}
                               </Badge>
+                            )}
+                            {(courseTagsByAddress[String(address)] ?? []).map(
+                              (tag) => (
+                                <Badge
+                                  key={tag}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
+                                  {tag}
+                                </Badge>
+                              ),
                             )}
                           </div>
                           <div className="grid grid-cols-2 gap-4 text-sm mt-4">

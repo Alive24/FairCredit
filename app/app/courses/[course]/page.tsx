@@ -12,6 +12,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
@@ -19,6 +29,9 @@ import {
   Loader2,
   CheckCircle,
   ChevronDown,
+  Plus,
+  X,
+  Save,
 } from "lucide-react";
 import { useFairCredit } from "@/hooks/use-fair-credit";
 import { useAppKitAccount } from "@reown/appkit/react";
@@ -168,6 +181,27 @@ export default function CourseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [submittingForReview, setSubmittingForReview] = useState(false);
   const [profile, setProfile] = useState<CourseProfile>(emptyCourseProfile);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftProfile, setDraftProfile] =
+    useState<CourseProfile>(emptyCourseProfile);
+  const [newSkill, setNewSkill] = useState("");
+  const [newRequirement, setNewRequirement] = useState("");
+  const [newTag, setNewTag] = useState("");
+  const [forceRebind, setForceRebind] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [nostrPublishStatus, setNostrPublishStatus] = useState<
+    "idle" | "publishing" | "published" | "error"
+  >("idle");
+  const [nostrPublishError, setNostrPublishError] = useState<string | null>(
+    null,
+  );
+  const [nostrPendingEvent, setNostrPendingEvent] = useState<{
+    dTag: string;
+    authorPubkey: string;
+    eventId: string;
+    nevent: string | null;
+    verifyUrl: string | null;
+  } | null>(null);
   const [nostrProfile, setNostrProfile] = useState<CourseProfile | null>(null);
   const [nostrEvent, setNostrEvent] = useState<NostrEvent | null>(null);
   const [nostrStatus, setNostrStatus] = useState<
