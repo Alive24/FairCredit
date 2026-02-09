@@ -46,6 +46,7 @@
     "@radix-ui/react-tooltip": "1.2.8",
     "@reown/appkit": "latest",
     "@reown/appkit-adapter-solana": "latest",
+    "@solana-program/system": "^0.11.0",
     "@solana/client": "^1.7.0",
     "@solana/kit": "^6.0.1",
     "@solana/react": "^6.0.1",

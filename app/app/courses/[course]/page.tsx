@@ -266,10 +266,10 @@ export default function CourseDetailPage() {
   const nostrAuthorHex = useMemo(() => {
     const b = course?.nostrAuthorPubkey;
     if (!b) return null;
-    const allZero = b.every((x) => x === 0);
+    const allZero = (b as Uint8Array).every((x: number) => x === 0);
     if (allZero) return null;
-    return Array.from(b)
-      .map((x) => x.toString(16).padStart(2, "0"))
+    return Array.from(b as Uint8Array)
+      .map((x: number) => x.toString(16).padStart(2, "0"))
       .join("");
   }, [course?.nostrAuthorPubkey]);
 
@@ -535,7 +535,7 @@ export default function CourseDetailPage() {
           {isProvider && (
             <Button variant="outline" size="sm" onClick={handleToggleEdit}>
               <Pencil className="h-4 w-4 mr-2" />
-              {isEditing ? "Close Editor" : "Edit Course Profile"}
+              {isEditing ? "Close Editor" : "Edit Course"}
             </Button>
           )}
         </div>

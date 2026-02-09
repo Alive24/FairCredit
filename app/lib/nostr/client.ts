@@ -1,7 +1,7 @@
 "use client";
 
 import type { Address } from "@solana/kit";
-import { finalizeEvent } from "nostr-tools";
+import { finalizeEvent, nip19 } from "nostr-tools";
 
 export type NostrEvent = {
   id: string;
@@ -16,6 +16,9 @@ export type NostrEvent = {
 export type PublishResult = {
   eventId: string;
   authorPubkey: string;
+  dTag: string;
+  verifyUrl: string;
+  neventId: string;
 };
 
 export type RelayConfig = {
@@ -200,9 +203,18 @@ export async function publishResourceEvent(params: {
     }),
   );
 
+  const neventId = nip19.neventEncode({
+    id: event.id,
+    author: event.pubkey,
+    relays: DEFAULT_RELAYS.map((relay) => relay.url),
+  });
+
   return {
     eventId: event.id,
     authorPubkey: event.pubkey,
+    dTag: params.dTag,
+    verifyUrl: `https://njump.me/${neventId}`,
+    neventId,
   };
 }
 
@@ -247,9 +259,18 @@ export async function publishCourseEvent(params: {
     }),
   );
 
+  const neventId = nip19.neventEncode({
+    id: event.id,
+    author: event.pubkey,
+    relays: DEFAULT_RELAYS.map((relay) => relay.url),
+  });
+
   return {
     eventId: event.id,
     authorPubkey: event.pubkey,
+    dTag: params.dTag,
+    verifyUrl: `https://njump.me/${neventId}`,
+    neventId,
   };
 }
 

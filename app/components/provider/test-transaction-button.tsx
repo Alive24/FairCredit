@@ -5,9 +5,8 @@ import { useAppKitTransaction } from "@/hooks/use-appkit-transaction";
 import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { address } from "@solana/kit";
+import { address, lamports } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
-import { lamports } from "@solana/kit";
 
 export function TestTransactionButton() {
   const {
@@ -29,10 +28,11 @@ export function TestTransactionButton() {
     setStatus("Creating transaction...");
 
     try {
+      // Self-transfer of 1 lamport using @solana-program/system
       const transferInstruction = getTransferSolInstruction({
         source: createPlaceholderSigner(walletAddress),
         destination: address(walletAddress),
-        amount: lamports(BigInt(1)),
+        amount: lamports(1n),
       });
 
       setStatus("Sending transaction...");

@@ -24,6 +24,10 @@ import { ChevronDown, Loader2, Plus, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CourseModulesEditor } from "@/components/courses/course-modules-editor";
+import {
+  NostrPendingEvent,
+  NostrStoragePanel,
+} from "@/components/nostr-storage-panel";
 import { address } from "@solana/kit";
 import type { Instruction } from "@solana/kit";
 import type { Course } from "@/lib/solana/generated/accounts/course";
@@ -42,10 +46,7 @@ import {
   publishCourseEvent,
 } from "@/lib/nostr/client";
 import { nip19 } from "nostr-tools";
-
-type WalletProvider = {
-  signMessage?: (message: Uint8Array) => Promise<Uint8Array>;
-} | null;
+import type { Provider } from "@reown/appkit-adapter-solana/react";
 
 type CourseProfileEditorProps = {
   course: Course;
@@ -58,7 +59,7 @@ type CourseProfileEditorProps = {
   walletAddress: string | null;
   isConnected: boolean;
   isSending: boolean;
-  walletProvider: WalletProvider;
+  walletProvider: Provider | null | undefined;
   sendTransaction: (instructions: Instruction[]) => Promise<string>;
   onCourseReload?: () => Promise<void>;
   onProfileChange?: (profile: CourseProfile) => void;
@@ -119,13 +120,9 @@ export function CourseProfileEditor({
   const [nostrPublishError, setNostrPublishError] = useState<string | null>(
     null,
   );
-  const [nostrPendingEvent, setNostrPendingEvent] = useState<{
-    dTag: string;
-    authorPubkey: string;
-    eventId: string;
-    nevent: string | null;
-    verifyUrl: string | null;
-  } | null>(null);
+  const [nostrPendingEvent, setNostrPendingEvent] =
+    useState<NostrPendingEvent | null>(null);
+  const [parsedNeventId, setParsedNeventId] = useState<string | null>(null);
   const [nostrQueryUrl, setNostrQueryUrl] = useState<string | null>(null);
   const [dangerOpen, setDangerOpen] = useState(false);
 
@@ -146,11 +143,7 @@ export function CourseProfileEditor({
 
   useEffect(() => {
     const buildQueryUrl = async () => {
-      if (
-        (hasPublishedEvent || nostrDTag) &&
-        nostrDTag &&
-        nostrAuthorHex
-      ) {
+      if ((hasPublishedEvent || nostrDTag) && nostrDTag && nostrAuthorHex) {
         try {
           const event = await fetchLatestCourseEvent({
             dTag: nostrDTag,
@@ -158,12 +151,13 @@ export function CourseProfileEditor({
           });
           if (event) {
             try {
-              const nevent = nip19.neventEncode({
+              const neventId = nip19.neventEncode({
                 id: event.id,
                 author: nostrAuthorHex,
                 relays: DEFAULT_RELAYS.map((relay) => relay.url),
               });
-              setNostrQueryUrl(`https://njump.me/${nevent}`);
+              setNostrQueryUrl(`https://njump.me/${neventId}`);
+              setParsedNeventId(neventId);
             } catch {
               setNostrQueryUrl(null);
             }
@@ -278,18 +272,32 @@ export function CourseProfileEditor({
         content: JSON.stringify(payload),
         walletAddress,
         signMessage: walletProvider?.signMessage
-          ? (message) => walletProvider.signMessage!(message)
+          ? async (message) => {
+              const result = await walletProvider.signMessage!(message);
+              if (result instanceof Uint8Array) {
+                return result;
+              }
+              if (
+                typeof result === "object" &&
+                result !== null &&
+                "signature" in result &&
+                (result as any).signature instanceof Uint8Array
+              ) {
+                return (result as any).signature;
+              }
+              return new Uint8Array(result as ArrayBuffer);
+            }
           : undefined,
       });
-      let neventValue: string | null = null;
+      let neventId: string | null = null;
       try {
-        neventValue = nip19.neventEncode({
+        neventId = nip19.neventEncode({
           id: published.eventId,
           author: published.authorPubkey,
           relays: DEFAULT_RELAYS.map((relay) => relay.url),
         });
       } catch {
-        neventValue = null;
+        neventId = null;
       }
 
       let confirmed = false;
@@ -313,9 +321,8 @@ export function CourseProfileEditor({
       setNostrPendingEvent({
         dTag,
         authorPubkey: published.authorPubkey,
-        eventId: published.eventId,
-        nevent: neventValue,
-        verifyUrl: neventValue ? `https://njump.me/${neventValue}` : null,
+        neventId: neventId,
+        verifyUrl: neventId ? `https://njump.me/${neventId}` : null,
       });
       setNostrPublishStatus("published");
       setHasPublishedEvent(true);
@@ -334,9 +341,8 @@ export function CourseProfileEditor({
       return {
         dTag,
         authorPubkey: published.authorPubkey,
-        eventId: published.eventId,
-        nevent: neventValue,
-        verifyUrl: neventValue ? `https://njump.me/${neventValue}` : null,
+        neventId: neventId,
+        verifyUrl: neventId ? `https://njump.me/${neventId}` : null,
       };
     } catch (e) {
       console.error("Publish failed:", e);
@@ -368,8 +374,7 @@ export function CourseProfileEditor({
     async (event: {
       dTag: string;
       authorPubkey: string;
-      eventId: string;
-      nevent: string | null;
+      neventId: string | null;
       verifyUrl: string | null;
     }) => {
       if (!courseAddress || !course) return false;
@@ -625,7 +630,9 @@ export function CourseProfileEditor({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="course-supervisor-email">Supervisor Email *</Label>
+              <Label htmlFor="course-supervisor-email">
+                Supervisor Email *
+              </Label>
               <Input
                 id="course-supervisor-email"
                 type="email"
@@ -695,7 +702,9 @@ export function CourseProfileEditor({
             <Textarea
               id="course-deliverables"
               value={draftProfile.deliverables}
-              onChange={(e) => handleDraftChange("deliverables", e.target.value)}
+              onChange={(e) =>
+                handleDraftChange("deliverables", e.target.value)
+              }
               placeholder="What outputs and deliverables are expected from students..."
               rows={2}
             />
@@ -825,114 +834,60 @@ export function CourseProfileEditor({
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">On-Chain Metadata (Nostr)</CardTitle>
-            <CardDescription>
-              Publish course metadata to Nostr first, then confirm to bind the
-              pointer on-chain.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div className="space-y-1">
-              <div>
-                <span className="text-muted-foreground">dTag:</span>{" "}
-                {nostrDTag ?? "Not set"}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Author:</span>{" "}
-                {nostrAuthorHex ? `${nostrAuthorHex}` : "Not set"}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Status:</span>{" "}
-                {statusLabel}
-              </div>
-              {statusLabel !== "Not Published" &&
-                nostrDTag &&
-                nostrAuthorHex &&
-                nostrQueryUrl && (
-                  <div>
-                    <a
-                      href={nostrQueryUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      View Nostr Event
-                    </a>
-                  </div>
-                )}
-            </div>
-            {nostrPendingEvent && (
-              <div className="space-y-1 text-xs">
-                <div>
-                  <span className="text-muted-foreground">Event ID:</span>{" "}
-                  <span className="font-mono break-all">
-                    {nostrPendingEvent.eventId}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">nevent:</span>{" "}
-                  <span className="font-mono break-all">
-                    {nostrPendingEvent.nevent ?? "—"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Verified URL:</span>{" "}
-                  {nostrPendingEvent.verifyUrl ? (
-                    <a
-                      href={nostrPendingEvent.verifyUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-mono break-all underline"
-                    >
-                      {nostrPendingEvent.verifyUrl}
-                    </a>
-                  ) : (
-                    <span className="font-mono break-all">—</span>
-                  )}
-                </div>
-              </div>
-            )}
-            {nostrPublishError && (
-              <p className="text-xs text-destructive">{nostrPublishError}</p>
-            )}
-            <div className="flex flex-wrap gap-3">
-              <Button
-                variant="outline"
-                onClick={syncFromNostr}
-                disabled={busy != null}
-              >
-                {busy === "sync" ? "Syncing..." : "Sync from Nostr"}
-              </Button>
-              <Button
-                onClick={handlePublishAndBind}
-                disabled={
-                  busy != null ||
-                  isSending ||
-                  (!isDirty && hasPublishedEvent && !nostrPendingEvent)
-                }
-              >
-                {busy === "publish" || busy === "bind" ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                {nostrPendingEvent && !isDirty
-                  ? "Confirm Bind on-chain"
-                  : "Publish & Bind"}
-              </Button>
-              <label className="ml-2 flex items-center gap-2 text-xs">
+        <NostrStoragePanel
+          status={
+            nostrPublishStatus === "publishing"
+              ? "publishing"
+              : nostrPublishStatus === "error"
+              ? "error"
+              : hasPublishedEvent && !isDirty
+              ? "published"
+              : "idle"
+          }
+          dTag={nostrDTag ?? nostrPendingEvent?.dTag}
+          authorPubkey={nostrAuthorHex ?? nostrPendingEvent?.authorPubkey}
+          neventId={nostrPendingEvent?.neventId ?? parsedNeventId}
+          verifyUrl={nostrPendingEvent?.verifyUrl ?? nostrQueryUrl}
+          error={nostrPublishError}
+          onPublish={handlePublishAndBind}
+          publishLabel={
+            nostrPendingEvent && !isDirty
+              ? "Confirm Bind on-chain"
+              : "Publish & Bind"
+          }
+          publishDisabled={
+            busy != null ||
+            isSending ||
+            (!isDirty && hasPublishedEvent && !nostrPendingEvent)
+          }
+          extraActions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={syncFromNostr}
+              disabled={busy != null}
+            >
+              {busy === "sync" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
+              {busy === "sync" ? "Syncing..." : "Sync from Nostr"}
+            </Button>
+          }
+          footer={
+            <div className="flex items-center gap-2 pt-2 border-t mt-2">
+              <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={forceRebind}
                   onChange={(e) => setForceRebind(e.target.checked)}
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
                 />
                 Force rebind Nostr pointer
               </label>
             </div>
-          </CardContent>
-        </Card>
+          }
+          defaultOpen={true}
+        />
         {showDangerZone && (
           <Card className="border-destructive/40 bg-destructive/5">
             <CardHeader
@@ -945,7 +900,8 @@ export function CourseProfileEditor({
                     Danger Zone
                   </CardTitle>
                   <CardDescription>
-                    Closing a course will permanently remove it from the network.
+                    Closing a course will permanently remove it from the
+                    network.
                   </CardDescription>
                 </div>
                 <ChevronDown
@@ -958,9 +914,9 @@ export function CourseProfileEditor({
             {dangerOpen && (
               <CardContent className="space-y-3 text-xs text-muted-foreground">
                 <p>
-                  Closing a course will permanently remove it from the network and
-                  reclaim its rent to your wallet. Existing credentials and hub
-                  references may become invalid.
+                  Closing a course will permanently remove it from the network
+                  and reclaim its rent to your wallet. Existing credentials and
+                  hub references may become invalid.
                 </p>
                 <Button
                   variant="destructive"
@@ -986,7 +942,7 @@ export function CourseProfileEditor({
           walletAddress={walletAddress}
           isConnected={isConnected}
           isSending={isSending}
-          walletProvider={walletProvider}
+          walletProvider={walletProvider ?? null}
           sendTransaction={sendTransaction}
           onCourseReload={onCourseReload}
         />

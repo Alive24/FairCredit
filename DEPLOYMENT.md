@@ -1,150 +1,498 @@
 # FairCredit Deployment Guide
 
-## Current Deployment Status
+This guide covers deploying the FairCredit smart contract to Solana networks (localnet, devnet, or mainnet-beta) and running the development environment.
 
-The FairCredit smart contract has been successfully deployed to local Solana network with the following minimal setup:
+---
 
-### Deployed Components
+## 🚀 Quick Start
 
-1. **Smart Contract**
+### Prerequisites
 
-   - Program ID: `BtaUG6eQGGd5dPMoGfLtc6sKLY3rsmq9w8q9cWyipwZk`
-   - Network: Localnet (`http://localhost:8899`)
+- **Node.js** 18+ with pnpm
+- **Solana CLI** 1.18+
+- **Anchor** 0.31+
+- **Rust** 1.75+
 
-2. **Hub Account** (Curated Registry)
-
-   - Address: `GPftMStJZ5h7uvM5FwZXHwxm7DBv6YdPtDDWRYcnpqKf`
-   - Authority: `F7xXsyVCTieJssPccJTt2x8nr5A81YM7cMizS5SL16bs`
-   - Features:
-     - Maintains list of accepted providers
-     - Maintains list of accepted endorsers
-     - Maintains list of accepted courses
-
-3. **Provider Account**
-
-   - Address: `7xRZhV7pcQtE96nU8ookpEfxkw957t3NofGe87nCkr1M`
-   - Wallet: `8NY4S4qwomeR791SRvFrj51vEayN3V4TLq37uBzEj5pn`
-   - Name: "Solana Academy"
-   - Description: "Premier Solana education provider"
-   - Status: Accepted by Hub
-
-4. **Course**
-   - Address: `GZ7y1s7mw3xNpyDS9qXqKKgz372YYnU67D2d66JmURvb`
-   - ID: `SOLANA101`
-   - Name: "Introduction to Solana Development"
-   - Provider: Solana Academy
-   - Status: Accepted by Hub
-
-## Authority Addresses Explained
-
-### Hub Authority
-
-- **Address**: `F7xXsyVCTieJssPccJTt2x8nr5A81YM7cMizS5SL16bs`
-- **Source**: This is the default Solana CLI wallet (`~/.config/solana/id.json`)
-- **Role**: Has full control over the Hub - can add/remove providers, endorsers, and courses
-- **Usage**: Used when running deployment scripts and admin operations
-
-### Provider Authority
-
-- **Address**: `8NY4S4qwomeR791SRvFrj51vEayN3V4TLq37uBzEj5pn`
-- **Source**: Generated during deployment (use your own keypair for testing)
-- **Role**: Controls the "Solana Academy" provider account
-- **Permissions**: Can create courses, manage course content, and issue credentials
-
-### Key Relationships
-
-- The Hub Authority is different from Provider Authority for separation of concerns
-- Hub Authority manages the curated registry (quality control)
-- Provider Authority manages educational content (courses and credentials)
-- In production, these would be different entities (e.g., DAO vs Educational Institution)
-
-## Running the System
-
-### 1. Start Local Validator
+### Initial Setup
 
 ```bash
-solana-test-validator --reset --quiet
+# Install dependencies
+pnpm install
+
+# Set up Solana CLI (if not already configured)
+solana config set --url localhost  # or devnet/mainnet-beta
+solana-keygen new                  # Create wallet if needed
 ```
 
-### 2. Deploy Contract and Initialize Data
+---
+
+## 📦 Deployment Process
+
+### Interactive Deployment Tool
+
+FairCredit includes an interactive deployment tool at `scripts/deploy/index.ts` that streamlines the entire deployment pipeline.
+
+**Usage:**
 
 ```bash
-# Deploy the program
-anchor deploy
-
-# Run the minimal deployment script
+pnpm run deploy
 ```
 
-### 3. Start the DApp
+**Workflow:**
+
+1. **Select Target Cluster**:
+
+   - `localnet` - Local test validator (http://localhost:8899)
+   - `devnet` - Solana devnet (public testnet)
+   - `mainnet-beta` - Solana mainnet (production)
+
+2. **Choose Action**:
+   - **Build only**: Compile the Anchor program (`anchor build`)
+   - **Build + Deploy**: Compile and deploy to the selected cluster
+   - **Build + Deploy + Copy IDL**: Full deployment + IDL export to `target/idl/`
+   - **Build + Deploy + Copy IDL + Codegen**: Complete pipeline (recommended)
+   - **Copy IDL + Codegen only**: Regenerate TypeScript client from existing IDL
+
+### Full Pipeline (Recommended)
+
+For a complete deployment with client generation:
+
+```bash
+pnpm run deploy
+# Select cluster: localnet/devnet/mainnet-beta
+# Select action: Build + Deploy + Copy IDL + Run Codama (full pipeline)
+```
+
+This will:
+
+1. Build the Anchor program in `anchor/`
+2. Deploy to the selected cluster
+3. Copy IDL from `anchor/target/idl/fair_credit.json` to `target/idl/fair_credit.json`
+4. Run Codama to generate TypeScript client at `app/lib/solana/generated/`
+
+---
+
+## 🔧 Deployment Components
+
+### Configuration
+
+**File**: `scripts/deploy/config.ts`
+
+- **anchorRoot**: `anchor/` directory containing Anchor.toml
+- **repoRoot**: Project root directory
+- **cluster**: Target network (localnet/devnet/mainnet-beta)
+- **walletPath**: Deployer keypair (default: `~/.config/solana/id.json`)
+- **idlPathInAnchor**: IDL location after build (`anchor/target/idl/fair_credit.json`)
+- **idlPathForCodama**: IDL location for code generation (`target/idl/fair_credit.json`)
+
+### Deployment Steps
+
+The deployment tool is modular with individual steps:
+
+#### 1. Build (`steps/build.ts`)
+
+Compiles the Anchor program:
+
+```bash
+cd anchor && anchor build
+```
+
+- Sets `ANCHOR_PROVIDER_URL` based on selected cluster
+- Outputs compiled program to `anchor/target/deploy/`
+- Generates IDL at `anchor/target/idl/fair_credit.json`
+
+#### 2. Deploy (`steps/deploy.ts`)
+
+Deploys the program to the selected cluster:
+
+```bash
+anchor deploy --provider.cluster <cluster>
+```
+
+- Uses wallet specified in `ANCHOR_WALLET` or config
+- Deploys to cluster-specific RPC endpoint
+- Updates program ID if deploying first time
+
+#### 3. Update IDL (`steps/update-idl.ts`)
+
+Copies IDL for Codama consumption:
+
+```bash
+cp anchor/target/idl/fair_credit.json target/idl/fair_credit.json
+```
+
+- Ensures Codama has access to latest IDL
+- Required before running code generation
+
+#### 4. Codegen (`steps/codegen.ts`)
+
+Generates TypeScript client using Codama:
+
+```bash
+npm run gen:client  # Runs: npx codama run --all
+```
+
+- Reads `codama.json` configuration
+- Generates type-safe client at `app/lib/solana/generated/`
+- Creates instruction builders, account types, and PDA helpers
+
+---
+
+## 🏠 Local Development
+
+### Full Local Setup
+
+#### 1. Start Solana Test Validator
+
+```bash
+pnpm run validator
+```
+
+This starts a local validator with:
+
+- Port: 8899
+- Metaplex program cloned from mainnet (for NFT functionality)
+- Quiet mode (minimal logging)
+- Reset on each start (clean state)
+
+**Command Details**:
+
+```bash
+solana-test-validator --reset --quiet \
+  --clone-upgradeable-program metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s \
+  --url https://api.mainnet-beta.solana.com
+```
+
+#### 2. Deploy Program (Localnet)
+
+```bash
+pnpm run deploy
+# Select: Localnet (validator)
+# Select: Build + Deploy + Copy IDL + Run Codama (full pipeline)
+```
+
+#### 3. Start Frontend Development Server
+
+```bash
+pnpm run dev
+```
+
+Access the application at: **http://localhost:8888**
+
+The frontend runs via Netlify Dev for serverless function support and environment variable management.
+
+---
+
+## 🌐 Devnet Deployment
+
+### Prerequisites
+
+1. **Fund Your Wallet**:
+
+   ```bash
+   solana airdrop 2  # On devnet
+   ```
+
+2. **Configure Solana CLI**:
+   ```bash
+   solana config set --url devnet
+   ```
+
+### Deploy to Devnet
+
+```bash
+pnpm run deploy
+# Select: Devnet
+# Select: Build + Deploy + Copy IDL + Run Codama
+```
+
+### Update Frontend Configuration
+
+After deploying to devnet, update the frontend to use devnet:
+
+**File**: `app/lib/solana/config.ts`
+
+```typescript
+export const SOLANA_NETWORK = "devnet"; // Change from 'localnet'
+```
+
+### Frontend Deployment
+
+Deploy the Next.js app to Netlify:
 
 ```bash
 cd app
-npm run dev
+pnpm run build
+netlify deploy --prod
 ```
 
-The dapp will be available at `http://localhost:3000`
+---
 
-### Key Pages
+## 🔒 Mainnet Deployment
 
-- Courses: `http://localhost:3000/courses`
-- Home: `http://localhost:3000`
+### ⚠️ Pre-Deployment Checklist
 
-## Architecture Overview
+- [ ] Complete security audit of smart contract
+- [ ] Test thoroughly on devnet with real users
+- [ ] Verify all edge cases and error handling
+- [ ] Set up monitoring and alerting
+- [ ] Prepare upgrade/emergency plans
+- [ ] Configure program upgrade authority
+- [ ] Fund deployer wallet adequately (consider program size)
 
-### Smart Contract Features
+### Deploy to Mainnet
 
-- **Decentralized Operations**: All credential creation, endorsement, and verification happen on-chain
-- **Hub Filtering**: Optional curated registry for quality control
-- **Provider System**: Educational institutions can register and create courses
-- **Course Management**: Providers can create and manage educational programs
-- **NFT Credentials**: Each credential will be minted as an NFT (not yet implemented in minimal deployment)
+```bash
+# 1. Configure Solana CLI for mainnet
+solana config set --url mainnet-beta
 
-### DApp Integration
+# 2. Verify wallet has sufficient SOL
+solana balance
 
-- **Wallet Connection**: Supports Phantom and Solflare wallets
-- **Course Display**: Shows Hub-accepted courses from accepted providers
-- **Provider/Service Architecture**: Clean separation between Solana client and UI components
+# 3. Build and deploy
+pnpm run deploy
+# Select: Mainnet Beta
+# Select: Build + Deploy + Copy IDL + Run Codama
+```
 
-## PDA Seed Conventions
+### Post-Deployment
 
-- Credential-related PDAs now use an 8-byte little-endian encoding of the credential identifier. Use the exported `toLE8(id)` helper from `app/lib/solana/config.ts` to guarantee parity with the on-chain `u64` seeds.
-- Client helpers `getCredentialPDA(id)` and `getVerificationRecordPDA(id, verifier)` wrap `PublicKey.findProgramAddressSync` with the canonical seeds used by the Anchor program.
-- Verifier accounts and verification records share deterministic helpers (`getVerifierPDA`, `getVerificationRecordPDA`) so tests and scripts derive identical addresses without manually re-specifying seed layouts.
-- Avoid passing unsafe JavaScript numbers (>53 bits). The helpers accept `number | bigint | BN` and will throw if a value cannot be represented as an unsigned 64-bit integer.
+1. **Verify Program ID**:
 
-## Next Steps
+   - Update `declare_id!()` in `anchor/programs/fair-credit/src/lib.rs`
+   - Update `PROGRAM_ID` in `app/lib/solana/config.ts`
 
-1. **Credential Minting**: Implement the credential creation and NFT minting functionality
-2. **Endorsement System**: Add mentor/supervisor endorsement capabilities
-3. **Student Enrollment**: Allow students to enroll in courses
-4. **Activity Logging**: Implement on-chain activity tracking
-5. **Verification Pages**: Create public credential verification pages
+2. **Transfer Authority** (if using multisig):
 
-## Files Created
+   ```bash
+   solana program set-upgrade-authority <PROGRAM_ID> --new-upgrade-authority <MULTISIG>
+   ```
 
-- `/scripts/deploy-minimal.ts` - Deployment script for minimal setup
-- `/scripts/dapp-integration.ts` - Integration helper for dapps
-- PDA addresses are derived from Program ID via Codama (no deployment config file)
-- `/app/lib/solana/config.ts` - Solana configuration for dapp
-- `/app/lib/solana/simple-client.ts` - Simplified Solana client
-- `/app/lib/solana/context.tsx` - React context for FairCredit
-- `/app/components/courses/course-list.tsx` - Course listing component
+3. **Initialize Hub** (if using curated registry):
+   Run initialization scripts to set up Hub account and initial providers.
 
-## Important Notes
+4. **Update Frontend**:
+   - Set `SOLANA_NETWORK = 'mainnet-beta'` in config
+   - Deploy to production hosting
 
-- The Hub account size was reduced from 1000/2000 to 50/100 items for local deployment
-- The simple client uses mocked data for now - full Anchor integration can be added later
-- Use local keypairs for testing only; never commit real keys.
+---
 
-## Authority Summary
+## 🧪 Testing Before Deployment
 
-| Account Type | Authority Address                              | Description                        | Source                      |
-| ------------ | ---------------------------------------------- | ---------------------------------- | --------------------------- |
-| Hub          | `F7xXsyVCTieJssPccJTt2x8nr5A81YM7cMizS5SL16bs` | Controls the curated registry      | Default Solana CLI wallet   |
-| Provider     | `8NY4S4qwomeR791SRvFrj51vEayN3V4TLq37uBzEj5pn` | Controls "Solana Academy" provider | Generated during deployment |
+### Run All Tests
 
-In a production environment:
+```bash
+# Anchor contract tests
+pnpm run test:anchor
 
-- **Hub Authority** would typically be a DAO or governance body responsible for quality control
-- **Provider Authorities** would be individual educational institutions with their own wallets
-- **Students and Endorsers** would have their own wallets for interacting with the system
+# Frontend integration tests
+pnpm run test:app
+
+# All tests
+pnpm run test:full
+```
+
+### Program-Specific Tests
+
+```bash
+# Quick program tests
+pnpm run test:program
+
+# Security tests
+pnpm run test:security
+```
+
+---
+
+## 📁 Project Structure
+
+```
+FairCredit/
+├── anchor/                        # Anchor workspace
+│   ├── programs/fair-credit/      # Smart contract source
+│   ├── target/                    # Build artifacts
+│   │   ├── deploy/               # Compiled program (.so)
+│   │   └── idl/                  # Generated IDL
+│   └── Anchor.toml               # Anchor config
+├── scripts/deploy/               # Deployment automation
+│   ├── index.ts                  # Main entry point
+│   ├── config.ts                 # Configuration
+│   ├── prompts.ts                # Interactive prompts
+│   └── steps/                    # Modular deployment steps
+│       ├── build.ts             # Anchor build
+│       ├── deploy.ts            # Program deployment
+│       ├── update-idl.ts        # IDL copying
+│       └── codegen.ts           # TypeScript client generation
+├── app/                          # Next.js frontend
+│   └── lib/solana/generated/     # Auto-generated client
+├── target/idl/                   # IDL for Codama
+└── codama.json                   # Codama configuration
+```
+
+---
+
+## 🔑 Program Information
+
+### Current Program ID
+
+**Program ID**: `95asCfd7nbJN5i6REuiuLHj7Wb6DqqAKrhG1tRJ7Dthx`
+
+This is the declared program ID in `lib.rs`. On first deployment to a new cluster, Anchor will deploy with this ID if the keypair exists at `anchor/target/deploy/fair_credit-keypair.json`.
+
+### Important Accounts
+
+**Hub Account** (Localnet example):
+
+- Address: Derived from PDA `["hub", authority]`
+- Authority: `~/.config/solana/id.json` (default Solana CLI wallet)
+- Purpose: Curated registry of accepted providers and courses
+
+**Provider Accounts**:
+
+- PDA: `["provider", provider_authority]`
+- Each educational institution has unique provider account
+- Stores metadata, endorsers, and configuration
+
+**Course Accounts**:
+
+- PDA: `["course", hub, provider, creation_timestamp]`
+- Timestamp-based uniqueness prevents collisions
+- One course per unique timestamp per provider
+
+**Credential Accounts**:
+
+- PDA: `["credential", course, student_wallet]`
+- One credential per student per course
+- Links to NFT mint for asset representation
+
+---
+
+## 🛠️ Customizing Deployment
+
+### Adding New Deployment Steps
+
+To extend the deployment process (e.g., add verification, notifications):
+
+1. **Create new step file**:
+
+   ```typescript
+   // scripts/deploy/steps/verify.ts
+   export function verify(config: DeployConfig): void {
+     // Your verification logic
+   }
+   ```
+
+2. **Update `index.ts`**:
+
+   ```typescript
+   import { verify } from "./steps/verify";
+
+   // Add to action choices and execution logic
+   ```
+
+### Environment Variables
+
+Configure deployment via environment variables:
+
+```bash
+export ANCHOR_WALLET=/path/to/keypair.json
+export ANCHOR_PROVIDER_URL=https://api.devnet.solana.com
+
+pnpm run deploy
+```
+
+---
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+**Issue**: "Program keypair not found"
+
+- **Solution**: Ensure `anchor/target/deploy/fair_credit-keypair.json` exists
+- Run `anchor build` first to generate it
+
+**Issue**: "Insufficient funds for deployment"
+
+- **Solution**: Fund your wallet:
+  - Localnet: Funds are unlimited, just restart validator
+  - Devnet: `solana airdrop 2`
+  - Mainnet: Transfer SOL to deployer wallet
+
+**Issue**: "Program ID mismatch"
+
+- **Solution**: Update `declare_id!()` in `lib.rs` to match deployed program ID
+  ```bash
+  solana address -k anchor/target/deploy/fair_credit-keypair.json
+  ```
+
+**Issue**: "Codegen fails"
+
+- **Solution**: Ensure IDL is up-to-date:
+  ```bash
+  cd anchor && anchor build && cd ..
+  cp anchor/target/idl/fair_credit.json target/idl/fair_credit.json
+  pnpm run gen:client
+  ```
+
+### Logs and Debugging
+
+**View program logs** (during deployment):
+
+```bash
+solana logs <PROGRAM_ID>
+```
+
+**View transaction details**:
+
+```bash
+solana confirm -v <TRANSACTION_SIGNATURE>
+```
+
+**Check program account**:
+
+```bash
+solana program show <PROGRAM_ID>
+```
+
+---
+
+## 📚 Additional Resources
+
+- **Deployment Scripts**: [scripts/deploy/README.md](./scripts/deploy/README.md)
+- **Implementation Log**: [docs/logs/](./docs/logs/)
+- **Anchor Documentation**: https://anchor-lang.com
+- **Solana CLI Guide**: https://docs.solana.com/cli
+
+---
+
+## 🔄 Upgrade Process
+
+### Upgrading Program
+
+1. **Make changes** to smart contract in `anchor/programs/fair-credit/src/`
+
+2. **Test thoroughly** on localnet/devnet
+
+3. **Deploy upgrade**:
+
+   ```bash
+   pnpm run deploy
+   # Select target cluster
+   # Select: Build + Deploy + Copy IDL + Run Codama
+   ```
+
+4. **Update frontend**:
+   - Frontend automatically uses new IDL after codegen
+   - Test with new client types
+   - Deploy updated frontend
+
+### Migration Considerations
+
+- **Account Structure Changes**: May require migration scripts
+- **Breaking Changes**: Communicate with users, plan transition
+- **Upgrade Authority**: Ensure proper authority management on mainnet
+
+---
+
+_This deployment guide is current as of February 2026. For the latest updates, see the deployment scripts and README in `scripts/deploy/`._ 🚀
