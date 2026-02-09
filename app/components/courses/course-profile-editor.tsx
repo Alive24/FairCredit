@@ -22,6 +22,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, Loader2, Plus, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CourseModulesEditor } from "@/components/courses/course-modules-editor";
 import { address } from "@solana/kit";
 import type { Instruction } from "@solana/kit";
 import type { Course } from "@/lib/solana/generated/accounts/course";
@@ -518,453 +520,478 @@ export function CourseProfileEditor({
       : "Not Published";
 
   const content = (
-    <div className="space-y-8">
-      <div className="space-y-6">
-        <h3 className="text-sm font-medium">Basic Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="course-title">Course Title *</Label>
-            <Input
-              id="course-title"
-              value={draftProfile.title}
-              onChange={(e) => handleDraftChange("title", e.target.value)}
-              placeholder="Advanced Quantum Computing Research"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="course-category">Category *</Label>
-            <Select
-              value={draftProfile.category}
-              onValueChange={(value) => handleDraftChange("category", value)}
-            >
-              <SelectTrigger id="course-category">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="research">Research</SelectItem>
-                <SelectItem value="applied-research">
-                  Applied Research
-                </SelectItem>
-                <SelectItem value="engineering">Engineering</SelectItem>
-                <SelectItem value="technology">Technology</SelectItem>
-                <SelectItem value="healthcare">Healthcare</SelectItem>
-                <SelectItem value="business">Business</SelectItem>
-                <SelectItem value="arts">Arts & Humanities</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="course-description">Course Description *</Label>
-          <Textarea
-            id="course-description"
-            value={draftProfile.description}
-            onChange={(e) => handleDraftChange("description", e.target.value)}
-            placeholder="Comprehensive description of the credential course, its goals, and what students will achieve..."
-            rows={4}
-          />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label>Duration *</Label>
-            <div className="flex gap-2">
+    <Tabs defaultValue="basic" className="space-y-6">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="basic">Basic Information</TabsTrigger>
+        <TabsTrigger value="modules">Course Modules</TabsTrigger>
+      </TabsList>
+      <TabsContent value="basic" className="space-y-8">
+        <div className="space-y-6">
+          <h3 className="text-sm font-medium">Basic Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="course-title">Course Title *</Label>
               <Input
-                id="course-duration-value"
-                type="number"
-                min={1}
-                value={draftProfile.durationValue}
-                onChange={(e) =>
-                  handleDraftChange("durationValue", e.target.value)
-                }
-                placeholder="e.g. 12"
+                id="course-title"
+                value={draftProfile.title}
+                onChange={(e) => handleDraftChange("title", e.target.value)}
+                placeholder="Advanced Quantum Computing Research"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="course-category">Category *</Label>
               <Select
-                value={draftProfile.durationUnit}
-                onValueChange={(value: "weeks" | "months" | "years") =>
-                  setDraftProfile((prev) => ({
-                    ...prev,
-                    durationUnit: value,
-                  }))
-                }
+                value={draftProfile.category}
+                onValueChange={(value) => handleDraftChange("category", value)}
               >
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue />
+                <SelectTrigger id="course-category">
+                  <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="weeks">Weeks</SelectItem>
-                  <SelectItem value="months">Months</SelectItem>
-                  <SelectItem value="years">Years</SelectItem>
+                  <SelectItem value="research">Research</SelectItem>
+                  <SelectItem value="applied-research">
+                    Applied Research
+                  </SelectItem>
+                  <SelectItem value="engineering">Engineering</SelectItem>
+                  <SelectItem value="technology">Technology</SelectItem>
+                  <SelectItem value="healthcare">Healthcare</SelectItem>
+                  <SelectItem value="business">Business</SelectItem>
+                  <SelectItem value="arts">Arts & Humanities</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="space-y-6 border-t pt-6">
-        <h3 className="text-sm font-medium">Academic Supervisor</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <Label htmlFor="course-supervisor-name">
-              Supervisor Full Name *
+            <Label htmlFor="course-description">Course Description *</Label>
+            <Textarea
+              id="course-description"
+              value={draftProfile.description}
+              onChange={(e) => handleDraftChange("description", e.target.value)}
+              placeholder="Comprehensive description of the credential course, its goals, and what students will achieve..."
+              rows={4}
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label>Duration *</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="course-duration-value"
+                  type="number"
+                  min={1}
+                  value={draftProfile.durationValue}
+                  onChange={(e) =>
+                    handleDraftChange("durationValue", e.target.value)
+                  }
+                  placeholder="e.g. 12"
+                />
+                <Select
+                  value={draftProfile.durationUnit}
+                  onValueChange={(value: "weeks" | "months" | "years") =>
+                    setDraftProfile((prev) => ({
+                      ...prev,
+                      durationUnit: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weeks">Weeks</SelectItem>
+                    <SelectItem value="months">Months</SelectItem>
+                    <SelectItem value="years">Years</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6 border-t pt-6">
+          <h3 className="text-sm font-medium">Academic Supervisor</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="course-supervisor-name">
+                Supervisor Full Name *
+              </Label>
+              <Input
+                id="course-supervisor-name"
+                value={draftProfile.supervisorName}
+                onChange={(e) =>
+                  handleDraftChange("supervisorName", e.target.value)
+                }
+                placeholder="Dr. Sarah Chen"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="course-supervisor-email">Supervisor Email *</Label>
+              <Input
+                id="course-supervisor-email"
+                type="email"
+                value={draftProfile.supervisorEmail}
+                onChange={(e) =>
+                  handleDraftChange("supervisorEmail", e.target.value)
+                }
+                placeholder="s.chen@imperial.ac.uk"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="course-supervisor-institution">
+                Institution *
+              </Label>
+              <Input
+                id="course-supervisor-institution"
+                value={draftProfile.supervisorInstitution}
+                onChange={(e) =>
+                  handleDraftChange("supervisorInstitution", e.target.value)
+                }
+                placeholder="Imperial College London"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6 border-t pt-6">
+          <h3 className="text-sm font-medium">Course Structure</h3>
+          <div className="space-y-2">
+            <Label htmlFor="course-learning-objectives">
+              Learning Objectives *
             </Label>
-            <Input
-              id="course-supervisor-name"
-              value={draftProfile.supervisorName}
+            <Textarea
+              id="course-learning-objectives"
+              value={draftProfile.learningObjectives}
               onChange={(e) =>
-                handleDraftChange("supervisorName", e.target.value)
+                handleDraftChange("learningObjectives", e.target.value)
               }
-              placeholder="Dr. Sarah Chen"
+              placeholder="What will students learn and achieve in this course..."
+              rows={3}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="course-supervisor-email">Supervisor Email *</Label>
-            <Input
-              id="course-supervisor-email"
-              type="email"
-              value={draftProfile.supervisorEmail}
+            <Label htmlFor="course-methodology">Methodology *</Label>
+            <Textarea
+              id="course-methodology"
+              value={draftProfile.methodology}
+              onChange={(e) => handleDraftChange("methodology", e.target.value)}
+              placeholder="How will the course be delivered and what methods will be used..."
+              rows={3}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="course-assessment">Assessment Criteria *</Label>
+            <Textarea
+              id="course-assessment"
+              value={draftProfile.assessmentCriteria}
               onChange={(e) =>
-                handleDraftChange("supervisorEmail", e.target.value)
+                handleDraftChange("assessmentCriteria", e.target.value)
               }
-              placeholder="s.chen@imperial.ac.uk"
+              placeholder="How will student work be evaluated and assessed..."
+              rows={3}
             />
           </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="course-supervisor-institution">Institution *</Label>
-            <Input
-              id="course-supervisor-institution"
-              value={draftProfile.supervisorInstitution}
-              onChange={(e) =>
-                handleDraftChange("supervisorInstitution", e.target.value)
-              }
-              placeholder="Imperial College London"
+          <div className="space-y-2">
+            <Label htmlFor="course-deliverables">Expected Deliverables *</Label>
+            <Textarea
+              id="course-deliverables"
+              value={draftProfile.deliverables}
+              onChange={(e) => handleDraftChange("deliverables", e.target.value)}
+              placeholder="What outputs and deliverables are expected from students..."
+              rows={2}
             />
           </div>
         </div>
-      </div>
 
-      <div className="space-y-6 border-t pt-6">
-        <h3 className="text-sm font-medium">Course Structure</h3>
-        <div className="space-y-2">
-          <Label htmlFor="course-learning-objectives">
-            Learning Objectives *
-          </Label>
-          <Textarea
-            id="course-learning-objectives"
-            value={draftProfile.learningObjectives}
-            onChange={(e) =>
-              handleDraftChange("learningObjectives", e.target.value)
-            }
-            placeholder="What will students learn and achieve in this course..."
-            rows={3}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="course-methodology">Methodology *</Label>
-          <Textarea
-            id="course-methodology"
-            value={draftProfile.methodology}
-            onChange={(e) => handleDraftChange("methodology", e.target.value)}
-            placeholder="How will the course be delivered and what methods will be used..."
-            rows={3}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="course-assessment">Assessment Criteria *</Label>
-          <Textarea
-            id="course-assessment"
-            value={draftProfile.assessmentCriteria}
-            onChange={(e) =>
-              handleDraftChange("assessmentCriteria", e.target.value)
-            }
-            placeholder="How will student work be evaluated and assessed..."
-            rows={3}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="course-deliverables">Expected Deliverables *</Label>
-          <Textarea
-            id="course-deliverables"
-            value={draftProfile.deliverables}
-            onChange={(e) => handleDraftChange("deliverables", e.target.value)}
-            placeholder="What outputs and deliverables are expected from students..."
-            rows={2}
-          />
-        </div>
-      </div>
-
-      <div className="space-y-6 border-t pt-6">
-        <h3 className="text-sm font-medium">Requirements & Tags</h3>
-        <div className="space-y-2">
-          <Label>Prerequisites & Requirements</Label>
-          <div className="flex gap-2">
-            <Input
-              value={newRequirement}
-              onChange={(e) => setNewRequirement(e.target.value)}
-              placeholder="Add a requirement..."
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addRequirement();
-                }
-              }}
-            />
-            <Button type="button" onClick={addRequirement} size="icon">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {draftProfile.requirements.map((req) => (
-              <Badge
-                key={req}
-                variant="secondary"
-                className="flex items-center gap-1"
-              >
-                {req}
-                <X
-                  className="h-3 w-3 cursor-pointer"
-                  onClick={() => removeRequirement(req)}
-                />
-              </Badge>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Skills Students Will Develop</Label>
-          <div className="flex gap-2">
-            <Input
-              value={newSkill}
-              onChange={(e) => setNewSkill(e.target.value)}
-              placeholder="Add a skill..."
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addSkill();
-                }
-              }}
-            />
-            <Button type="button" onClick={addSkill} size="icon">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {draftProfile.skills.map((skill) => (
-              <Badge
-                key={skill}
-                variant="secondary"
-                className="flex items-center gap-1"
-              >
-                {skill}
-                <X
-                  className="h-3 w-3 cursor-pointer"
-                  onClick={() => removeSkill(skill)}
-                />
-              </Badge>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Tags for Discovery</Label>
-          <div className="flex gap-2">
-            <Input
-              value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
-              placeholder="Add a tag..."
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addTag();
-                }
-              }}
-            />
-            <Button type="button" onClick={addTag} size="icon">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {draftProfile.tags.map((tag) => (
-              <Badge
-                key={tag}
-                variant="outline"
-                className="flex items-center gap-1"
-              >
-                {tag}
-                <X
-                  className="h-3 w-3 cursor-pointer"
-                  onClick={() => removeTag(tag)}
-                />
-              </Badge>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="course-prerequisites">Additional Prerequisites</Label>
-          <Textarea
-            id="course-prerequisites"
-            value={draftProfile.prerequisites}
-            onChange={(e) => handleDraftChange("prerequisites", e.target.value)}
-            placeholder="Any additional prerequisites or background knowledge required..."
-            rows={2}
-          />
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">On-Chain Metadata (Nostr)</CardTitle>
-          <CardDescription>
-            Publish course metadata to Nostr first, then confirm to bind the
-            pointer on-chain.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm">
-          <div className="space-y-1">
-            <div>
-              <span className="text-muted-foreground">dTag:</span>{" "}
-              {nostrDTag ?? "Not set"}
-            </div>
-            <div>
-              <span className="text-muted-foreground">Author:</span>{" "}
-              {nostrAuthorHex ? `${nostrAuthorHex}` : "Not set"}
-            </div>
-            <div>
-              <span className="text-muted-foreground">Status:</span>{" "}
-              {statusLabel}
-            </div>
-            {statusLabel !== "Not Published" &&
-              nostrDTag &&
-              nostrAuthorHex &&
-              nostrQueryUrl && (
-                <div>
-                  <a
-                    href={nostrQueryUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    View Nostr Event
-                  </a>
-                </div>
-              )}
-          </div>
-          {nostrPendingEvent && (
-            <div className="space-y-1 text-xs">
-              <div>
-                <span className="text-muted-foreground">Event ID:</span>{" "}
-                <span className="font-mono break-all">
-                  {nostrPendingEvent.eventId}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">nevent:</span>{" "}
-                <span className="font-mono break-all">
-                  {nostrPendingEvent.nevent ?? "—"}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Verified URL:</span>{" "}
-                {nostrPendingEvent.verifyUrl ? (
-                  <a
-                    href={nostrPendingEvent.verifyUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-mono break-all underline"
-                  >
-                    {nostrPendingEvent.verifyUrl}
-                  </a>
-                ) : (
-                  <span className="font-mono break-all">—</span>
-                )}
-              </div>
-            </div>
-          )}
-          {nostrPublishError && (
-            <p className="text-xs text-destructive">{nostrPublishError}</p>
-          )}
-          <div className="flex flex-wrap gap-3">
-            <Button
-              variant="outline"
-              onClick={syncFromNostr}
-              disabled={busy != null}
-            >
-              {busy === "sync" ? "Syncing…" : "Sync from Nostr"}
-            </Button>
-            <Button
-              onClick={handlePublishAndBind}
-              disabled={
-                busy != null ||
-                isSending ||
-                (!isDirty && hasPublishedEvent && !nostrPendingEvent)
-              }
-            >
-              {busy === "publish" || busy === "bind" ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              {nostrPendingEvent && !isDirty
-                ? "Confirm Bind on-chain"
-                : "Publish & Bind"}
-            </Button>
-            <label className="ml-2 flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={forceRebind}
-                onChange={(e) => setForceRebind(e.target.checked)}
+        <div className="space-y-6 border-t pt-6">
+          <h3 className="text-sm font-medium">Requirements & Tags</h3>
+          <div className="space-y-2">
+            <Label>Prerequisites & Requirements</Label>
+            <div className="flex gap-2">
+              <Input
+                value={newRequirement}
+                onChange={(e) => setNewRequirement(e.target.value)}
+                placeholder="Add a requirement..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addRequirement();
+                  }
+                }}
               />
-              Force rebind Nostr pointer
-            </label>
-          </div>
-        </CardContent>
-      </Card>
-      {showDangerZone && (
-        <Card className="border-destructive/40 bg-destructive/5">
-          <CardHeader
-            className="cursor-pointer select-none"
-            onClick={() => setDangerOpen((prev) => !prev)}
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-base text-destructive">
-                  Danger Zone
-                </CardTitle>
-                <CardDescription>
-                  Closing a course will permanently remove it from the network.
-                </CardDescription>
-              </div>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${
-                  dangerOpen ? "rotate-180" : ""
-                }`}
-              />
-            </div>
-          </CardHeader>
-          {dangerOpen && (
-            <CardContent className="space-y-3 text-xs text-muted-foreground">
-              <p>
-                Closing a course will permanently remove it from the network and
-                reclaim its rent to your wallet. Existing credentials and hub
-                references may become invalid.
-              </p>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={onCloseCourse}
-                disabled={!onCloseCourse || closeSubmitting}
-              >
-                {closeSubmitting ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : null}
-                Close Course Account
+              <Button type="button" onClick={addRequirement} size="icon">
+                <Plus className="h-4 w-4" />
               </Button>
-            </CardContent>
-          )}
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {draftProfile.requirements.map((req) => (
+                <Badge
+                  key={req}
+                  variant="secondary"
+                  className="flex items-center gap-1"
+                >
+                  {req}
+                  <X
+                    className="h-3 w-3 cursor-pointer"
+                    onClick={() => removeRequirement(req)}
+                  />
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Skills Students Will Develop</Label>
+            <div className="flex gap-2">
+              <Input
+                value={newSkill}
+                onChange={(e) => setNewSkill(e.target.value)}
+                placeholder="Add a skill..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addSkill();
+                  }
+                }}
+              />
+              <Button type="button" onClick={addSkill} size="icon">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {draftProfile.skills.map((skill) => (
+                <Badge
+                  key={skill}
+                  variant="secondary"
+                  className="flex items-center gap-1"
+                >
+                  {skill}
+                  <X
+                    className="h-3 w-3 cursor-pointer"
+                    onClick={() => removeSkill(skill)}
+                  />
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tags for Discovery</Label>
+            <div className="flex gap-2">
+              <Input
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                placeholder="Add a tag..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addTag();
+                  }
+                }}
+              />
+              <Button type="button" onClick={addTag} size="icon">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {draftProfile.tags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="outline"
+                  className="flex items-center gap-1"
+                >
+                  {tag}
+                  <X
+                    className="h-3 w-3 cursor-pointer"
+                    onClick={() => removeTag(tag)}
+                  />
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="course-prerequisites">
+              Additional Prerequisites
+            </Label>
+            <Textarea
+              id="course-prerequisites"
+              value={draftProfile.prerequisites}
+              onChange={(e) =>
+                handleDraftChange("prerequisites", e.target.value)
+              }
+              placeholder="Any additional prerequisites or background knowledge required..."
+              rows={2}
+            />
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">On-Chain Metadata (Nostr)</CardTitle>
+            <CardDescription>
+              Publish course metadata to Nostr first, then confirm to bind the
+              pointer on-chain.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <div className="space-y-1">
+              <div>
+                <span className="text-muted-foreground">dTag:</span>{" "}
+                {nostrDTag ?? "Not set"}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Author:</span>{" "}
+                {nostrAuthorHex ? `${nostrAuthorHex}` : "Not set"}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Status:</span>{" "}
+                {statusLabel}
+              </div>
+              {statusLabel !== "Not Published" &&
+                nostrDTag &&
+                nostrAuthorHex &&
+                nostrQueryUrl && (
+                  <div>
+                    <a
+                      href={nostrQueryUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      View Nostr Event
+                    </a>
+                  </div>
+                )}
+            </div>
+            {nostrPendingEvent && (
+              <div className="space-y-1 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Event ID:</span>{" "}
+                  <span className="font-mono break-all">
+                    {nostrPendingEvent.eventId}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">nevent:</span>{" "}
+                  <span className="font-mono break-all">
+                    {nostrPendingEvent.nevent ?? "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Verified URL:</span>{" "}
+                  {nostrPendingEvent.verifyUrl ? (
+                    <a
+                      href={nostrPendingEvent.verifyUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-mono break-all underline"
+                    >
+                      {nostrPendingEvent.verifyUrl}
+                    </a>
+                  ) : (
+                    <span className="font-mono break-all">—</span>
+                  )}
+                </div>
+              </div>
+            )}
+            {nostrPublishError && (
+              <p className="text-xs text-destructive">{nostrPublishError}</p>
+            )}
+            <div className="flex flex-wrap gap-3">
+              <Button
+                variant="outline"
+                onClick={syncFromNostr}
+                disabled={busy != null}
+              >
+                {busy === "sync" ? "Syncing..." : "Sync from Nostr"}
+              </Button>
+              <Button
+                onClick={handlePublishAndBind}
+                disabled={
+                  busy != null ||
+                  isSending ||
+                  (!isDirty && hasPublishedEvent && !nostrPendingEvent)
+                }
+              >
+                {busy === "publish" || busy === "bind" ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {nostrPendingEvent && !isDirty
+                  ? "Confirm Bind on-chain"
+                  : "Publish & Bind"}
+              </Button>
+              <label className="ml-2 flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={forceRebind}
+                  onChange={(e) => setForceRebind(e.target.checked)}
+                />
+                Force rebind Nostr pointer
+              </label>
+            </div>
+          </CardContent>
         </Card>
-      )}
-    </div>
+        {showDangerZone && (
+          <Card className="border-destructive/40 bg-destructive/5">
+            <CardHeader
+              className="cursor-pointer select-none"
+              onClick={() => setDangerOpen((prev) => !prev)}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base text-destructive">
+                    Danger Zone
+                  </CardTitle>
+                  <CardDescription>
+                    Closing a course will permanently remove it from the network.
+                  </CardDescription>
+                </div>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${
+                    dangerOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </div>
+            </CardHeader>
+            {dangerOpen && (
+              <CardContent className="space-y-3 text-xs text-muted-foreground">
+                <p>
+                  Closing a course will permanently remove it from the network and
+                  reclaim its rent to your wallet. Existing credentials and hub
+                  references may become invalid.
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={onCloseCourse}
+                  disabled={!onCloseCourse || closeSubmitting}
+                >
+                  {closeSubmitting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : null}
+                  Close Course Account
+                </Button>
+              </CardContent>
+            )}
+          </Card>
+        )}
+      </TabsContent>
+      <TabsContent value="modules" className="space-y-8">
+        <CourseModulesEditor
+          course={course}
+          courseAddress={courseAddress}
+          isProvider={isProvider}
+          walletAddress={walletAddress}
+          isConnected={isConnected}
+          isSending={isSending}
+          walletProvider={walletProvider}
+          sendTransaction={sendTransaction}
+          onCourseReload={onCourseReload}
+        />
+      </TabsContent>
+    </Tabs>
   );
 
   if (variant === "embedded") {

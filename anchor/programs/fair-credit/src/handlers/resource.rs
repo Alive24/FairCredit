@@ -102,6 +102,8 @@ pub fn add_resource(
     external_id: Option<String>,
     workload: Option<u32>,
     tags: Vec<String>,
+    nostr_d_tag: Option<String>,
+    nostr_author_pubkey: Option<[u8; 32]>,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let current_time = clock.unix_timestamp;
@@ -125,8 +127,8 @@ pub fn add_resource(
     resource.course = ctx.accounts.course.key();
     resource.assets = Vec::new();
     resource.tags = tags;
-    resource.nostr_d_tag = None;
-    resource.nostr_author_pubkey = [0u8; 32];
+    resource.nostr_d_tag = nostr_d_tag;
+    resource.nostr_author_pubkey = nostr_author_pubkey.unwrap_or([0u8; 32]);
     resource.walrus_blob_id = None;
     resource.owner = ctx.accounts.provider_authority.key();
 

@@ -113,6 +113,8 @@ export type AddResourceInstructionData = {
   externalId: Option<string>;
   workload: Option<number>;
   tags: Array<string>;
+  nostrDTag: Option<string>;
+  nostrAuthorPubkey: Option<ReadonlyUint8Array>;
 };
 
 export type AddResourceInstructionDataArgs = {
@@ -122,6 +124,8 @@ export type AddResourceInstructionDataArgs = {
   externalId: OptionOrNullable<string>;
   workload: OptionOrNullable<number>;
   tags: Array<string>;
+  nostrDTag: OptionOrNullable<string>;
+  nostrAuthorPubkey: OptionOrNullable<ReadonlyUint8Array>;
 };
 
 export function getAddResourceInstructionDataEncoder(): Encoder<AddResourceInstructionDataArgs> {
@@ -144,6 +148,16 @@ export function getAddResourceInstructionDataEncoder(): Encoder<AddResourceInstr
           addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
+      [
+        "nostrDTag",
+        getOptionEncoder(
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
+        ),
+      ],
+      [
+        "nostrAuthorPubkey",
+        getOptionEncoder(fixEncoderSize(getBytesEncoder(), 32)),
+      ],
     ]),
     (value) => ({ ...value, discriminator: ADD_RESOURCE_DISCRIMINATOR }),
   );
@@ -164,6 +178,11 @@ export function getAddResourceInstructionDataDecoder(): Decoder<AddResourceInstr
       "tags",
       getArrayDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
+    [
+      "nostrDTag",
+      getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
+    ],
+    ["nostrAuthorPubkey", getOptionDecoder(fixDecoderSize(getBytesDecoder(), 32))],
   ]);
 }
 
@@ -197,6 +216,8 @@ export type AddResourceAsyncInput<
   externalId: AddResourceInstructionDataArgs["externalId"];
   workload: AddResourceInstructionDataArgs["workload"];
   tags: AddResourceInstructionDataArgs["tags"];
+  nostrDTag: AddResourceInstructionDataArgs["nostrDTag"];
+  nostrAuthorPubkey: AddResourceInstructionDataArgs["nostrAuthorPubkey"];
 };
 
 export async function getAddResourceInstructionAsync<
@@ -334,6 +355,8 @@ export type AddResourceInput<
   externalId: AddResourceInstructionDataArgs["externalId"];
   workload: AddResourceInstructionDataArgs["workload"];
   tags: AddResourceInstructionDataArgs["tags"];
+  nostrDTag: AddResourceInstructionDataArgs["nostrDTag"];
+  nostrAuthorPubkey: AddResourceInstructionDataArgs["nostrAuthorPubkey"];
 };
 
 export function getAddResourceInstruction<

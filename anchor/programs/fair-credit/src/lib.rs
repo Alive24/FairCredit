@@ -195,6 +195,8 @@ pub mod fair_credit {
         external_id: Option<String>,
         workload: Option<u32>,
         tags: Vec<String>,
+        nostr_d_tag: Option<String>,
+        nostr_author_pubkey: Option<[u8; 32]>,
     ) -> Result<()> {
         handlers::resource::add_resource(
             ctx,
@@ -204,6 +206,8 @@ pub mod fair_credit {
             external_id,
             workload,
             tags,
+            nostr_d_tag,
+            nostr_author_pubkey,
         )
     }
 

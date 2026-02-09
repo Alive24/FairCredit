@@ -51,6 +51,8 @@ describe("Resource Hybrid Storage", () => {
       externalId: null,
       workload: null,
       tags: ["hybrid", "nostr"],
+      nostrDTag: null,
+      nostrAuthorPubkey: null,
     });
     resourcePDA = addResourceIx.accounts[0].address;
     await sendInstructions(ctx.rpcUrl, [addResourceIx], ctx.providerWallet);
