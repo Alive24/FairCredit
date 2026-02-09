@@ -1,7 +1,26 @@
 "use client";
 
 import type { Address } from "@solana/kit";
-import { finalizeEvent, nip19 } from "nostr-tools";
+import { finalizeEvent, nip19, SimplePool } from "nostr-tools";
+
+// ... existing imports
+
+export async function fetchResourceEvent(
+  authorPubkey: string,
+  dTag: string,
+): Promise<NostrEvent | null> {
+  const pool = new SimplePool();
+  try {
+    const relays = DEFAULT_RELAYS.map((r) => r.url);
+    const event = await pool.get(relays, {
+      kinds: [RESOURCE_EVENT_KIND],
+      authors: [authorPubkey],
+      "#d": [dTag],
+    });
+    return event as NostrEvent;
+  } finally {
+  }
+}
 
 export type NostrEvent = {
   id: string;

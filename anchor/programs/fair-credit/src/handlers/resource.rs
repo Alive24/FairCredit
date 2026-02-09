@@ -324,7 +324,6 @@ pub fn set_asset_walrus_ref(ctx: Context<SetAssetWalrusRef>, walrus_blob_id: Str
     Ok(())
 }
 
-
 #[derive(Accounts)]
 #[instruction(submission_timestamp: i64)]
 pub struct CreateSubmission<'info> {
@@ -494,5 +493,27 @@ pub fn set_submission_walrus_ref(
     submission.walrus_blob_id = Some(walrus_blob_id);
     submission.updated = Clock::get()?.unix_timestamp;
 
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct CloseResource<'info> {
+    #[account(
+        mut,
+        close = authority,
+        seeds = [
+            Resource::SEED_PREFIX.as_bytes(),
+            resource.course.as_ref(),
+            &resource.created.to_le_bytes(),
+        ],
+        bump,
+        constraint = resource.owner == authority.key() @ ResourceError::UnauthorizedResourceAuthority
+    )]
+    pub resource: Account<'info, Resource>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+}
+
+pub fn close_resource(_ctx: Context<CloseResource>) -> Result<()> {
     Ok(())
 }

@@ -27,6 +27,7 @@ import {
   parseCloseCourseInstruction,
   parseCloseHubInstruction,
   parseCloseProviderInstruction,
+  parseCloseResourceInstruction,
   parseCreateAssetInstruction,
   parseCreateCourseInstruction,
   parseCreateCourseListInstruction,
@@ -52,6 +53,7 @@ import {
   parseSetSubmissionNostrRefInstruction,
   parseSetSubmissionWalrusRefInstruction,
   parseTransferHubAuthorityInstruction,
+  parseUpdateCourseModuleInstruction,
   parseUpdateCourseStatusInstruction,
   parseUpdateHubConfigInstruction,
   parseUpdateResourceDataInstruction,
@@ -65,6 +67,7 @@ import {
   type ParsedCloseCourseInstruction,
   type ParsedCloseHubInstruction,
   type ParsedCloseProviderInstruction,
+  type ParsedCloseResourceInstruction,
   type ParsedCreateAssetInstruction,
   type ParsedCreateCourseInstruction,
   type ParsedCreateCourseListInstruction,
@@ -90,6 +93,7 @@ import {
   type ParsedSetSubmissionNostrRefInstruction,
   type ParsedSetSubmissionWalrusRefInstruction,
   type ParsedTransferHubAuthorityInstruction,
+  type ParsedUpdateCourseModuleInstruction,
   type ParsedUpdateCourseStatusInstruction,
   type ParsedUpdateHubConfigInstruction,
   type ParsedUpdateResourceDataInstruction,
@@ -229,6 +233,7 @@ export enum FairCreditInstruction {
   CloseCourse,
   CloseHub,
   CloseProvider,
+  CloseResource,
   CreateAsset,
   CreateCourse,
   CreateCourseList,
@@ -254,6 +259,7 @@ export enum FairCreditInstruction {
   SetSubmissionNostrRef,
   SetSubmissionWalrusRef,
   TransferHubAuthority,
+  UpdateCourseModule,
   UpdateCourseStatus,
   UpdateHubConfig,
   UpdateResourceData,
@@ -372,6 +378,17 @@ export function identifyFairCreditInstruction(
     )
   ) {
     return FairCreditInstruction.CloseProvider;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([124, 213, 147, 66, 133, 230, 67, 224]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.CloseResource;
   }
   if (
     containsBytes(
@@ -652,6 +669,17 @@ export function identifyFairCreditInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([37, 107, 114, 135, 232, 206, 238, 28]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.UpdateCourseModule;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([212, 91, 18, 222, 178, 244, 1, 226]),
       ),
       0,
@@ -719,6 +747,9 @@ export type ParsedFairCreditInstruction<
   | ({
       instructionType: FairCreditInstruction.CloseProvider;
     } & ParsedCloseProviderInstruction<TProgram>)
+  | ({
+      instructionType: FairCreditInstruction.CloseResource;
+    } & ParsedCloseResourceInstruction<TProgram>)
   | ({
       instructionType: FairCreditInstruction.CreateAsset;
     } & ParsedCreateAssetInstruction<TProgram>)
@@ -794,6 +825,9 @@ export type ParsedFairCreditInstruction<
   | ({
       instructionType: FairCreditInstruction.TransferHubAuthority;
     } & ParsedTransferHubAuthorityInstruction<TProgram>)
+  | ({
+      instructionType: FairCreditInstruction.UpdateCourseModule;
+    } & ParsedUpdateCourseModuleInstruction<TProgram>)
   | ({
       instructionType: FairCreditInstruction.UpdateCourseStatus;
     } & ParsedUpdateCourseStatusInstruction<TProgram>)
@@ -877,6 +911,13 @@ export function parseFairCreditInstruction<TProgram extends string>(
       return {
         instructionType: FairCreditInstruction.CloseProvider,
         ...parseCloseProviderInstruction(instruction),
+      };
+    }
+    case FairCreditInstruction.CloseResource: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.CloseResource,
+        ...parseCloseResourceInstruction(instruction),
       };
     }
     case FairCreditInstruction.CreateAsset: {
@@ -1051,6 +1092,13 @@ export function parseFairCreditInstruction<TProgram extends string>(
       return {
         instructionType: FairCreditInstruction.TransferHubAuthority,
         ...parseTransferHubAuthorityInstruction(instruction),
+      };
+    }
+    case FairCreditInstruction.UpdateCourseModule: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.UpdateCourseModule,
+        ...parseUpdateCourseModuleInstruction(instruction),
       };
     }
     case FairCreditInstruction.UpdateCourseStatus: {

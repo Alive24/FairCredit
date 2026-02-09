@@ -182,7 +182,10 @@ export function getAddResourceInstructionDataDecoder(): Decoder<AddResourceInstr
       "nostrDTag",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
-    ["nostrAuthorPubkey", getOptionDecoder(fixDecoderSize(getBytesDecoder(), 32))],
+    [
+      "nostrAuthorPubkey",
+      getOptionDecoder(fixDecoderSize(getBytesDecoder(), 32)),
+    ],
   ]);
 }
 

@@ -28,6 +28,8 @@ pub enum CourseError {
     UnauthorizedCourseAuthority,
     #[msg("Nostr reference already set; use force=true to override")]
     NostrRefAlreadySet,
+    #[msg("Module not found")]
+    ModuleNotFound,
 }
 
 #[error_code]

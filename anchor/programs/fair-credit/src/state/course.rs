@@ -56,6 +56,17 @@ impl Course {
         Ok(())
     }
 
+    pub fn update_module(&mut self, resource: Pubkey, percentage: u8) -> Result<()> {
+        require!(percentage <= 100, CourseError::InvalidProgress);
+        if let Some(module) = self.modules.iter_mut().find(|m| m.resource == resource) {
+            module.percentage = percentage;
+            self.updated = Clock::get()?.unix_timestamp;
+            Ok(())
+        } else {
+            err!(CourseError::ModuleNotFound)
+        }
+    }
+
     pub fn update_status(
         &mut self,
         status: CourseStatus,

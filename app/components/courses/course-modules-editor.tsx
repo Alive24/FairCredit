@@ -38,8 +38,7 @@ import { ResourceKind } from "@/lib/solana/generated/types/resourceKind";
 import { ResourceStatus } from "@/lib/solana/generated/types/resourceStatus";
 import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 import { getAddCourseModuleInstructionAsync } from "@/lib/solana/generated/instructions/addCourseModule";
-import { CreateModuleForm } from "@/components/create-module-form";
-
+import { ModuleResourceModal } from "@/components/module-resource-modal";
 import type { Provider } from "@reown/appkit-adapter-solana/react";
 
 type CourseModulesEditorProps = {
@@ -81,6 +80,19 @@ function hexToBytes32(hex: string): Uint8Array {
   return bytes;
 }
 
+function bytesToHex(bytes: any): string {
+  if (
+    bytes instanceof Uint8Array ||
+    Array.isArray(bytes) ||
+    (typeof bytes === "object" && bytes !== null && "length" in bytes)
+  ) {
+    return Array.from(bytes as ArrayLike<number>)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  return "";
+}
+
 export function CourseModulesEditor({
   course,
   courseAddress,
@@ -117,6 +129,22 @@ export function CourseModulesEditor({
   const [moduleResourcesError, setModuleResourcesError] = useState<
     string | null
   >(null);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  const [editingModule, setEditingModule] = useState<{
+    resourceAddress: string;
+    name: string;
+    kind: ResourceKind;
+    externalId: string;
+    workload: string;
+    tags: string[];
+    content: string;
+    percentage: number;
+    isExternal: boolean;
+    nostrDTag?: string;
+    nostrAuthorPubkey?: string;
+  } | null>(null);
 
   const moduleAddresses = useMemo(() => {
     const set = new Set<string>();
@@ -365,18 +393,36 @@ export function CourseModulesEditor({
             <CardTitle className="text-lg">Current Modules</CardTitle>
             <CardDescription>Modules are append-only on-chain.</CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1"
-            onClick={() => setAddExistingOpen(true)}
-            disabled={!canEdit}
-          >
-            <Plus className="h-4 w-4" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Add Existing
-            </span>
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1"
+              onClick={() => setAddExistingOpen(true)}
+              disabled={!canEdit}
+            >
+              <Plus className="h-4 w-4" />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                Add Existing
+              </span>
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className="h-8 gap-1"
+              onClick={() => {
+                setEditingModule(null);
+                setModalMode("create");
+                setModalOpen(true);
+              }}
+              disabled={!canEdit || moduleLimitReached}
+            >
+              <Plus className="h-4 w-4" />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                Create New
+              </span>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {moduleResourcesLoading ? (
@@ -399,43 +445,75 @@ export function CourseModulesEditor({
               return (
                 <div
                   key={`${resourceAddress}-${index}`}
-                  className="rounded-md border p-3"
+                  className="rounded-md border p-3 flex flex-wrap items-start justify-between gap-3"
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="flex items-center gap-2">
                       <p className="font-medium">
                         {resource?.name ?? "Unknown Resource"}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {resource
-                          ? formatEnumLabel(ResourceKind[resource.kind])
-                          : "Resource not found"}
-                      </p>
+                      <Badge variant="secondary">{module.percentage}%</Badge>
                     </div>
-                    <Badge variant="secondary">{module.percentage}%</Badge>
-                  </div>
-                  <div className="mt-2 text-xs font-mono text-muted-foreground break-all">
-                    {resourceAddress}
-                  </div>
-                  {resource && (
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                      <Badge variant="outline">
-                        {formatEnumLabel(ResourceStatus[resource.status])}
-                      </Badge>
-                      {workloadValue != null && (
-                        <Badge variant="outline">{workloadValue} min</Badge>
-                      )}
-                      {isExternal && resourceCourse && (
+                    <div className="mt-1 text-xs font-mono text-muted-foreground break-all">
+                      {resourceAddress}
+                    </div>
+                    {resource && (
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
                         <Badge variant="outline">
-                          From {formatAddress(resourceCourse)}
+                          {formatEnumLabel(ResourceKind[resource.kind])}
                         </Badge>
-                      )}
-                      {resource.tags.map((tag) => (
-                        <Badge key={tag} variant="outline">
-                          {tag}
+                        <Badge variant="outline">
+                          {formatEnumLabel(ResourceStatus[resource.status])}
                         </Badge>
-                      ))}
-                    </div>
+                        {workloadValue != null && (
+                          <Badge variant="outline">{workloadValue} min</Badge>
+                        )}
+                        {isExternal && resourceCourse && (
+                          <Badge variant="outline">
+                            From {formatAddress(resourceCourse)}
+                          </Badge>
+                        )}
+                        {resource.tags.map((tag) => (
+                          <Badge key={tag} variant="outline">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (!resource) return;
+                        setEditingModule({
+                          resourceAddress,
+                          name: resource.name,
+                          kind: resource.kind,
+                          externalId:
+                            resource.externalId.__option === "Some"
+                              ? resource.externalId.value
+                              : "",
+                          workload: workloadValue?.toString() || "",
+                          tags: resource.tags,
+                          content: "", // Content not loaded
+                          percentage: module.percentage,
+                          isExternal: !!isExternal,
+                          nostrDTag:
+                            resource.nostrDTag.__option === "Some"
+                              ? resource.nostrDTag.value
+                              : undefined,
+                          nostrAuthorPubkey: bytesToHex(
+                            resource.nostrAuthorPubkey,
+                          ),
+                        });
+                        setModalMode("edit");
+                        setModalOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
                   )}
                 </div>
               );
@@ -447,15 +525,31 @@ export function CourseModulesEditor({
         </CardContent>
       </Card>
 
-      <CreateModuleForm
+      <ModuleResourceModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        mode={modalMode}
+        initialData={editingModule || undefined}
+        debugResource={
+          editingModule
+            ? moduleResourceMap[editingModule.resourceAddress]
+            : undefined
+        }
         courseAddress={courseAddress}
         walletAddress={walletAddress || ""}
         walletProvider={walletProvider || undefined}
         isConnected={isConnected}
         isSending={isSending}
         sendTransaction={sendTransaction}
-        onSuccess={onCourseReload}
-        totalWeight={totalWeight}
+        onSuccess={async () => {
+          await onCourseReload?.();
+          await loadModuleResources(); // reload resources too to get updates
+          setModalOpen(false);
+        }}
+        totalWeight={
+          course.modules.reduce((sum, m) => sum + m.percentage, 0) -
+          (editingModule ? editingModule.percentage : 0)
+        }
       />
 
       <Dialog open={addExistingOpen} onOpenChange={setAddExistingOpen}>

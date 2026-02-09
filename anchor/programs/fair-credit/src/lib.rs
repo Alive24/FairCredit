@@ -163,7 +163,17 @@ pub mod fair_credit {
         resource: Pubkey,
         percentage: u8,
     ) -> Result<()> {
-        handlers::course::add_course_module(ctx, resource, percentage)
+        ctx.accounts.course.add_module(resource, percentage)?;
+        Ok(())
+    }
+
+    pub fn update_course_module(
+        ctx: Context<UpdateCourseModule>,
+        resource: Pubkey,
+        percentage: u8,
+    ) -> Result<()> {
+        ctx.accounts.course.update_module(resource, percentage)?;
+        Ok(())
     }
 
     pub fn update_course_status(
@@ -227,6 +237,10 @@ pub mod fair_credit {
         force: bool,
     ) -> Result<()> {
         handlers::resource::set_resource_nostr_ref(ctx, nostr_d_tag, nostr_author_pubkey, force)
+    }
+
+    pub fn close_resource(ctx: Context<CloseResource>) -> Result<()> {
+        handlers::resource::close_resource(ctx)
     }
 
     pub fn set_resource_walrus_ref(
