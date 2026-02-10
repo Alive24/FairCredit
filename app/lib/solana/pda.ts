@@ -13,6 +13,7 @@ import {
   type Address,
 } from "@solana/kit";
 import { FAIR_CREDIT_PROGRAM_ADDRESS } from "@/lib/solana/generated/programs";
+export { FAIR_CREDIT_PROGRAM_ADDRESS };
 
 // Seed bytes (UTF-8 encoded) -----------------------------------------------
 const HUB_SEED = new Uint8Array([104, 117, 98]); // "hub"

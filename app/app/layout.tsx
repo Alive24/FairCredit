@@ -13,7 +13,6 @@ import { WalletProvider } from "@/components/wallet-provider";
 import { NavbarActions } from "@/components/navbar-actions";
 import { TransactionQueueProvider } from "@/hooks/use-transaction-queue";
 import { UserRoleProvider } from "@/hooks/use-user-role";
-import { PageMapItem } from "nextra";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -54,7 +53,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const pageMap = await getPageMap();
-  const filteredPageMap = withFallbackPageMap(filterDynamicRoutes(pageMap));
+  const filteredPageMap = withFallbackPageMap(
+    filterDynamicRoutes(pageMap),
+  ) as any;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -71,14 +72,14 @@ export default async function RootLayout({
                 <Layout
                   navbar={navbar}
                   footer={footer}
-                  pageMap={filteredPageMap as PageMapItem[]}
+                  pageMap={filteredPageMap}
                   docsRepositoryBase="https://github.com/Alive24/FairCredit/tree/main/app/content"
                 >
                   <ClientLayout>{children}</ClientLayout>
                 </Layout>
               </TransactionQueueProvider>
+              <Toaster />
             </UserRoleProvider>
-            <Toaster />
           </WalletProvider>
         </ThemeProvider>
       </body>

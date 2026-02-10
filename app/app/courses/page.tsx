@@ -109,10 +109,7 @@ export default function CoursesPage() {
         </div>
 
         {/* Course List */}
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">Available Courses</h2>
-          <CourseList />
-        </div>
+        <CourseList />
       </main>
     </div>
   );

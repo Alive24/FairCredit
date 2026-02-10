@@ -11,7 +11,9 @@ import {
   CheckCircle,
   Clock,
   Shield,
+  ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
 import { AppKitButton } from "@reown/appkit/react";
 import { useFairCredit } from "@/hooks/use-fair-credit";
 import { useAppKitTransaction } from "@/hooks/use-appkit-transaction";
@@ -253,7 +255,14 @@ export function StudentCoursePanel({
             </div>
           </div>
 
-          {/* Future: Activity list and "Finish Course" button will go here */}
+          <div className="mt-6 border-t pt-4">
+            <Link href={`/courses/${courseAddress}/activity`}>
+              <Button className="w-full">
+                Manage Activities & Submit Evidence
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
         </CardContent>
       </Card>
     );

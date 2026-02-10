@@ -76,29 +76,23 @@ async function loadIdl(): Promise<Idl | null> {
     // Ignore
   }
   try {
-    // Try fetching from target/idl
+    // Fallback: try fetching from a nested target/idl path if exposed via public assets.
     const response = await fetch("/target/idl/fair_credit.json");
     if (response.ok) {
       cachedIdl = (await response.json()) as Idl;
       return cachedIdl;
     }
   } catch {
-    // Ignore
+    // Ignore and fall through.
   }
-  try {
-    // Try dynamic import (works in dev, may need build-time copy for prod)
-    const idlModule = await import("@/../../target/idl/fair_credit.json");
-    cachedIdl = (idlModule.default ?? idlModule) as Idl;
-    return cachedIdl;
-  } catch {
-    return null;
-  }
+  // If all strategies fail, return null. The rest of the page handles a missing IDL gracefully.
+  return null;
 }
 
 function instructionTypeToIdlName(
   instructionType: FairCreditInstruction,
 ): string {
-  const names: Record<FairCreditInstruction, string> = {
+  const names: Partial<Record<FairCreditInstruction, string>> = {
     [FairCreditInstruction.AddAcceptedCourse]: "add_accepted_course",
     [FairCreditInstruction.AddAcceptedProvider]: "add_accepted_provider",
     [FairCreditInstruction.AddCourseModule]: "add_course_module",
@@ -123,8 +117,7 @@ function instructionTypeToIdlName(
       "link_activity_to_credential",
     [FairCreditInstruction.MintCredentialNft]: "mint_credential_nft",
     [FairCreditInstruction.RemoveAcceptedCourse]: "remove_accepted_course",
-    [FairCreditInstruction.RemoveAcceptedProvider]:
-      "remove_accepted_provider",
+    [FairCreditInstruction.RemoveAcceptedProvider]: "remove_accepted_provider",
     [FairCreditInstruction.RemoveCourseFromList]: "remove_course_from_list",
     [FairCreditInstruction.RemoveProviderEndorser]: "remove_provider_endorser",
     [FairCreditInstruction.SetAssetNostrRef]: "set_asset_nostr_ref",
@@ -134,8 +127,7 @@ function instructionTypeToIdlName(
     [FairCreditInstruction.SetResourceNostrRef]: "set_resource_nostr_ref",
     [FairCreditInstruction.SetResourceWalrusRef]: "set_resource_walrus_ref",
     [FairCreditInstruction.SetSubmissionNostrRef]: "set_submission_nostr_ref",
-    [FairCreditInstruction.SetSubmissionWalrusRef]:
-      "set_submission_walrus_ref",
+    [FairCreditInstruction.SetSubmissionWalrusRef]: "set_submission_walrus_ref",
     [FairCreditInstruction.TransferHubAuthority]: "transfer_hub_authority",
     [FairCreditInstruction.UpdateCourseStatus]: "update_course_status",
     [FairCreditInstruction.UpdateHubConfig]: "update_hub_config",
@@ -213,7 +205,9 @@ export default function TransactionDetailPage() {
   }, [signature]);
 
   useEffect(() => {
-    loadIdl().then(setIdl).catch(() => setIdl(null));
+    loadIdl()
+      .then(setIdl)
+      .catch(() => setIdl(null));
   }, []);
 
   useEffect(() => {
@@ -515,8 +509,8 @@ export default function TransactionDetailPage() {
                   </div>
                   {ix.kind === "fairCredit" &&
                     !!ix.fairCreditDecoded &&
-                    getFairCreditDataEntries(ix, idl, ix.fairCreditType).length >
-                      0 && (
+                    getFairCreditDataEntries(ix, idl, ix.fairCreditType)
+                      .length > 0 && (
                       <div className="mt-2 space-y-1">
                         <p className="text-[14px] font-[1000]">Data</p>
                         <ul className="space-y-0.5">
@@ -525,25 +519,24 @@ export default function TransactionDetailPage() {
                             idl,
                             ix.fairCreditType,
                           ).map(({ key, value, type }) => (
-                              <li
-                                key={key}
-                                className="flex flex-wrap items-center gap-2 text-xs"
+                            <li
+                              key={key}
+                              className="flex flex-wrap items-center gap-2 text-xs"
+                            >
+                              <span className="font-[800] underline">
+                                {key}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] uppercase"
                               >
-                                <span className="font-[800] underline">
-                                  {key}
-                                </span>
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] uppercase"
-                                >
-                                  {type}
-                                </Badge>
-                                <span className="font-mono break-all">
-                                  {value}
-                                </span>
-                              </li>
-                            ),
-                          )}
+                                {type}
+                              </Badge>
+                              <span className="font-mono break-all">
+                                {value}
+                              </span>
+                            </li>
+                          ))}
                         </ul>
                       </div>
                     )}
@@ -734,9 +727,7 @@ function getFairCreditDataEntries(
     const idlName = instructionTypeToIdlName(instructionType);
     const idlIx = idl.instructions.find((i) => i.name === idlName);
     if (idlIx) {
-      idlArgTypes = new Map(
-        idlIx.args.map((arg) => [arg.name, arg.type]),
-      );
+      idlArgTypes = new Map(idlIx.args.map((arg) => [arg.name, arg.type]));
     }
   }
 
@@ -748,8 +739,7 @@ function getFairCreditDataEntries(
       /[A-Z]/g,
       (letter) => `_${letter.toLowerCase()}`,
     );
-    const idlType =
-      idlArgTypes?.get(key) ?? idlArgTypes?.get(snakeKey) ?? null;
+    const idlType = idlArgTypes?.get(key) ?? idlArgTypes?.get(snakeKey) ?? null;
     const rustType = idlType
       ? idlTypeToRustType(idlType)
       : inferRustType(key, raw);
@@ -766,17 +756,26 @@ function inferRustType(fieldName: string, raw: unknown): string {
   if (raw == null) return "Option<T>";
   if (typeof raw === "string") {
     // Check for common patterns
-    if (fieldName.toLowerCase().includes("tag") || fieldName.toLowerCase().includes("d")) {
+    if (
+      fieldName.toLowerCase().includes("tag") ||
+      fieldName.toLowerCase().includes("d")
+    ) {
       return "String";
     }
     return "String";
   }
   if (typeof raw === "number") {
     // Anchor commonly uses u64 or i64 for timestamps and counts
-    if (fieldName.toLowerCase().includes("timestamp") || fieldName.toLowerCase().includes("time")) {
+    if (
+      fieldName.toLowerCase().includes("timestamp") ||
+      fieldName.toLowerCase().includes("time")
+    ) {
       return "i64";
     }
-    if (fieldName.toLowerCase().includes("count") || fieldName.toLowerCase().includes("index")) {
+    if (
+      fieldName.toLowerCase().includes("count") ||
+      fieldName.toLowerCase().includes("index")
+    ) {
       return "u64";
     }
     // Default to u64 for most numbers in Anchor
@@ -789,7 +788,10 @@ function inferRustType(fieldName: string, raw: unknown): string {
     const len = raw.length;
     if (len === 32) {
       // 32 bytes is often Pubkey or [u8; 32]
-      if (fieldName.toLowerCase().includes("pubkey") || fieldName.toLowerCase().includes("author")) {
+      if (
+        fieldName.toLowerCase().includes("pubkey") ||
+        fieldName.toLowerCase().includes("author")
+      ) {
         return "[u8; 32]";
       }
       return "[u8; 32]";
@@ -809,7 +811,10 @@ function inferRustType(fieldName: string, raw: unknown): string {
     const bytes = new Uint8Array((raw as any).data as number[]);
     const len = bytes.length;
     if (len === 32) {
-      if (fieldName.toLowerCase().includes("pubkey") || fieldName.toLowerCase().includes("author")) {
+      if (
+        fieldName.toLowerCase().includes("pubkey") ||
+        fieldName.toLowerCase().includes("author")
+      ) {
         return "[u8; 32]";
       }
       return "[u8; 32]";

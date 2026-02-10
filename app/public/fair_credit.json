@@ -115,6 +115,70 @@
       "args": []
     },
     {
+      "name": "add_attendance",
+      "discriminator": [
+        14,
+        218,
+        169,
+        73,
+        17,
+        67,
+        117,
+        232
+      ],
+      "accounts": [
+        {
+          "name": "activity",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "activity.provider",
+                "account": "Activity"
+              },
+              {
+                "kind": "account",
+                "path": "activity.student",
+                "account": "Activity"
+              },
+              {
+                "kind": "account",
+                "path": "activity.created",
+                "account": "Activity"
+              }
+            ]
+          }
+        },
+        {
+          "name": "student_authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "timestamp",
+          "type": {
+            "option": "string"
+          }
+        }
+      ]
+    },
+    {
       "name": "add_course_module",
       "discriminator": [
         66,
@@ -296,6 +360,154 @@
         {
           "name": "course_list_index",
           "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "add_feedback",
+      "discriminator": [
+        109,
+        187,
+        112,
+        24,
+        64,
+        134,
+        18,
+        141
+      ],
+      "accounts": [
+        {
+          "name": "activity",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "activity.provider",
+                "account": "Activity"
+              },
+              {
+                "kind": "account",
+                "path": "activity.student",
+                "account": "Activity"
+              },
+              {
+                "kind": "account",
+                "path": "activity.created",
+                "account": "Activity"
+              }
+            ]
+          }
+        },
+        {
+          "name": "student_authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "content",
+          "type": "string"
+        },
+        {
+          "name": "asset_ids",
+          "type": {
+            "vec": "string"
+          }
+        },
+        {
+          "name": "evidence_asset_ids",
+          "type": {
+            "vec": "string"
+          }
+        }
+      ]
+    },
+    {
+      "name": "add_grade",
+      "discriminator": [
+        135,
+        44,
+        28,
+        210,
+        69,
+        55,
+        96,
+        108
+      ],
+      "accounts": [
+        {
+          "name": "activity",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "activity.provider",
+                "account": "Activity"
+              },
+              {
+                "kind": "account",
+                "path": "activity.student",
+                "account": "Activity"
+              },
+              {
+                "kind": "account",
+                "path": "activity.created",
+                "account": "Activity"
+              }
+            ]
+          }
+        },
+        {
+          "name": "teacher",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "grade_value",
+          "type": "f64"
+        },
+        {
+          "name": "asset_ids",
+          "type": {
+            "vec": "string"
+          }
+        },
+        {
+          "name": "evidence_asset_ids",
+          "type": {
+            "vec": "string"
+          }
         }
       ]
     },
@@ -676,6 +888,64 @@
       "args": []
     },
     {
+      "name": "archive_activity",
+      "discriminator": [
+        62,
+        152,
+        41,
+        224,
+        239,
+        74,
+        170,
+        42
+      ],
+      "accounts": [
+        {
+          "name": "activity",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "activity.provider",
+                "account": "Activity"
+              },
+              {
+                "kind": "account",
+                "path": "activity.student",
+                "account": "Activity"
+              },
+              {
+                "kind": "account",
+                "path": "activity.created",
+                "account": "Activity"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [],
+      "returns": "bool"
+    },
+    {
       "name": "close_course",
       "discriminator": [
         157,
@@ -926,6 +1196,153 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "create_activity",
+      "discriminator": [
+        185,
+        108,
+        147,
+        27,
+        45,
+        183,
+        236,
+        153
+      ],
+      "accounts": [
+        {
+          "name": "activity",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  116,
+                  105,
+                  118,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              },
+              {
+                "kind": "account",
+                "path": "student"
+              },
+              {
+                "kind": "arg",
+                "path": "creation_timestamp"
+              }
+            ]
+          }
+        },
+        {
+          "name": "student",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "provider",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  118,
+                  105,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "hub"
+              },
+              {
+                "kind": "account",
+                "path": "provider.wallet",
+                "account": "Provider"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hub",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  104,
+                  117,
+                  98
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "creation_timestamp",
+          "type": "i64"
+        },
+        {
+          "name": "kind",
+          "type": {
+            "defined": {
+              "name": "ActivityKind"
+            }
+          }
+        },
+        {
+          "name": "data",
+          "type": "string"
+        },
+        {
+          "name": "degree_id",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "course",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "resource_id",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "resource_kind",
+          "type": {
+            "option": {
+              "defined": {
+                "name": "ResourceKind"
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "name": "create_asset",
