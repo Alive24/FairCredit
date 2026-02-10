@@ -13,7 +13,7 @@ import {
   sendInstructions,
   getRpcUrl,
   LAMPORTS_PER_SOL,
-} from "../utils/test-helpers.ts";
+} from "../utils/test-helpers";
 import { getInitializeHubInstructionAsync } from "../../lib/solana/generated/instructions/initializeHub";
 import { fetchHub } from "../../lib/solana/generated/accounts/hub";
 
@@ -99,7 +99,7 @@ async function ensureHubInitialized(params: {
   const existingHub = await fetchHub(rpc, hubPDA);
   if (existingHub.data.authority !== hubAuthority.address) {
     throw new Error(
-      "Hub already initialized with a different authority. Restart your local validator with --reset before running tests."
+      "Hub already initialized with a different authority. Restart your local validator with --reset before running tests.",
     );
   }
 }

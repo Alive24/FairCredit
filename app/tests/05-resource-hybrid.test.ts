@@ -15,9 +15,9 @@ import { ResourceKind } from "../lib/solana/generated/types/resourceKind";
 
 describe("Resource Hybrid Storage", () => {
   let ctx: TestContext;
-  let coursePDA: string;
-  let resourcePDA: string;
-  let assetPDA: string;
+  let coursePDA: Address;
+  let resourcePDA: Address;
+  let assetPDA: Address;
 
   before(async () => {
     ctx = await getTestContext();
@@ -33,6 +33,8 @@ describe("Resource Hybrid Storage", () => {
       description: "Course for resource hybrid storage flow",
       workloadRequired: 50,
       degreeId: null,
+      nostrDTag: null,
+      nostrAuthorPubkey: null,
     });
     await sendInstructions(ctx.rpcUrl, [createCourseIx], ctx.providerWallet);
     await sleep(1000);
@@ -79,11 +81,11 @@ describe("Resource Hybrid Storage", () => {
     const resource = await fetchResource(ctx.rpc, resourcePDA);
     expect(resource.data.nostrDTag.__option).to.equal("Some");
     expect((resource.data.nostrDTag as any).value).to.equal(
-      "faircredit:resource:nostr-test"
+      "faircredit:resource:nostr-test",
     );
     expect(resource.data.walrusBlobId.__option).to.equal("Some");
     expect((resource.data.walrusBlobId as any).value).to.equal(
-      "walrus-blob-123"
+      "walrus-blob-123",
     );
   });
 
@@ -122,11 +124,11 @@ describe("Resource Hybrid Storage", () => {
     const assetAccount = await fetchAsset(ctx.rpc, assetPDA);
     expect(assetAccount.data.nostrDTag.__option).to.equal("Some");
     expect((assetAccount.data.nostrDTag as any).value).to.equal(
-      "faircredit:asset:nostr"
+      "faircredit:asset:nostr",
     );
     expect(assetAccount.data.walrusBlobId.__option).to.equal("Some");
     expect((assetAccount.data.walrusBlobId as any).value).to.equal(
-      "asset-blob-456"
+      "asset-blob-456",
     );
   });
 });

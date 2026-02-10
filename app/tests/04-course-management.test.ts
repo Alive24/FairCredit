@@ -20,9 +20,11 @@ import {
 } from "./utils/test-helpers";
 import { getInitializeProviderInstructionAsync } from "../lib/solana/generated/instructions/initializeProvider";
 
+import { type Address } from "@solana/kit";
+
 describe("Course Management with Hub Integration", () => {
   let ctx: TestContext;
-  let coursePDA: string;
+  let coursePDA: Address;
   let courseCreationTs: bigint;
 
   before(async () => {
@@ -31,7 +33,7 @@ describe("Course Management with Hub Integration", () => {
     [coursePDA] = await getCoursePDA(
       ctx.hubPDA,
       ctx.providerPDA,
-      courseCreationTs
+      courseCreationTs,
     );
   });
 
@@ -46,12 +48,14 @@ describe("Course Management with Hub Integration", () => {
       description: "Introduction to Solana blockchain development",
       workloadRequired: 100,
       degreeId: null,
+      nostrDTag: null,
+      nostrAuthorPubkey: null,
     });
 
     const tx = await sendInstructions(
       ctx.rpcUrl,
       [instruction],
-      ctx.providerWallet
+      ctx.providerWallet,
     );
     console.log("Course created:", tx);
     await sleep(1000);
@@ -71,7 +75,7 @@ describe("Course Management with Hub Integration", () => {
     const tx = await sendInstructions(
       ctx.rpcUrl,
       [instruction],
-      ctx.hubAuthority
+      ctx.hubAuthority,
     );
     console.log("Course added to hub:", tx);
     await sleep(1000);
@@ -86,13 +90,13 @@ describe("Course Management with Hub Integration", () => {
     await requestAirdrop(
       ctx.rpcUrl,
       newProviderWallet.address,
-      1 * LAMPORTS_PER_SOL
+      1 * LAMPORTS_PER_SOL,
     );
     await sleep(1000);
 
     const [newProviderPDA] = await getProviderPDA(
       ctx.hubPDA,
-      newProviderWallet.address
+      newProviderWallet.address,
     );
     const initInstruction = await getInitializeProviderInstructionAsync({
       providerAccount: newProviderPDA,
@@ -110,7 +114,7 @@ describe("Course Management with Hub Integration", () => {
     const [newCoursePDA] = await getCoursePDA(
       ctx.hubPDA,
       newProviderPDA,
-      newCourseTs
+      newCourseTs,
     );
 
     const createCourseInstruction = await getCreateCourseInstructionAsync({
@@ -123,11 +127,13 @@ describe("Course Management with Hub Integration", () => {
       description: "Test description",
       workloadRequired: 50,
       degreeId: null,
+      nostrDTag: null,
+      nostrAuthorPubkey: null,
     });
     await sendInstructions(
       ctx.rpcUrl,
       [createCourseInstruction],
-      newProviderWallet
+      newProviderWallet,
     );
     await sleep(1000);
 
@@ -140,7 +146,7 @@ describe("Course Management with Hub Integration", () => {
       await sendInstructions(
         ctx.rpcUrl,
         [addCourseInstruction],
-        ctx.hubAuthority
+        ctx.hubAuthority,
       );
       expect.fail("Should have failed - provider not accepted");
     } catch (error: any) {
@@ -159,7 +165,7 @@ describe("Course Management with Hub Integration", () => {
     const tx = await sendInstructions(
       ctx.rpcUrl,
       [instruction],
-      ctx.hubAuthority
+      ctx.hubAuthority,
     );
     console.log("Course removed from hub:", tx);
     await sleep(1000);
@@ -173,7 +179,7 @@ describe("Course Management with Hub Integration", () => {
     const [shardedCoursePDA] = await getCoursePDA(
       ctx.hubPDA,
       ctx.providerPDA,
-      shardTs
+      shardTs,
     );
     const createCourseIx = await getCreateCourseInstructionAsync({
       course: shardedCoursePDA,
@@ -185,6 +191,8 @@ describe("Course Management with Hub Integration", () => {
       description: "Stored via CourseList sharding",
       workloadRequired: 25,
       degreeId: null,
+      nostrDTag: null,
+      nostrAuthorPubkey: null,
     });
     await sendInstructions(ctx.rpcUrl, [createCourseIx], ctx.providerWallet);
     await sleep(1000);
@@ -226,7 +234,7 @@ describe("Course Management with Hub Integration", () => {
     expect(updatedList.data.courses).to.have.lengthOf(0);
     const updatedHub = await fetchHub(ctx.rpc, ctx.hubPDA);
     const hasListReference = updatedHub.data.acceptedCourses.some(
-      (entry) => String(entry) === String(courseListPDA)
+      (entry) => String(entry) === String(courseListPDA),
     );
     expect(hasListReference).to.be.false;
   });

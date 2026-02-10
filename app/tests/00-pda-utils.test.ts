@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import { getCredentialPDA } from "./utils/test-helpers.ts";
-import { getTestContext, type TestContext } from "./setup/test-context.ts";
+import { getCredentialPDA } from "./utils/test-helpers";
+import { getTestContext, type TestContext } from "./setup/test-context";
 
 describe("PDA Utilities", () => {
   let ctx: TestContext;

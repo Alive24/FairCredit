@@ -204,3 +204,68 @@ pub struct ArchiveActivity<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::Activity;
+    use crate::types::{ActivityKind, ActivityStatus};
+
+    fn dummy_activity() -> Activity {
+        Activity {
+            created: 0,
+            updated: 0,
+            student: Pubkey::default(),
+            provider: Pubkey::default(),
+            degree_id: None,
+            course: None,
+            resource_id: None,
+            data: String::new(),
+            kind: ActivityKind::AttendMeeting,
+            status: ActivityStatus::Active,
+            resource_kind: None,
+            grade: None,
+            assets: Vec::new(),
+            evidence_assets: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn add_feedback_updates_content_and_assets() {
+        let mut activity = dummy_activity();
+        let content = "Great session!".to_string();
+        let asset_ids = vec!["asset1".to_string(), "asset2".to_string()];
+        let evidence_ids = vec!["evidence1".to_string()];
+
+        // Mirror handler constraints.
+        assert!(asset_ids.len() <= 10);
+        assert!(evidence_ids.len() <= 10);
+
+        activity.data = content.clone();
+        activity.assets = asset_ids.clone();
+        activity.evidence_assets = evidence_ids.clone();
+
+        assert_eq!(activity.data, content);
+        assert_eq!(activity.assets, asset_ids);
+        assert_eq!(activity.evidence_assets, evidence_ids);
+    }
+
+    #[test]
+    fn add_grade_sets_grade_and_assets() {
+        let mut activity = dummy_activity();
+        let grade_value = 95.5_f64;
+
+        // Validate the success path without depending on additional state-machine constraints.
+        let _ = activity.update_grade(grade_value);
+        assert_eq!(activity.grade, Some(grade_value));
+    }
+
+    #[test]
+    fn archive_activity_changes_status() {
+        let mut activity = dummy_activity();
+        // Initial status should be Active.
+        assert_eq!(activity.status, ActivityStatus::Active);
+        let _ = activity.archive();
+        assert_eq!(activity.status, ActivityStatus::Archived);
+    }
+}

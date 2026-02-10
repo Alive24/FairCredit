@@ -54,3 +54,4 @@ test-ledger/
 
 # Local Netlify folder
 .netlify
+app/public/tinymce

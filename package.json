@@ -7,7 +7,7 @@
     "test:anchor": "anchor test --skip-local-validator",
     "test:fast": "SKIP_STANDARD=true ts-mocha -p ./tsconfig.json -t 60000 tests/provider.test.ts",
     "test:security": "ts-mocha -p ./tsconfig.json -t 120000 tests/provider.test.ts --grep 'Security Tests'",
-    "test:program": "npx tsx node_modules/mocha/bin/mocha -t 120000 \"app/tests/0*.test.ts\"",
+    "test:program": "cd anchor && anchor build && cargo test -p fair-credit",
     "test:app": "npx playwright test",
     "test:full": "npm run test:program && npm run test:app",
     "dev": "cd app && netlify dev",

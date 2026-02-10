@@ -17,6 +17,11 @@ use state::HubConfig;
 // Must match target/deploy/fair_credit-keypair.json (run: solana address -k anchor/target/deploy/fair_credit-keypair.json)
 declare_id!("95asCfd7nbJN5i6REuiuLHj7Wb6DqqAKrhG1tRJ7Dthx");
 
+#[cfg(test)]
+mod tests_flow_hub_course;
+#[cfg(test)]
+mod tests_flow_activity_submission;
+
 #[program]
 pub mod fair_credit {
     use super::*;

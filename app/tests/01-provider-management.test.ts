@@ -25,7 +25,7 @@ describe("Provider Management", () => {
     const tx = await sendInstructions(
       ctx.rpcUrl,
       [instruction],
-      ctx.providerWallet
+      ctx.providerWallet,
     );
     console.log("Provider initialized:", tx);
 
@@ -34,6 +34,28 @@ describe("Provider Management", () => {
     const providerAccount = await fetchProvider(ctx.rpc, ctx.providerPDA);
     expect(providerAccount.data.name).to.equal("Tech Academy");
     expect(providerAccount.data.wallet).to.equal(ctx.providerWallet.address);
+  });
+
+  it("Should fail to initialize an already initialized provider", async () => {
+    try {
+      const instruction = await getInitializeProviderInstructionAsync({
+        providerAccount: ctx.providerPDA,
+        providerAuthority: ctx.providerWallet,
+        name: "Tech Academy Duplicate",
+        description: "Leading technology education provider",
+        website: "https://techacademy.com",
+        email: "contact@techacademy.com",
+        providerType: "education",
+      });
+
+      await sendInstructions(ctx.rpcUrl, [instruction], ctx.providerWallet);
+      expect.fail("Should have failed to initialize duplicate provider");
+    } catch (error: any) {
+      // The error might be a transaction simulation error or an AlreadyInUse error
+      // Codama/web3.js errors can be verbose, but usually contain log info
+      const message = String(error?.context?.logs ?? error);
+      expect(message).to.include("already in use");
+    }
   });
 });
 

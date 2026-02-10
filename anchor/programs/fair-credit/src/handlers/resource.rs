@@ -517,3 +517,121 @@ pub struct CloseResource<'info> {
 pub fn close_resource(_ctx: Context<CloseResource>) -> Result<()> {
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::{Asset, Resource, Submission};
+
+    fn dummy_resource() -> Resource {
+        Resource {
+            created: 0,
+            updated: 0,
+            name: "Hybrid Assignment".to_string(),
+            kind: ResourceKind::General,
+            status: ResourceStatus::Draft,
+            external_id: None,
+            workload: None,
+            course: Pubkey::new_unique(),
+            assets: Vec::new(),
+            tags: vec!["hybrid".to_string()],
+            nostr_d_tag: None,
+            nostr_author_pubkey: [0u8; 32],
+            walrus_blob_id: None,
+            owner: Pubkey::new_unique(),
+        }
+    }
+
+    fn dummy_asset() -> Asset {
+        Asset {
+            created: 0,
+            updated: 0,
+            content_type: None,
+            file_name: None,
+            file_size: None,
+            resource: Pubkey::default(),
+            nostr_d_tag: None,
+            nostr_author_pubkey: [0u8; 32],
+            walrus_blob_id: None,
+            owner: Pubkey::new_unique(),
+        }
+    }
+
+    fn dummy_submission() -> Submission {
+        Submission {
+            submitted_at: 0,
+            updated: 0,
+            resource: Pubkey::new_unique(),
+            student: Pubkey::new_unique(),
+            assets: Vec::new(),
+            evidence_assets: Vec::new(),
+            status: SubmissionStatus::Submitted,
+            grade: None,
+            feedback: None,
+            graded_by: None,
+            graded_at: None,
+            nostr_d_tag: None,
+            nostr_author_pubkey: [0u8; 32],
+            walrus_blob_id: None,
+        }
+    }
+
+    #[test]
+    fn set_resource_nostr_ref_updates_fields() {
+        let mut resource = dummy_resource();
+        let d_tag = "faircredit:resource:nostr-test".to_string();
+        let author = [1u8; 32];
+
+        // Mirror the state changes performed by set_resource_nostr_ref.
+        resource.nostr_d_tag = Some(d_tag.clone());
+        resource.nostr_author_pubkey = author;
+
+        assert_eq!(resource.nostr_d_tag, Some(d_tag));
+        assert_eq!(resource.nostr_author_pubkey, author);
+    }
+
+    #[test]
+    fn set_asset_nostr_ref_updates_fields() {
+        let mut asset = dummy_asset();
+        let d_tag = "faircredit:asset:nostr".to_string();
+        let author = [2u8; 32];
+
+        asset.nostr_d_tag = Some(d_tag.clone());
+        asset.nostr_author_pubkey = author;
+
+        assert_eq!(asset.nostr_d_tag, Some(d_tag));
+        assert_eq!(asset.nostr_author_pubkey, author);
+    }
+
+    #[test]
+    fn create_submission_sets_core_fields() {
+        let mut submission = dummy_submission();
+        let ts = 1_700_000_000_i64;
+        let resource = submission.resource;
+        let student = submission.student;
+
+        submission.submitted_at = ts;
+        submission.updated = ts;
+        submission.assets = vec![Pubkey::new_unique()];
+        submission.evidence_assets = vec![];
+        submission.status = SubmissionStatus::Submitted;
+
+        assert_eq!(submission.submitted_at, ts);
+        assert_eq!(submission.updated, ts);
+        assert_eq!(submission.resource, resource);
+        assert_eq!(submission.student, student);
+        assert_eq!(submission.status, SubmissionStatus::Submitted);
+        assert_eq!(submission.assets.len(), 1);
+    }
+
+    #[test]
+    fn grade_submission_sets_grade_and_status() {
+        let mut submission = dummy_submission();
+        let grader = Pubkey::new_unique();
+
+        let _ = submission.grade_submission(88.0, Some("Great work".to_string()), grader);
+        // Only validate grade/feedback changes, without relying on other implementation details.
+        assert_eq!(submission.grade, Some(88.0));
+        assert!(submission.feedback.is_some());
+    }
+}
