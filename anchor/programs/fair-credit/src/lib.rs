@@ -6,6 +6,7 @@ pub mod state;
 pub mod types;
 
 // Use specific imports instead of wildcards
+use handlers::activity::*;
 use handlers::course::*;
 use handlers::credential::*;
 use handlers::hub::*;
@@ -319,6 +320,54 @@ pub mod fair_credit {
         walrus_blob_id: String,
     ) -> Result<()> {
         handlers::resource::set_submission_walrus_ref(ctx, walrus_blob_id)
+    }
+
+    pub fn create_activity(
+        ctx: Context<CreateActivity>,
+        creation_timestamp: i64,
+        kind: types::ActivityKind,
+        data: String,
+        degree_id: Option<String>,
+        course: Option<Pubkey>,
+        resource_id: Option<String>,
+        resource_kind: Option<types::ResourceKind>,
+    ) -> Result<()> {
+        handlers::activity::create_activity(
+            ctx,
+            creation_timestamp,
+            kind,
+            data,
+            degree_id,
+            course,
+            resource_id,
+            resource_kind,
+        )
+    }
+
+    pub fn add_feedback(
+        ctx: Context<AddFeedback>,
+        content: String,
+        asset_ids: Vec<String>,
+        evidence_asset_ids: Vec<String>,
+    ) -> Result<()> {
+        handlers::activity::add_feedback(ctx, content, asset_ids, evidence_asset_ids)
+    }
+
+    pub fn add_grade(
+        ctx: Context<AddGrade>,
+        grade_value: f64,
+        asset_ids: Vec<String>,
+        evidence_asset_ids: Vec<String>,
+    ) -> Result<()> {
+        handlers::activity::add_grade(ctx, grade_value, asset_ids, evidence_asset_ids)
+    }
+
+    pub fn add_attendance(ctx: Context<AddAttendance>, timestamp: Option<String>) -> Result<()> {
+        handlers::activity::add_attendance(ctx, timestamp)
+    }
+
+    pub fn archive_activity(ctx: Context<ArchiveActivity>) -> Result<bool> {
+        handlers::activity::archive_activity(ctx)
     }
 }
 
