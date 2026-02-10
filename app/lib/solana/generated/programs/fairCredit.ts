@@ -19,15 +19,20 @@ import {
 import {
   parseAddAcceptedCourseInstruction,
   parseAddAcceptedProviderInstruction,
+  parseAddAttendanceInstruction,
   parseAddCourseModuleInstruction,
   parseAddCourseToListInstruction,
+  parseAddFeedbackInstruction,
+  parseAddGradeInstruction,
   parseAddProviderEndorserInstruction,
   parseAddResourceInstruction,
   parseApproveCredentialInstruction,
+  parseArchiveActivityInstruction,
   parseCloseCourseInstruction,
   parseCloseHubInstruction,
   parseCloseProviderInstruction,
   parseCloseResourceInstruction,
+  parseCreateActivityInstruction,
   parseCreateAssetInstruction,
   parseCreateCourseInstruction,
   parseCreateCourseListInstruction,
@@ -60,15 +65,20 @@ import {
   parseUpdateResourceDataInstruction,
   type ParsedAddAcceptedCourseInstruction,
   type ParsedAddAcceptedProviderInstruction,
+  type ParsedAddAttendanceInstruction,
   type ParsedAddCourseModuleInstruction,
   type ParsedAddCourseToListInstruction,
+  type ParsedAddFeedbackInstruction,
+  type ParsedAddGradeInstruction,
   type ParsedAddProviderEndorserInstruction,
   type ParsedAddResourceInstruction,
   type ParsedApproveCredentialInstruction,
+  type ParsedArchiveActivityInstruction,
   type ParsedCloseCourseInstruction,
   type ParsedCloseHubInstruction,
   type ParsedCloseProviderInstruction,
   type ParsedCloseResourceInstruction,
+  type ParsedCreateActivityInstruction,
   type ParsedCreateAssetInstruction,
   type ParsedCreateCourseInstruction,
   type ParsedCreateCourseListInstruction,
@@ -227,15 +237,20 @@ export function identifyFairCreditAccount(
 export enum FairCreditInstruction {
   AddAcceptedCourse,
   AddAcceptedProvider,
+  AddAttendance,
   AddCourseModule,
   AddCourseToList,
+  AddFeedback,
+  AddGrade,
   AddProviderEndorser,
   AddResource,
   ApproveCredential,
+  ArchiveActivity,
   CloseCourse,
   CloseHub,
   CloseProvider,
   CloseResource,
+  CreateActivity,
   CreateAsset,
   CreateCourse,
   CreateCourseList,
@@ -298,6 +313,17 @@ export function identifyFairCreditInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([14, 218, 169, 73, 17, 67, 117, 232]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.AddAttendance;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([66, 48, 207, 234, 168, 239, 54, 244]),
       ),
       0,
@@ -315,6 +341,28 @@ export function identifyFairCreditInstruction(
     )
   ) {
     return FairCreditInstruction.AddCourseToList;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([109, 187, 112, 24, 64, 134, 18, 141]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.AddFeedback;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([135, 44, 28, 210, 69, 55, 96, 108]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.AddGrade;
   }
   if (
     containsBytes(
@@ -348,6 +396,17 @@ export function identifyFairCreditInstruction(
     )
   ) {
     return FairCreditInstruction.ApproveCredential;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([62, 152, 41, 224, 239, 74, 170, 42]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.ArchiveActivity;
   }
   if (
     containsBytes(
@@ -392,6 +451,17 @@ export function identifyFairCreditInstruction(
     )
   ) {
     return FairCreditInstruction.CloseResource;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([185, 108, 147, 27, 45, 183, 236, 153]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.CreateActivity;
   }
   if (
     containsBytes(
@@ -738,11 +808,20 @@ export type ParsedFairCreditInstruction<
       instructionType: FairCreditInstruction.AddAcceptedProvider;
     } & ParsedAddAcceptedProviderInstruction<TProgram>)
   | ({
+      instructionType: FairCreditInstruction.AddAttendance;
+    } & ParsedAddAttendanceInstruction<TProgram>)
+  | ({
       instructionType: FairCreditInstruction.AddCourseModule;
     } & ParsedAddCourseModuleInstruction<TProgram>)
   | ({
       instructionType: FairCreditInstruction.AddCourseToList;
     } & ParsedAddCourseToListInstruction<TProgram>)
+  | ({
+      instructionType: FairCreditInstruction.AddFeedback;
+    } & ParsedAddFeedbackInstruction<TProgram>)
+  | ({
+      instructionType: FairCreditInstruction.AddGrade;
+    } & ParsedAddGradeInstruction<TProgram>)
   | ({
       instructionType: FairCreditInstruction.AddProviderEndorser;
     } & ParsedAddProviderEndorserInstruction<TProgram>)
@@ -752,6 +831,9 @@ export type ParsedFairCreditInstruction<
   | ({
       instructionType: FairCreditInstruction.ApproveCredential;
     } & ParsedApproveCredentialInstruction<TProgram>)
+  | ({
+      instructionType: FairCreditInstruction.ArchiveActivity;
+    } & ParsedArchiveActivityInstruction<TProgram>)
   | ({
       instructionType: FairCreditInstruction.CloseCourse;
     } & ParsedCloseCourseInstruction<TProgram>)
@@ -764,6 +846,9 @@ export type ParsedFairCreditInstruction<
   | ({
       instructionType: FairCreditInstruction.CloseResource;
     } & ParsedCloseResourceInstruction<TProgram>)
+  | ({
+      instructionType: FairCreditInstruction.CreateActivity;
+    } & ParsedCreateActivityInstruction<TProgram>)
   | ({
       instructionType: FairCreditInstruction.CreateAsset;
     } & ParsedCreateAssetInstruction<TProgram>)
@@ -874,6 +959,13 @@ export function parseFairCreditInstruction<TProgram extends string>(
         ...parseAddAcceptedProviderInstruction(instruction),
       };
     }
+    case FairCreditInstruction.AddAttendance: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.AddAttendance,
+        ...parseAddAttendanceInstruction(instruction),
+      };
+    }
     case FairCreditInstruction.AddCourseModule: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -886,6 +978,20 @@ export function parseFairCreditInstruction<TProgram extends string>(
       return {
         instructionType: FairCreditInstruction.AddCourseToList,
         ...parseAddCourseToListInstruction(instruction),
+      };
+    }
+    case FairCreditInstruction.AddFeedback: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.AddFeedback,
+        ...parseAddFeedbackInstruction(instruction),
+      };
+    }
+    case FairCreditInstruction.AddGrade: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.AddGrade,
+        ...parseAddGradeInstruction(instruction),
       };
     }
     case FairCreditInstruction.AddProviderEndorser: {
@@ -907,6 +1013,13 @@ export function parseFairCreditInstruction<TProgram extends string>(
       return {
         instructionType: FairCreditInstruction.ApproveCredential,
         ...parseApproveCredentialInstruction(instruction),
+      };
+    }
+    case FairCreditInstruction.ArchiveActivity: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.ArchiveActivity,
+        ...parseArchiveActivityInstruction(instruction),
       };
     }
     case FairCreditInstruction.CloseCourse: {
@@ -935,6 +1048,13 @@ export function parseFairCreditInstruction<TProgram extends string>(
       return {
         instructionType: FairCreditInstruction.CloseResource,
         ...parseCloseResourceInstruction(instruction),
+      };
+    }
+    case FairCreditInstruction.CreateActivity: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.CreateActivity,
+        ...parseCreateActivityInstruction(instruction),
       };
     }
     case FairCreditInstruction.CreateAsset: {
