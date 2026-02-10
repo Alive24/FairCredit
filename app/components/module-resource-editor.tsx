@@ -37,7 +37,7 @@ export type ModuleResourceEditorProps = {
   isConnected: boolean;
   isSending: boolean;
   sendTransaction: (instructions: any[]) => Promise<string>;
-  onSuccess?: () => void;
+  onSuccess?: (result?: { deleted?: string }) => void;
   onCancel?: () => void;
   totalWeight: number;
   initialData?: {
@@ -584,7 +584,7 @@ export function ModuleResourceEditor({
         title: "Resource deleted",
         description: "The resource and module have been removed.",
       });
-      onSuccess?.();
+      onSuccess?.({ deleted: initialData.resourceAddress });
     } catch (e) {
       console.error(e);
       toast({

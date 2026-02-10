@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFairCredit } from "@/hooks/use-fair-credit";
 import { useResources } from "@/hooks/use-resources";
@@ -395,6 +395,22 @@ export function CourseModulesEditor({
           </div>
           <div className="flex gap-2">
             <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1"
+              onClick={async () => {
+                await onCourseReload?.();
+                await loadModuleResources();
+              }}
+              disabled={moduleResourcesLoading}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${
+                  moduleResourcesLoading ? "animate-spin" : ""
+                }`}
+              />
+            </Button>
+            <Button
               variant="outline"
               size="sm"
               className="h-8 gap-1"
@@ -542,10 +558,27 @@ export function CourseModulesEditor({
         isConnected={isConnected}
         isSending={isSending}
         sendTransaction={sendTransaction}
-        onSuccess={async () => {
-          await onCourseReload?.();
-          await loadModuleResources(); // reload resources too to get updates
-          setModalOpen(false);
+        onSuccess={async (result) => {
+          if (result?.deleted) {
+            // Optimistic update: immediately remove the deleted module from local state
+            const deletedAddr = result.deleted;
+            setModuleResourceMap((prev) => {
+              const next = { ...prev };
+              delete next[deletedAddr];
+              return next;
+            });
+            setModalOpen(false);
+            // Delay background sync to let the chain confirm the deletion
+            setTimeout(async () => {
+              await onCourseReload?.();
+              await loadModuleResources();
+            }, 5000);
+          } else {
+            // For save/update operations, reload immediately
+            setModalOpen(false);
+            await onCourseReload?.();
+            await loadModuleResources();
+          }
         }}
         totalWeight={
           course.modules.reduce((sum, m) => sum + m.percentage, 0) -

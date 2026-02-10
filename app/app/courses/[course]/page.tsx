@@ -210,6 +210,20 @@ export default function CourseDetailPage() {
     }
   }, [rpc, courseAddress, toast]);
 
+  /** Re-fetch course data from chain WITHOUT setting page-level loading state.
+   *  This prevents the entire page from unmounting (which resets tabs). */
+  const reloadCourseSilently = useCallback(async () => {
+    if (!courseAddress) return;
+    try {
+      const acc = await fetchMaybeCourse(rpc, address(courseAddress));
+      if (acc?.exists) {
+        setCourse(acc.data);
+      }
+    } catch (e) {
+      console.error("Silent course reload failed:", e);
+    }
+  }, [rpc, courseAddress]);
+
   const loadCourseAccountRaw = useCallback(async () => {
     if (!courseAddress) return;
     setCourseAccountError(null);
@@ -602,7 +616,7 @@ export default function CourseDetailPage() {
                 isSending={isSending}
                 walletProvider={walletProvider}
                 sendTransaction={sendTransaction}
-                onCourseReload={loadCourse}
+                onCourseReload={reloadCourseSilently}
                 onProfileChange={(next) => setNostrProfile(next)}
                 showDangerZone={Boolean(isProvider ?? false)}
                 onCloseCourse={handleCloseCourse}
