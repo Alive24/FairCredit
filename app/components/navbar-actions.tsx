@@ -22,36 +22,20 @@ import {
 } from "@/components/ui/card";
 import { GraduationCap, Users, UserCheck, Search } from "lucide-react";
 
-type UserType = "provider" | "student" | "supervisor" | "verifier" | null;
+import { useUserRole, type UserRole } from "@/hooks/use-user-role";
 
 export function NavbarActions() {
   const { address } = useAppKitAccount();
   const { isHubAuthority } = useIsHubAuthority();
-  const [userType, setUserType] = useState<UserType>(null);
+  const { role: userType, setRole: setUserType } = useUserRole();
 
   const connected = !!address;
   const walletAddress = address
     ? `${String(address).slice(0, 4)}...${String(address).slice(-4)}`
     : "";
 
-  useEffect(() => {
-    const syncRole = () => {
-      const savedUserType = localStorage.getItem("userType") as UserType;
-      setUserType(savedUserType ?? null);
-    };
-    syncRole();
-    window.addEventListener("storage", syncRole);
-    window.addEventListener("faircredit:role-change", syncRole);
-    return () => {
-      window.removeEventListener("storage", syncRole);
-      window.removeEventListener("faircredit:role-change", syncRole);
-    };
-  }, []);
-
-  const handleUserTypeSelection = (type: Exclude<UserType, null>) => {
+  const handleUserTypeSelection = (type: UserRole) => {
     setUserType(type);
-    localStorage.setItem("userType", type);
-    window.dispatchEvent(new Event("faircredit:role-change"));
   };
 
   const roleLabel =

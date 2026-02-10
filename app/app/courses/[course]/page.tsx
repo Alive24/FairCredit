@@ -21,6 +21,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { CourseProfileEditor } from "@/components/courses/course-profile-editor";
+import { StudentCoursePanel } from "@/components/courses/student-course-panel";
+import { useUserRole } from "@/hooks/use-user-role";
 import { useFairCredit } from "@/hooks/use-fair-credit";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useAppKitTransaction } from "@/hooks/use-appkit-transaction";
@@ -351,12 +353,15 @@ export default function CourseDetailPage() {
     [course],
   );
 
+  const { role } = useUserRole();
+
   const isProvider =
     isConnected &&
     walletAddress &&
     course &&
     String(course.provider).toLowerCase() ===
-      String(walletAddress).toLowerCase();
+      String(walletAddress).toLowerCase() &&
+    role === "provider";
 
   const handleToggleEdit = () => {
     setIsEditing((prev) => !prev);
@@ -822,6 +827,11 @@ export default function CourseDetailPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Student registration / enrollment panel */}
+        {courseAddress && course && (
+          <StudentCoursePanel courseAddress={courseAddress} course={course} />
+        )}
 
         <Card className="mt-6">
           <CardHeader

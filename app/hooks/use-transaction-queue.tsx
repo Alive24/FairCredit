@@ -38,7 +38,7 @@ type TransactionQueueContextValue = {
   lastSignature: string | null;
   history: SubmittedTransaction[];
   enqueue: (
-    entry: Omit<QueueEntry, "id" | "createdAt"> & { id?: string }
+    entry: Omit<QueueEntry, "id" | "createdAt"> & { id?: string },
   ) => void;
   remove: (id: string) => void;
   clear: () => void;
@@ -66,21 +66,21 @@ export function TransactionQueueProvider({
   const [lastSignature, setLastSignature] = useState<string | null>(null);
   const pendingRef = useRef<QueueEntry[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [history, setHistory] = useState<SubmittedTransaction[]>(() => {
-    if (typeof window === "undefined") {
-      return [];
-    }
+  const [history, setHistory] = useState<SubmittedTransaction[]>([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     try {
       const stored = window.localStorage.getItem(HISTORY_STORAGE_KEY);
-      if (!stored) return [];
+      if (!stored) return;
       const parsed = JSON.parse(stored) as SubmittedTransaction[];
-      if (!Array.isArray(parsed)) return [];
-      return parsed.slice(0, MAX_HISTORY_ENTRIES);
+      if (Array.isArray(parsed)) {
+        setHistory(parsed.slice(0, MAX_HISTORY_ENTRIES));
+      }
     } catch (error) {
       console.warn("Failed to parse transaction history", error);
-      return [];
     }
-  });
+  }, []);
 
   useEffect(() => {
     pendingRef.current = pending;
@@ -155,13 +155,7 @@ export function TransactionQueueProvider({
       // handle sending.
       setPending((prev) => [...prev, fullEntry]);
     },
-    [
-      combineSubmit,
-      sendTransaction,
-      isSubmitting,
-      isSending,
-      toast,
-    ]
+    [combineSubmit, sendTransaction, isSubmitting, isSending, toast],
   );
 
   const remove = useCallback((id: string) => {
@@ -206,7 +200,7 @@ export function TransactionQueueProvider({
           module,
           label,
           createdAt,
-        })
+        }),
       );
       const signature = await sendTransaction(instructions);
       setLastSignature(signature);
@@ -257,7 +251,7 @@ export function TransactionQueueProvider({
     try {
       window.localStorage.setItem(
         HISTORY_STORAGE_KEY,
-        JSON.stringify(history.slice(0, MAX_HISTORY_ENTRIES))
+        JSON.stringify(history.slice(0, MAX_HISTORY_ENTRIES)),
       );
     } catch (error) {
       console.warn("Failed to persist transaction history", error);
@@ -292,7 +286,7 @@ export function TransactionQueueProvider({
       clear,
       submitPending,
       clearHistory,
-    ]
+    ],
   );
 
   return (
@@ -306,7 +300,7 @@ export function useTransactionQueue() {
   const context = useContext(TransactionQueueContext);
   if (!context) {
     throw new Error(
-      "useTransactionQueue must be used within a TransactionQueueProvider"
+      "useTransactionQueue must be used within a TransactionQueueProvider",
     );
   }
   return context;

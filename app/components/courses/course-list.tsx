@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -215,11 +216,11 @@ export function CourseList() {
             </div>
 
             <div className="mt-4 flex gap-2">
-              <Button className="w-full" size="sm">
-                View Details
+              <Button className="w-full" size="sm" asChild>
+                <Link href={`/courses/${course.address}`}>View Details</Link>
               </Button>
-              <Button variant="outline" size="sm">
-                Enroll
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/courses/${course.address}`}>Enroll</Link>
               </Button>
             </div>
           </CardContent>
