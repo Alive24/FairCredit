@@ -67,6 +67,16 @@ impl Course {
         }
     }
 
+    pub fn remove_module(&mut self, resource: Pubkey) -> Result<()> {
+        let initial_len = self.modules.len();
+        self.modules.retain(|m| m.resource != resource);
+        if self.modules.len() == initial_len {
+            return err!(CourseError::ModuleNotFound);
+        }
+        self.updated = Clock::get()?.unix_timestamp;
+        Ok(())
+    }
+
     pub fn update_status(
         &mut self,
         status: CourseStatus,

@@ -284,3 +284,37 @@ pub fn update_course_module(
     ctx.accounts.course.update_module(resource, percentage)?;
     Ok(())
 }
+
+#[derive(Accounts)]
+pub struct RemoveCourseModule<'info> {
+    #[account(
+        mut,
+        seeds = [
+            Course::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider.key().as_ref(),
+            &course.creation_timestamp.to_le_bytes(),
+        ],
+        bump,
+        constraint = course.provider == provider_authority.key()
+    )]
+    pub course: Account<'info, Course>,
+    #[account(
+        seeds = [
+            Provider::SEED_PREFIX.as_bytes(),
+            hub.key().as_ref(),
+            provider_authority.key().as_ref(),
+        ],
+        bump
+    )]
+    pub provider: Account<'info, Provider>,
+    #[account(seeds = [Hub::SEED_PREFIX.as_bytes()], bump)]
+    pub hub: Account<'info, Hub>,
+    #[account(mut)]
+    pub provider_authority: Signer<'info>,
+}
+
+pub fn remove_course_module(ctx: Context<RemoveCourseModule>, resource: Pubkey) -> Result<()> {
+    ctx.accounts.course.remove_module(resource)?;
+    Ok(())
+}

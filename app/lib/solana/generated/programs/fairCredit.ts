@@ -43,6 +43,7 @@ import {
   parseRemoveAcceptedCourseInstruction,
   parseRemoveAcceptedProviderInstruction,
   parseRemoveCourseFromListInstruction,
+  parseRemoveCourseModuleInstruction,
   parseRemoveProviderEndorserInstruction,
   parseSetAssetNostrRefInstruction,
   parseSetAssetWalrusRefInstruction,
@@ -83,6 +84,7 @@ import {
   type ParsedRemoveAcceptedCourseInstruction,
   type ParsedRemoveAcceptedProviderInstruction,
   type ParsedRemoveCourseFromListInstruction,
+  type ParsedRemoveCourseModuleInstruction,
   type ParsedRemoveProviderEndorserInstruction,
   type ParsedSetAssetNostrRefInstruction,
   type ParsedSetAssetWalrusRefInstruction,
@@ -249,6 +251,7 @@ export enum FairCreditInstruction {
   RemoveAcceptedCourse,
   RemoveAcceptedProvider,
   RemoveCourseFromList,
+  RemoveCourseModule,
   RemoveProviderEndorser,
   SetAssetNostrRef,
   SetAssetWalrusRef,
@@ -559,6 +562,17 @@ export function identifyFairCreditInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([169, 162, 115, 53, 77, 226, 82, 131]),
+      ),
+      0,
+    )
+  ) {
+    return FairCreditInstruction.RemoveCourseModule;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([239, 116, 68, 254, 232, 180, 205, 128]),
       ),
       0,
@@ -796,6 +810,9 @@ export type ParsedFairCreditInstruction<
       instructionType: FairCreditInstruction.RemoveCourseFromList;
     } & ParsedRemoveCourseFromListInstruction<TProgram>)
   | ({
+      instructionType: FairCreditInstruction.RemoveCourseModule;
+    } & ParsedRemoveCourseModuleInstruction<TProgram>)
+  | ({
       instructionType: FairCreditInstruction.RemoveProviderEndorser;
     } & ParsedRemoveProviderEndorserInstruction<TProgram>)
   | ({
@@ -1022,6 +1039,13 @@ export function parseFairCreditInstruction<TProgram extends string>(
       return {
         instructionType: FairCreditInstruction.RemoveCourseFromList,
         ...parseRemoveCourseFromListInstruction(instruction),
+      };
+    }
+    case FairCreditInstruction.RemoveCourseModule: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: FairCreditInstruction.RemoveCourseModule,
+        ...parseRemoveCourseModuleInstruction(instruction),
       };
     }
     case FairCreditInstruction.RemoveProviderEndorser: {

@@ -435,11 +435,16 @@ export function CourseModulesEditor({
             course.modules.map((module, index) => {
               const resourceAddress = String(module.resource);
               const resource = moduleResourceMap[resourceAddress] ?? null;
-              const resourceCourse = resource ? String(resource.course) : null;
-              const isExternal =
-                resourceCourse && resourceCourse !== courseAddress;
+
+              // Hide modules with unknown/missing resources
+              if (!resource) {
+                return null;
+              }
+
+              const resourceCourse = String(resource.course);
+              const isExternal = resourceCourse !== courseAddress;
               const workloadValue =
-                resource && resource.workload.__option === "Some"
+                resource.workload.__option === "Some"
                   ? resource.workload.value
                   : null;
               return (
@@ -449,37 +454,33 @@ export function CourseModulesEditor({
                 >
                   <div className="flex-1 min-w-[200px]">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium">
-                        {resource?.name ?? "Unknown Resource"}
-                      </p>
+                      <p className="font-medium">{resource.name}</p>
                       <Badge variant="secondary">{module.percentage}%</Badge>
                     </div>
                     <div className="mt-1 text-xs font-mono text-muted-foreground break-all">
                       {resourceAddress}
                     </div>
-                    {resource && (
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      <Badge variant="outline">
+                        {formatEnumLabel(ResourceKind[resource.kind])}
+                      </Badge>
+                      <Badge variant="outline">
+                        {formatEnumLabel(ResourceStatus[resource.status])}
+                      </Badge>
+                      {workloadValue != null && (
+                        <Badge variant="outline">{workloadValue} min</Badge>
+                      )}
+                      {isExternal && resourceCourse && (
                         <Badge variant="outline">
-                          {formatEnumLabel(ResourceKind[resource.kind])}
+                          From {formatAddress(resourceCourse)}
                         </Badge>
-                        <Badge variant="outline">
-                          {formatEnumLabel(ResourceStatus[resource.status])}
+                      )}
+                      {resource.tags.map((tag) => (
+                        <Badge key={tag} variant="outline">
+                          {tag}
                         </Badge>
-                        {workloadValue != null && (
-                          <Badge variant="outline">{workloadValue} min</Badge>
-                        )}
-                        {isExternal && resourceCourse && (
-                          <Badge variant="outline">
-                            From {formatAddress(resourceCourse)}
-                          </Badge>
-                        )}
-                        {resource.tags.map((tag) => (
-                          <Badge key={tag} variant="outline">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
+                      ))}
+                    </div>
                   </div>
                   {canEdit && (
                     <Button

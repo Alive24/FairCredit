@@ -25,6 +25,7 @@ import { getUpdateCourseModuleInstructionAsync } from "@/lib/solana/generated/in
 import { getUpdateResourceDataInstruction } from "@/lib/solana/generated/instructions/updateResourceData";
 import { getSetResourceNostrRefInstruction } from "@/lib/solana/generated/instructions/setResourceNostrRef";
 import { getCloseResourceInstruction } from "@/lib/solana/generated/instructions/closeResource";
+import { getRemoveCourseModuleInstructionAsync } from "@/lib/solana/generated/instructions/removeCourseModule";
 import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 import { ResourceKind } from "@/lib/solana/generated/types/resourceKind";
 import { nip19 } from "nostr-tools";
@@ -564,15 +565,24 @@ export function ModuleResourceEditor({
     try {
       const signer = createPlaceholderSigner(walletAddress);
 
-      const ix = getCloseResourceInstruction({
+      // 1. Close the resource account
+      const closeIx = getCloseResourceInstruction({
         resource: address(initialData.resourceAddress),
         authority: signer,
       });
 
-      await sendTransaction([ix]);
+      // 2. Remove the module from the course
+      const removeModuleIx = await getRemoveCourseModuleInstructionAsync({
+        course: address(courseAddress),
+        providerAuthority: signer,
+        resource: address(initialData.resourceAddress),
+      });
+
+      // Send both in same transaction
+      await sendTransaction([closeIx, removeModuleIx]);
       toast({
         title: "Resource deleted",
-        description: "The resource account has been closed.",
+        description: "The resource and module have been removed.",
       });
       onSuccess?.();
     } catch (e) {
@@ -588,6 +598,7 @@ export function ModuleResourceEditor({
     walletAddress,
     initialData,
     mode,
+    courseAddress,
     sendTransaction,
     onSuccess,
     toast,

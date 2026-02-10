@@ -32,6 +32,7 @@ export * from "./mintCredentialNft";
 export * from "./removeAcceptedCourse";
 export * from "./removeAcceptedProvider";
 export * from "./removeCourseFromList";
+export * from "./removeCourseModule";
 export * from "./removeProviderEndorser";
 export * from "./setAssetNostrRef";
 export * from "./setAssetWalrusRef";

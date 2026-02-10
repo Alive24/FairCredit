@@ -425,6 +425,32 @@ export default function CourseDetailPage() {
 
   const handleSubmitForHubReview = async () => {
     if (!walletAddress || !courseAddress) return;
+
+    // Validate that module percentages sum to 100%
+    if (course) {
+      const totalPercentage = course.modules.reduce(
+        (sum, m) => sum + m.percentage,
+        0,
+      );
+      if (totalPercentage !== 100) {
+        toast({
+          title: "Validation failed",
+          description: `Module weights must sum to 100%. Current total: ${totalPercentage}%`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (course.modules.length === 0) {
+        toast({
+          title: "Validation failed",
+          description:
+            "Course must have at least one module before submitting for review.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setSubmittingForReview(true);
     try {
       const ix = await getUpdateCourseStatusInstructionAsync({

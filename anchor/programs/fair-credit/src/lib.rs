@@ -176,6 +176,10 @@ pub mod fair_credit {
         Ok(())
     }
 
+    pub fn remove_course_module(ctx: Context<RemoveCourseModule>, resource: Pubkey) -> Result<()> {
+        handlers::course::remove_course_module(ctx, resource)
+    }
+
     pub fn update_course_status(
         ctx: Context<UpdateCourseStatus>,
         status: types::CourseStatus,
