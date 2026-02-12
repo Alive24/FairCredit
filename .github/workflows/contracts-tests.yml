@@ -1,0 +1,68 @@
+name: Contracts Tests and Coverage
+
+on:
+  pull_request:
+    paths:
+      - "anchor/**"
+      - ".github/workflows/contracts-tests.yml"
+      - "package.json"
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "anchor/**"
+      - ".github/workflows/contracts-tests.yml"
+      - "package.json"
+
+jobs:
+  contracts-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            anchor -> target
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Verify tooling
+        run: |
+          rustc --version
+          cargo --version
+          solana --version
+          cargo build-sbf --version
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Build SBF program artifact
+        run: cargo build-sbf --manifest-path anchor/programs/fair-credit/Cargo.toml --sbf-out-dir anchor/target/deploy
+
+      - name: Run contract tests with coverage
+        run: cargo llvm-cov -p fair-credit --manifest-path anchor/Cargo.toml --lcov --output-path anchor/lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: anchor/lcov.info
+          flags: contracts
+          name: faircredit-contracts
+          use_oidc: true
+          fail_ci_if_error: false

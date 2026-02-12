@@ -16,7 +16,8 @@ dotenv.config({ path: envPath })
  * with development wallet integration for Solana testing.
  */
 export default defineConfig({
-  testDir: './tests',
+  testDir: './tests/e2e',
+  testMatch: '**/*.e2e.spec.ts',
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -81,7 +82,7 @@ export default defineConfig({
     /* Special project for Phantom wallet tests */
     {
       name: 'with-phantom',
-      testMatch: '**/*.phantom.spec.ts',
+      testMatch: '**/*.phantom.e2e.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
         // Extensions require headed mode

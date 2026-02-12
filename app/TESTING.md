@@ -61,15 +61,44 @@ npx playwright test --ui
 Run specific test file:
 
 ```bash
-npx playwright test tests/wallet-connection.spec.ts
+npx playwright test tests/e2e/sample.e2e.spec.ts
 ```
 
 ### Test Structure
 
 Tests are organized in the `tests/` directory:
 
-- `wallet-connection.spec.ts`: Wallet connection and role selection tests
-- Additional test files can be added as needed
+- `tests/unit`: Vitest unit tests
+- `tests/integration`: Vitest integration tests
+- `tests/e2e`: Playwright end-to-end tests
+
+## Contract Testing
+
+Contract behavior tests live in the Anchor program integration suite:
+
+- `anchor/programs/fair-credit/src/integration_tests/tests_flow_hub_course.rs`
+- `anchor/programs/fair-credit/src/integration_tests/tests_flow_activity_submission.rs`
+
+Run app tests from `app/`:
+
+```bash
+npm run test:unit
+npm run test:integration
+npm run test:vitest
+npm test
+```
+
+Run contract tests from the repository root:
+
+```bash
+npm run test:contracts
+```
+
+Generate Codecov-compatible coverage (LCOV):
+
+```bash
+npm run coverage:contracts
+```
 
 ## Wallet Extension Testing
 

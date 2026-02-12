@@ -5,7 +5,6 @@ use {
     mollusk_svm::{program::loader_keys, result::Check, Mollusk},
     solana_sdk::{
         account::Account,
-        hash,
         instruction::{AccountMeta, Instruction},
     },
     solana_system_interface::program as system_program,
@@ -573,6 +572,160 @@ fn flow_submission_management() {
     );
 }
 
+#[test]
+fn flow_credential_lifecycle() {
+    use crate::state::{Course, Credential};
+    use crate::types::{ActivityKind, CourseStatus, CredentialStatus};
+
+    let now: i64 = 1_700_000_000;
+    let (ctx, keys) = setup_hub_provider_course(now, now);
+
+    let ix_add_accepted_course = Instruction::new_with_bytes(
+        PROGRAM_ID,
+        &anchor_ix_data_no_args("add_accepted_course"),
+        vec![
+            AccountMeta::new(keys.hub_pda, false),
+            AccountMeta::new(keys.hub_authority, true),
+            AccountMeta::new(keys.course_pda, false),
+        ],
+    );
+
+    let activity_created = now + 1;
+    let (activity_pda, _activity_bump) = Pubkey::find_program_address(
+        &[
+            b"activity",
+            keys.provider_pda.as_ref(),
+            keys.student.as_ref(),
+            &activity_created.to_le_bytes(),
+        ],
+        &PROGRAM_ID,
+    );
+    precreate_pda(&ctx, activity_pda);
+
+    #[derive(AnchorSerialize)]
+    struct CreateActivityArgs {
+        creation_timestamp: i64,
+        kind: ActivityKind,
+        data: String,
+        degree_id: Option<String>,
+        course: Option<Pubkey>,
+        resource_id: Option<String>,
+        resource_kind: Option<crate::types::ResourceKind>,
+    }
+    let ix_create_activity = Instruction::new_with_bytes(
+        PROGRAM_ID,
+        &anchor_ix_data(
+            "create_activity",
+            &CreateActivityArgs {
+                creation_timestamp: activity_created,
+                kind: ActivityKind::AttendMeeting,
+                data: "Credential-linked activity".to_string(),
+                degree_id: None,
+                course: Some(keys.course_pda),
+                resource_id: None,
+                resource_kind: None,
+            },
+        ),
+        vec![
+            AccountMeta::new(activity_pda, false),
+            AccountMeta::new(keys.student, true),
+            AccountMeta::new_readonly(keys.provider_pda, false),
+            AccountMeta::new_readonly(keys.hub_pda, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+    );
+
+    let (credential_pda, _credential_bump) = Pubkey::find_program_address(
+        &[
+            b"credential",
+            keys.course_pda.as_ref(),
+            keys.student.as_ref(),
+        ],
+        &PROGRAM_ID,
+    );
+    precreate_pda(&ctx, credential_pda);
+
+    let ix_create_credential = Instruction::new_with_bytes(
+        PROGRAM_ID,
+        &anchor_ix_data_no_args("create_credential"),
+        vec![
+            AccountMeta::new(credential_pda, false),
+            AccountMeta::new_readonly(keys.course_pda, false),
+            AccountMeta::new_readonly(keys.provider_pda, false),
+            AccountMeta::new_readonly(keys.hub_pda, false),
+            AccountMeta::new(keys.student, true),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+    );
+
+    let ix_link_activity = Instruction::new_with_bytes(
+        PROGRAM_ID,
+        &anchor_ix_data_no_args("link_activity_to_credential"),
+        vec![
+            AccountMeta::new(credential_pda, false),
+            AccountMeta::new_readonly(activity_pda, false),
+            AccountMeta::new(keys.student, true),
+        ],
+    );
+
+    #[derive(AnchorSerialize)]
+    struct EndorseCredentialArgs {
+        endorsement_message: String,
+    }
+    let ix_endorse_credential = Instruction::new_with_bytes(
+        PROGRAM_ID,
+        &anchor_ix_data(
+            "endorse_credential",
+            &EndorseCredentialArgs {
+                endorsement_message: "Strong independent work".to_string(),
+            },
+        ),
+        vec![
+            AccountMeta::new(credential_pda, false),
+            AccountMeta::new(keys.mentor, true),
+        ],
+    );
+
+    let ix_approve_credential = Instruction::new_with_bytes(
+        PROGRAM_ID,
+        &anchor_ix_data_no_args("approve_credential"),
+        vec![
+            AccountMeta::new(credential_pda, false),
+            AccountMeta::new(keys.course_pda, false),
+            AccountMeta::new_readonly(keys.provider_pda, false),
+            AccountMeta::new_readonly(keys.hub_pda, false),
+            AccountMeta::new(keys.provider_authority, true),
+        ],
+    );
+
+    ctx.process_and_validate_instruction_chain(&[
+        (&ix_add_accepted_course, &[Check::success()]),
+        (&ix_create_activity, &[Check::success()]),
+        (&ix_create_credential, &[Check::success()]),
+        (&ix_link_activity, &[Check::success()]),
+        (&ix_endorse_credential, &[Check::success()]),
+        (&ix_approve_credential, &[Check::success()]),
+    ]);
+
+    let store_ref = ctx.account_store.borrow();
+
+    let course_account = store_ref.get(&keys.course_pda).expect("course account");
+    let mut course_data: &[u8] = course_account.data.as_slice();
+    let course_state = Course::try_deserialize(&mut course_data).expect("course deserialize");
+    assert_eq!(course_state.status, CourseStatus::Accepted);
+    assert!(course_state.approved_credentials.contains(&credential_pda));
+
+    let credential_account = store_ref.get(&credential_pda).expect("credential account");
+    let mut credential_data: &[u8] = credential_account.data.as_slice();
+    let credential_state =
+        Credential::try_deserialize(&mut credential_data).expect("credential deserialize");
+    assert!(credential_state.status == CredentialStatus::Verified);
+    assert_eq!(credential_state.course, keys.course_pda);
+    assert_eq!(credential_state.student_wallet, keys.student);
+    assert_eq!(credential_state.mentor_wallet, keys.mentor);
+    assert!(credential_state.metadata.activities.contains(&activity_pda));
+}
+
 #[derive(Clone, Copy)]
 struct SetupKeys {
     hub_authority: Pubkey,
@@ -613,7 +766,7 @@ fn setup_hub_provider_course(
         &PROGRAM_ID,
     );
 
-    let mut mollusk = mollusk_with_program(now);
+    let mollusk = mollusk_with_program(now);
 
     let mut store: HashMap<Pubkey, Account> = HashMap::new();
     // Signers
@@ -809,7 +962,7 @@ fn load_fair_credit_elf() -> Vec<u8> {
         }
     }
     panic!(
-        "fair_credit.so not found. Expected at anchor/target/deploy/fair_credit.so after running `anchor build`."
+        "fair_credit.so not found. Expected at anchor/target/deploy/fair_credit.so after running `cargo build-sbf` or `anchor build`."
     );
 }
 
