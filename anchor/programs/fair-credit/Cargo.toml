@@ -22,10 +22,14 @@ anchor-spl = "0.32.1"
 mpl-token-metadata = "5.1.1"
 
 [dev-dependencies]
-mollusk-svm = "0.5.0"
+mollusk-svm = "0.10.2"
 solana-sdk = "2.2.0"
-borsh = "0.10.4"
 solana-system-interface = "1.0.0"
+borsh = "0.10.4"
+solana-account = "3.4.0"
+solana-instruction = "3.1.0"
+solana-pubkey = { version = "4.0.0", features = ["borsh"] }
+solana-sdk-ids = "3.1.0"
 
 [lints]
 workspace = true

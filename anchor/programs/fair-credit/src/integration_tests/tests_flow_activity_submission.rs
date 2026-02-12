@@ -1,18 +1,15 @@
 #![cfg(test)]
 
 use {
-    anchor_lang::{prelude::Pubkey, AccountDeserialize, AnchorSerialize, Space},
+    anchor_lang::{prelude::Pubkey as AnchorPubkey, AccountDeserialize, AnchorSerialize, Space},
     mollusk_svm::{program::loader_keys, result::Check, Mollusk},
-    solana_sdk::{
-        account::Account,
-        hash,
-        instruction::{AccountMeta, Instruction},
-    },
-    solana_system_interface::program as system_program,
+    solana_account::Account,
+    solana_instruction::{AccountMeta, Instruction},
+    solana_pubkey::Pubkey,
+    solana_sdk::hash,
+    solana_sdk_ids::system_program,
     std::{collections::HashMap, path::PathBuf},
 };
-
-use crate::ID as PROGRAM_ID;
 
 #[test]
 fn flow_resource_hybrid_storage() {
@@ -30,7 +27,7 @@ fn flow_resource_hybrid_storage() {
             keys.course_pda.as_ref(),
             &resource_created.to_le_bytes(),
         ],
-        &PROGRAM_ID,
+        &program_id(),
     );
     precreate_pda(&ctx, resource_pda);
 
@@ -47,7 +44,7 @@ fn flow_resource_hybrid_storage() {
         nostr_author_pubkey: Option<[u8; 32]>,
     }
     let ix_add_resource = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "add_resource",
             &AddResourceArgs {
@@ -79,7 +76,7 @@ fn flow_resource_hybrid_storage() {
         force: bool,
     }
     let ix_set_resource_nostr = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "set_resource_nostr_ref",
             &SetResourceNostrRefArgs {
@@ -100,7 +97,7 @@ fn flow_resource_hybrid_storage() {
         walrus_blob_id: String,
     }
     let ix_set_resource_walrus = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "set_resource_walrus_ref",
             &SetResourceWalrusRefArgs {
@@ -121,7 +118,7 @@ fn flow_resource_hybrid_storage() {
             keys.provider_authority.as_ref(),
             &asset_created.to_le_bytes(),
         ],
-        &PROGRAM_ID,
+        &program_id(),
     );
     precreate_pda(&ctx, asset_pda);
 
@@ -132,10 +129,10 @@ fn flow_resource_hybrid_storage() {
         content_type: Option<String>,
         file_name: Option<String>,
         file_size: Option<u64>,
-        resource: Option<Pubkey>,
+        resource: Option<AnchorPubkey>,
     }
     let ix_create_asset = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "create_asset",
             &CreateAssetArgs {
@@ -143,7 +140,7 @@ fn flow_resource_hybrid_storage() {
                 content_type: Some("application/pdf".to_string()),
                 file_name: Some("hybrid.pdf".to_string()),
                 file_size: Some(1024),
-                resource: Some(resource_pda),
+                resource: Some(to_anchor_pubkey(resource_pda)),
             },
         ),
         vec![
@@ -161,7 +158,7 @@ fn flow_resource_hybrid_storage() {
         force: bool,
     }
     let ix_set_asset_nostr = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "set_asset_nostr_ref",
             &SetAssetNostrRefArgs {
@@ -182,7 +179,7 @@ fn flow_resource_hybrid_storage() {
         walrus_blob_id: String,
     }
     let ix_set_asset_walrus = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "set_asset_walrus_ref",
             &SetAssetWalrusRefArgs {
@@ -196,12 +193,12 @@ fn flow_resource_hybrid_storage() {
     );
 
     ctx.process_and_validate_instruction_chain(&[
-        (&ix_add_resource, &[Check::success()]),
-        (&ix_set_resource_nostr, &[Check::success()]),
-        (&ix_set_resource_walrus, &[Check::success()]),
-        (&ix_create_asset, &[Check::success()]),
-        (&ix_set_asset_nostr, &[Check::success()]),
-        (&ix_set_asset_walrus, &[Check::success()]),
+        (&ix_add_resource, &[Check::success()][..]),
+        (&ix_set_resource_nostr, &[Check::success()][..]),
+        (&ix_set_resource_walrus, &[Check::success()][..]),
+        (&ix_create_asset, &[Check::success()][..]),
+        (&ix_set_asset_nostr, &[Check::success()][..]),
+        (&ix_set_asset_walrus, &[Check::success()][..]),
     ]);
 
     // Validate on-chain state via deserialization.
@@ -225,7 +222,7 @@ fn flow_resource_hybrid_storage() {
     let asset_account = store_ref.get(&asset_pda).expect("asset account");
     let mut asset_data: &[u8] = asset_account.data.as_slice();
     let asset_state = Asset::try_deserialize(&mut asset_data).expect("asset deserialize");
-    assert_eq!(asset_state.resource, resource_pda);
+    assert_eq!(asset_state.resource.to_bytes(), resource_pda.to_bytes());
     assert_eq!(
         asset_state.nostr_d_tag.as_deref(),
         Some("faircredit:asset:nostr")
@@ -253,7 +250,7 @@ fn flow_activity_management() {
             keys.student.as_ref(),
             &activity_created.to_le_bytes(),
         ],
-        &PROGRAM_ID,
+        &program_id(),
     );
     precreate_pda(&ctx, activity_pda);
 
@@ -264,12 +261,12 @@ fn flow_activity_management() {
         kind: ActivityKind,
         data: String,
         degree_id: Option<String>,
-        course: Option<Pubkey>,
+        course: Option<AnchorPubkey>,
         resource_id: Option<String>,
         resource_kind: Option<crate::types::ResourceKind>,
     }
     let ix_create_activity = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "create_activity",
             &CreateActivityArgs {
@@ -277,7 +274,7 @@ fn flow_activity_management() {
                 kind: ActivityKind::AttendMeeting,
                 data: "Attended weekly sync".to_string(),
                 degree_id: None,
-                course: Some(keys.course_pda),
+                course: Some(to_anchor_pubkey(keys.course_pda)),
                 resource_id: None,
                 resource_kind: None,
             },
@@ -298,7 +295,7 @@ fn flow_activity_management() {
     }
     let attendance_ts = "2024-01-01T00:00:00Z".to_string();
     let ix_add_attendance = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "add_attendance",
             &AddAttendanceArgs {
@@ -319,7 +316,7 @@ fn flow_activity_management() {
         evidence_asset_ids: Vec<String>,
     }
     let ix_add_feedback = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "add_feedback",
             &AddFeedbackArgs {
@@ -342,7 +339,7 @@ fn flow_activity_management() {
         evidence_asset_ids: Vec<String>,
     }
     let ix_add_grade = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "add_grade",
             &AddGradeArgs {
@@ -359,7 +356,7 @@ fn flow_activity_management() {
 
     // archive_activity
     let ix_archive_activity = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data_no_args("archive_activity"),
         vec![
             AccountMeta::new(activity_pda, false),
@@ -368,11 +365,11 @@ fn flow_activity_management() {
     );
 
     ctx.process_and_validate_instruction_chain(&[
-        (&ix_create_activity, &[Check::success()]),
-        (&ix_add_attendance, &[Check::success()]),
-        (&ix_add_feedback, &[Check::success()]),
-        (&ix_add_grade, &[Check::success()]),
-        (&ix_archive_activity, &[Check::success()]),
+        (&ix_create_activity, &[Check::success()][..]),
+        (&ix_add_attendance, &[Check::success()][..]),
+        (&ix_add_feedback, &[Check::success()][..]),
+        (&ix_add_grade, &[Check::success()][..]),
+        (&ix_archive_activity, &[Check::success()][..]),
     ]);
 
     let store_ref = ctx.account_store.borrow();
@@ -401,7 +398,7 @@ fn flow_submission_management() {
             keys.course_pda.as_ref(),
             &resource_created.to_le_bytes(),
         ],
-        &PROGRAM_ID,
+        &program_id(),
     );
     precreate_pda(&ctx, resource_pda);
 
@@ -417,7 +414,7 @@ fn flow_submission_management() {
         nostr_author_pubkey: Option<[u8; 32]>,
     }
     let ix_add_resource = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "add_resource",
             &AddResourceArgs {
@@ -450,18 +447,18 @@ fn flow_submission_management() {
             keys.student.as_ref(),
             &submitted_at.to_le_bytes(),
         ],
-        &PROGRAM_ID,
+        &program_id(),
     );
     precreate_pda(&ctx, submission_pda);
 
     #[derive(AnchorSerialize)]
     struct CreateSubmissionArgs {
         submission_timestamp: i64,
-        assets: Vec<Pubkey>,
-        evidence_assets: Vec<Pubkey>,
+        assets: Vec<AnchorPubkey>,
+        evidence_assets: Vec<AnchorPubkey>,
     }
     let ix_create_submission = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "create_submission",
             &CreateSubmissionArgs {
@@ -486,7 +483,7 @@ fn flow_submission_management() {
         force: bool,
     }
     let ix_set_submission_nostr = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "set_submission_nostr_ref",
             &SetSubmissionNostrRefArgs {
@@ -507,7 +504,7 @@ fn flow_submission_management() {
         walrus_blob_id: String,
     }
     let ix_set_submission_walrus = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "set_submission_walrus_ref",
             &SetSubmissionWalrusRefArgs {
@@ -527,7 +524,7 @@ fn flow_submission_management() {
         feedback: Option<String>,
     }
     let ix_grade_submission = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "grade_submission",
             &GradeSubmissionArgs {
@@ -542,11 +539,11 @@ fn flow_submission_management() {
     );
 
     ctx.process_and_validate_instruction_chain(&[
-        (&ix_add_resource, &[Check::success()]),
-        (&ix_create_submission, &[Check::success()]),
-        (&ix_set_submission_nostr, &[Check::success()]),
-        (&ix_set_submission_walrus, &[Check::success()]),
-        (&ix_grade_submission, &[Check::success()]),
+        (&ix_add_resource, &[Check::success()][..]),
+        (&ix_create_submission, &[Check::success()][..]),
+        (&ix_set_submission_nostr, &[Check::success()][..]),
+        (&ix_set_submission_walrus, &[Check::success()][..]),
+        (&ix_grade_submission, &[Check::success()][..]),
     ]);
 
     let store_ref = ctx.account_store.borrow();
@@ -575,7 +572,6 @@ fn flow_submission_management() {
 
 #[derive(Clone, Copy)]
 struct SetupKeys {
-    hub_authority: Pubkey,
     provider_authority: Pubkey,
     provider_pda: Pubkey,
     hub_pda: Pubkey,
@@ -598,10 +594,10 @@ fn setup_hub_provider_course(
     let student = Pubkey::new_unique();
     let mentor = Pubkey::new_unique();
 
-    let (hub_pda, _hub_bump) = Pubkey::find_program_address(&[b"hub"], &PROGRAM_ID);
+    let (hub_pda, _hub_bump) = Pubkey::find_program_address(&[b"hub"], &program_id());
     let (provider_pda, _provider_bump) = Pubkey::find_program_address(
         &[b"provider", hub_pda.as_ref(), provider_authority.as_ref()],
-        &PROGRAM_ID,
+        &program_id(),
     );
     let (course_pda, _course_bump) = Pubkey::find_program_address(
         &[
@@ -610,10 +606,10 @@ fn setup_hub_provider_course(
             provider_pda.as_ref(),
             &course_creation_timestamp.to_le_bytes(),
         ],
-        &PROGRAM_ID,
+        &program_id(),
     );
 
-    let mut mollusk = mollusk_with_program(now);
+    let mollusk = mollusk_with_program(now);
 
     let mut store: HashMap<Pubkey, Account> = HashMap::new();
     // Signers
@@ -643,7 +639,7 @@ fn setup_hub_provider_course(
 
     // initialize_hub
     let ix_initialize_hub = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data_no_args("initialize_hub"),
         vec![
             AccountMeta::new(hub_pda, false),
@@ -662,7 +658,7 @@ fn setup_hub_provider_course(
         provider_type: String,
     }
     let ix_initialize_provider = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "initialize_provider",
             &InitializeProviderArgs {
@@ -683,7 +679,7 @@ fn setup_hub_provider_course(
 
     // add_accepted_provider
     let ix_add_accepted_provider = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data_no_args("add_accepted_provider"),
         vec![
             AccountMeta::new(hub_pda, false),
@@ -705,7 +701,7 @@ fn setup_hub_provider_course(
         nostr_author_pubkey: Option<[u8; 32]>,
     }
     let ix_create_course = Instruction::new_with_bytes(
-        PROGRAM_ID,
+        program_id(),
         &anchor_ix_data(
             "create_course",
             &CreateCourseArgs {
@@ -733,41 +729,40 @@ fn setup_hub_provider_course(
             &[
                 Check::success(),
                 Check::account(&hub_pda)
-                    .owner(&PROGRAM_ID)
+                    .owner(&program_id())
                     .space(8 + Hub::INIT_SPACE)
                     .rent_exempt()
                     .build(),
-            ],
+            ][..],
         ),
         (
             &ix_initialize_provider,
             &[
                 Check::success(),
                 Check::account(&provider_pda)
-                    .owner(&PROGRAM_ID)
+                    .owner(&program_id())
                     .space(8 + Provider::INIT_SPACE)
                     .rent_exempt()
                     .build(),
-            ],
+            ][..],
         ),
-        (&ix_add_accepted_provider, &[Check::success()]),
+        (&ix_add_accepted_provider, &[Check::success()][..]),
         (
             &ix_create_course,
             &[
                 Check::success(),
                 Check::account(&course_pda)
-                    .owner(&PROGRAM_ID)
+                    .owner(&program_id())
                     .space(8 + Course::INIT_SPACE)
                     .rent_exempt()
                     .build(),
-            ],
+            ][..],
         ),
     ]);
 
     (
         ctx,
         SetupKeys {
-            hub_authority,
             provider_authority,
             provider_pda,
             hub_pda,
@@ -787,8 +782,16 @@ fn mollusk_with_program(now: i64) -> Mollusk {
     let elf = load_fair_credit_elf();
     let mut mollusk = Mollusk::default();
     mollusk.sysvars.clock.unix_timestamp = now;
-    mollusk.add_program_with_elf_and_loader(&PROGRAM_ID, &elf, &loader_keys::LOADER_V3);
+    mollusk.add_program_with_loader_and_elf(&program_id(), &loader_keys::LOADER_V3, &elf);
     mollusk
+}
+
+fn program_id() -> Pubkey {
+    Pubkey::new_from_array(crate::ID.to_bytes())
+}
+
+fn to_anchor_pubkey(pubkey: Pubkey) -> AnchorPubkey {
+    AnchorPubkey::new_from_array(pubkey.to_bytes())
 }
 
 fn load_fair_credit_elf() -> Vec<u8> {
@@ -826,6 +829,6 @@ fn anchor_ix_data<T: AnchorSerialize>(ix_name: &str, args: &T) -> Vec<u8> {
 
 fn anchor_discriminator(ix_name: &str) -> [u8; 8] {
     let preimage = format!("global:{ix_name}");
-    let hash = solana_sdk::hash::hash(preimage.as_bytes()).to_bytes();
+    let hash = hash::hash(preimage.as_bytes()).to_bytes();
     hash[..8].try_into().expect("discriminator")
 }

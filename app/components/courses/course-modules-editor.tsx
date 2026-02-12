@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -38,8 +39,16 @@ import { ResourceKind } from "@/lib/solana/generated/types/resourceKind";
 import { ResourceStatus } from "@/lib/solana/generated/types/resourceStatus";
 import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 import { getAddCourseModuleInstructionAsync } from "@/lib/solana/generated/instructions/addCourseModule";
+import { getUpdateResourceDataInstruction } from "@/lib/solana/generated/instructions/updateResourceData";
 import { ModuleResourceModal } from "@/components/module-resource-modal";
 import type { Provider } from "@reown/appkit-adapter-solana/react";
+import { ACTIVITY_KIND_LABEL } from "@/lib/activities/activity-form-schema";
+import {
+  applyDefaultActivityKindsToTags,
+  DEFAULT_ACTIVITY_TEMPLATE_OPTIONS,
+  getModuleDefaultActivityKindsFromResource,
+  type DefaultActivityTemplateKind,
+} from "@/lib/activities/default-activity-templates";
 
 type CourseModulesEditorProps = {
   course: Course;
@@ -129,6 +138,10 @@ export function CourseModulesEditor({
   const [moduleResourcesError, setModuleResourcesError] = useState<
     string | null
   >(null);
+  const [defaultKindsByResource, setDefaultKindsByResource] = useState<
+    Record<string, DefaultActivityTemplateKind[]>
+  >({});
+  const [savingDefaultFor, setSavingDefaultFor] = useState<string | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
@@ -200,6 +213,16 @@ export function CourseModulesEditor({
     loadModuleResources();
   }, [loadModuleResources]);
 
+  useEffect(() => {
+    const next: Record<string, DefaultActivityTemplateKind[]> = {};
+    for (const module of course.modules) {
+      const resourceAddress = String(module.resource);
+      const resource = moduleResourceMap[resourceAddress];
+      next[resourceAddress] = getModuleDefaultActivityKindsFromResource(resource);
+    }
+    setDefaultKindsByResource(next);
+  }, [course.modules, moduleResourceMap]);
+
   const resourceLookup = useMemo(() => {
     const map = new Map<string, Resource>();
     for (const entry of resources) {
@@ -254,6 +277,110 @@ export function CourseModulesEditor({
     if (!addingResourceAddress) return null;
     return resourceLookup.get(addingResourceAddress) ?? null;
   }, [addingResourceAddress, resourceLookup]);
+
+  const toggleDefaultKind = useCallback(
+    (
+      resourceAddress: string,
+      kind: DefaultActivityTemplateKind,
+      checked: boolean,
+    ) => {
+      setDefaultKindsByResource((prev) => {
+        const current = prev[resourceAddress] ?? [];
+        const nextKinds = checked
+          ? Array.from(new Set([...current, kind]))
+          : current.filter((entry) => entry !== kind);
+        const ordered = DEFAULT_ACTIVITY_TEMPLATE_OPTIONS.filter((entry) =>
+          nextKinds.includes(entry),
+        );
+        return {
+          ...prev,
+          [resourceAddress]: ordered,
+        };
+      });
+    },
+    [],
+  );
+
+  const saveDefaultKinds = useCallback(
+    async (resourceAddress: string) => {
+      if (!walletAddress || !isConnected || !isProvider) {
+        toast({
+          title: "Provider wallet required",
+          description: "Only the course provider can save default activities.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const resource = moduleResourceMap[resourceAddress];
+      if (!resource) {
+        toast({
+          title: "Resource unavailable",
+          description: "Reload modules and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const selectedKinds = defaultKindsByResource[resourceAddress] ?? [];
+      const nextTags = applyDefaultActivityKindsToTags(resource.tags, selectedKinds);
+      if (JSON.stringify(nextTags) === JSON.stringify(resource.tags)) {
+        toast({
+          title: "No changes",
+          description: "Default activity setup is already up to date.",
+        });
+        return;
+      }
+
+      setSavingDefaultFor(resourceAddress);
+      try {
+        const ix = getUpdateResourceDataInstruction({
+          resource: address(resourceAddress),
+          authority: createPlaceholderSigner(walletAddress),
+          name: null,
+          workload: null,
+          tags: nextTags,
+        });
+        await sendTransaction([ix]);
+
+        setModuleResourceMap((prev) => {
+          const current = prev[resourceAddress];
+          if (!current) return prev;
+          return {
+            ...prev,
+            [resourceAddress]: {
+              ...current,
+              tags: nextTags,
+            },
+          };
+        });
+
+        toast({
+          title: "Defaults saved",
+          description:
+            "New enrollments will initialize activities from this module setup.",
+        });
+      } catch (error) {
+        toast({
+          title: "Failed to save defaults",
+          description:
+            error instanceof Error ? error.message : "Unknown error occurred",
+          variant: "destructive",
+        });
+      } finally {
+        setSavingDefaultFor(null);
+      }
+    },
+    [
+      defaultKindsByResource,
+      isConnected,
+      isProvider,
+      moduleResourceMap,
+      sendTransaction,
+      toast,
+      walletAddress,
+    ],
+  );
 
   const fillCreateTestData = () => {
     // This function is no longer used as the "Create New Resource" form has been removed.
@@ -466,9 +593,10 @@ export function CourseModulesEditor({
               return (
                 <div
                   key={`${resourceAddress}-${index}`}
-                  className="rounded-md border p-3 flex flex-wrap items-start justify-between gap-3"
+                  className="rounded-md border p-3 space-y-3"
                 >
-                  <div className="flex-1 min-w-[200px]">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex-1 min-w-[200px]">
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{resource.name}</p>
                       <Badge variant="secondary">{module.percentage}%</Badge>
@@ -497,41 +625,101 @@ export function CourseModulesEditor({
                         </Badge>
                       ))}
                     </div>
+                    </div>
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (!resource) return;
+                          setEditingModule({
+                            resourceAddress,
+                            name: resource.name,
+                            kind: resource.kind,
+                            externalId:
+                              resource.externalId.__option === "Some"
+                                ? resource.externalId.value
+                                : "",
+                            workload: workloadValue?.toString() || "",
+                            tags: resource.tags,
+                            content: "", // Content not loaded
+                            percentage: module.percentage,
+                            isExternal: !!isExternal,
+                            nostrDTag:
+                              resource.nostrDTag.__option === "Some"
+                                ? resource.nostrDTag.value
+                                : undefined,
+                            nostrAuthorPubkey: bytesToHex(
+                              resource.nostrAuthorPubkey,
+                            ),
+                          });
+                          setModalMode("edit");
+                          setModalOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    )}
                   </div>
-                  {canEdit && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        if (!resource) return;
-                        setEditingModule({
-                          resourceAddress,
-                          name: resource.name,
-                          kind: resource.kind,
-                          externalId:
-                            resource.externalId.__option === "Some"
-                              ? resource.externalId.value
-                              : "",
-                          workload: workloadValue?.toString() || "",
-                          tags: resource.tags,
-                          content: "", // Content not loaded
-                          percentage: module.percentage,
-                          isExternal: !!isExternal,
-                          nostrDTag:
-                            resource.nostrDTag.__option === "Some"
-                              ? resource.nostrDTag.value
-                              : undefined,
-                          nostrAuthorPubkey: bytesToHex(
-                            resource.nostrAuthorPubkey,
-                          ),
-                        });
-                        setModalMode("edit");
-                        setModalOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  )}
+
+                  <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Default activities on student enrollment
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Select which trackers are auto-created when a student enrolls.
+                      </p>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {DEFAULT_ACTIVITY_TEMPLATE_OPTIONS.map((kind) => {
+                        const checked = (defaultKindsByResource[resourceAddress] ?? []).includes(
+                          kind,
+                        );
+                        return (
+                          <label
+                            key={`${resourceAddress}-${kind}`}
+                            className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-xs"
+                          >
+                            <Checkbox
+                              checked={checked}
+                              disabled={!canEdit || isExternal || savingDefaultFor === resourceAddress}
+                              onCheckedChange={(value) =>
+                                toggleDefaultKind(
+                                  resourceAddress,
+                                  kind,
+                                  value === true,
+                                )
+                              }
+                            />
+                            <span>{ACTIVITY_KIND_LABEL[kind]}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      {isExternal ? (
+                        <p className="text-xs text-muted-foreground">
+                          This module is external and cannot be edited from this course.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Stored in module tags so all students use the same defaults.
+                        </p>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!canEdit || isExternal || savingDefaultFor === resourceAddress}
+                        onClick={() => saveDefaultKinds(resourceAddress)}
+                      >
+                        {savingDefaultFor === resourceAddress && (
+                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        )}
+                        Save Defaults
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               );
             })
