@@ -18,9 +18,10 @@ use state::HubConfig;
 declare_id!("95asCfd7nbJN5i6REuiuLHj7Wb6DqqAKrhG1tRJ7Dthx");
 
 #[cfg(test)]
-mod tests_flow_hub_course;
-#[cfg(test)]
-mod tests_flow_activity_submission;
+mod integration_tests {
+    mod tests_flow_activity_submission;
+    mod tests_flow_hub_course;
+}
 
 #[program]
 pub mod fair_credit {
