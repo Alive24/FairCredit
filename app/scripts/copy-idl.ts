@@ -2,9 +2,11 @@
  * Copy IDL file from target/idl to public directory for client-side access.
  */
 
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 const idlSource = path.join(repoRoot, "target/idl/fair_credit.json");
 const idlDest = path.join(repoRoot, "app/public/fair_credit.json");

@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 import nextra from "nextra";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const withNextra = nextra({
   contentDirBasePath: "/docs",
@@ -26,6 +30,8 @@ export default withNextra({
     return config;
   },
   turbopack: {
+    // Treat the monorepo root as the workspace root so Next can find `next` from app/app.
+    root: path.join(__dirname, ".."),
     resolveAlias: {
       "next-mdx-import-source-file": "./mdx-components.ts",
     },
