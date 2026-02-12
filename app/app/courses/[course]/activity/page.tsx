@@ -1,10 +1,8 @@
 import { ActivityList } from "@/components/activities/activity-list";
-import { CreateActivityForm } from "@/components/activities/create-activity-form";
-import { Button } from "@/components/ui/button";
+import { ActivityDebugPanel } from "@/components/activities/activity-debug-panel";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -38,40 +36,26 @@ export default async function ActivityPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Content: Activity List */}
-        <div className="lg:col-span-2 space-y-6">
-          <ActivityList courseAddress={course} />
-        </div>
+      <div className="space-y-8">
+        {/* Modules and activities */}
+        <ActivityList courseAddress={course} />
 
-        {/* Sidebar: New Activity */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Log New Activity</CardTitle>
-              <CardDescription>
-                Submit evidence of your work for verification.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CreateActivityForm courseAddress={course} />
-            </CardContent>
-          </Card>
+        <ActivityDebugPanel courseAddress={course} />
 
-          <Card className="bg-muted/50">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">
-                Instructions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>1. Perform the required activity.</p>
-              <p>2. Prepare your evidence (documents, links, etc.).</p>
-              <p>3. Submit the activity log here.</p>
-              <p>4. Wait for supervisor endorsement.</p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Instructions */}
+        <Card className="bg-muted/50">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">
+              Instructions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground space-y-2">
+            <p>1. Perform the required activity.</p>
+            <p>2. Prepare your evidence (documents, links, etc.).</p>
+            <p>3. Use the module sections above to log your activity.</p>
+            <p>4. Wait for supervisor endorsement.</p>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

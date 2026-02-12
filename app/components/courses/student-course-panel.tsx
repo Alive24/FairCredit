@@ -26,6 +26,7 @@ import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 import type { Course } from "@/lib/solana/generated/accounts/course";
 import { CredentialStatus } from "@/lib/solana/generated/types/credentialStatus";
 import { useUserRole } from "@/hooks/use-user-role";
+import { buildDefaultActivitiesForEnrollment } from "@/lib/activities/default-activity-templates";
 
 interface StudentCoursePanelProps {
   courseAddress: string;
@@ -176,11 +177,22 @@ export function StudentCoursePanel({
         student: createPlaceholderSigner(walletAddress),
       });
 
-      await sendTransaction([ix]);
+      const postEnrollmentActivities = await buildDefaultActivitiesForEnrollment({
+        courseAddress,
+        course,
+        studentWalletAddress: walletAddress,
+        rpc,
+      });
+
+      await sendTransaction([
+        ix,
+        ...postEnrollmentActivities.map((entry) => entry.instruction),
+      ]);
 
       toast({
         title: "Successfully registered!",
-        description: "You are now registered for this course.",
+        description:
+          "You are registered for this course and default module activity trackers were created.",
       });
 
       // Reload credential after a short delay
