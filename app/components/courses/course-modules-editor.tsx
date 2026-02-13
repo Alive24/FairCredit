@@ -12,14 +12,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -35,20 +27,14 @@ import { address, type Instruction } from "@solana/kit";
 import type { Course } from "@/lib/solana/generated/accounts/course";
 import type { Resource } from "@/lib/solana/generated/accounts/resource";
 import { fetchAllMaybeResource } from "@/lib/solana/generated/accounts/resource";
+import { fetchResourceEvent } from "@/lib/nostr/client";
 import { ResourceKind } from "@/lib/solana/generated/types/resourceKind";
 import { ResourceStatus } from "@/lib/solana/generated/types/resourceStatus";
 import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 import { getAddCourseModuleInstructionAsync } from "@/lib/solana/generated/instructions/addCourseModule";
-import { getUpdateResourceDataInstruction } from "@/lib/solana/generated/instructions/updateResourceData";
 import { ModuleResourceModal } from "@/components/module-resource-modal";
 import type { Provider } from "@reown/appkit-adapter-solana/react";
-import { ACTIVITY_KIND_LABEL } from "@/lib/activities/activity-form-schema";
-import {
-  applyDefaultActivityKindsToTags,
-  DEFAULT_ACTIVITY_TEMPLATE_OPTIONS,
-  getModuleDefaultActivityKindsFromResource,
-  type DefaultActivityTemplateKind,
-} from "@/lib/activities/default-activity-templates";
+import { parseModuleRichData } from "@/lib/resource-nostr-content";
 
 type CourseModulesEditorProps = {
   course: Course;
@@ -62,12 +48,6 @@ type CourseModulesEditorProps = {
   onCourseReload?: () => Promise<void>;
 };
 
-type NostrPendingEvent = {
-  dTag: string;
-  authorPubkey: string;
-  eventId: string;
-};
-
 function formatEnumLabel(value: string) {
   return value.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
@@ -77,16 +57,28 @@ function formatAddress(value: string, size = 4) {
   return `${value.slice(0, size)}...${value.slice(-size)}`;
 }
 
-function hexToBytes32(hex: string): Uint8Array {
-  const normalized = hex.trim().toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(normalized)) {
-    throw new Error("Invalid Nostr pubkey (expected 64 hex chars)");
+function stripHtml(input: string): string {
+  if (!input) return "";
+  return input.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function summarizeText(input: string, maxChars = 240): string {
+  const plain = stripHtml(input);
+  if (plain.length <= maxChars) return plain;
+  return `${plain.slice(0, maxChars).trimEnd()}...`;
+}
+
+function looksLikeHtml(content: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(content);
+}
+
+function getOptionString(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null;
+  const maybe = value as { __option?: string; value?: unknown };
+  if (maybe.__option === "Some" && typeof maybe.value === "string") {
+    return maybe.value;
   }
-  const bytes = new Uint8Array(32);
-  for (let i = 0; i < 32; i++) {
-    bytes[i] = Number.parseInt(normalized.slice(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
+  return null;
 }
 
 function bytesToHex(bytes: any): string {
@@ -119,7 +111,6 @@ export function CourseModulesEditor({
     resources,
     loading: resourcesLoading,
     error: resourcesError,
-    refetch: refetchResources,
   } = useResources(walletAddress);
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -138,10 +129,19 @@ export function CourseModulesEditor({
   const [moduleResourcesError, setModuleResourcesError] = useState<
     string | null
   >(null);
-  const [defaultKindsByResource, setDefaultKindsByResource] = useState<
-    Record<string, DefaultActivityTemplateKind[]>
+  const [moduleRichByResource, setModuleRichByResource] = useState<
+    Record<
+      string,
+      {
+        rawContent: string;
+        content: string;
+        guidance: string;
+        materials: string[];
+        materialsRich: string;
+        defaultActivitiesCount: number;
+      }
+    >
   >({});
-  const [savingDefaultFor, setSavingDefaultFor] = useState<string | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
@@ -192,15 +192,59 @@ export function CourseModulesEditor({
       const addressList = moduleAddresses.map((value) => address(value));
       const maybeAccounts = await fetchAllMaybeResource(rpc, addressList);
       const next: Record<string, Resource | null> = {};
-      maybeAccounts.forEach((account, index) => {
-        const addressKey = moduleAddresses[index];
-        if (account && "exists" in account && account.exists) {
-          next[addressKey] = account.data;
-        } else {
-          next[addressKey] = null;
+      const nextRich: Record<
+        string,
+        {
+          rawContent: string;
+          content: string;
+          guidance: string;
+          materials: string[];
+          materialsRich: string;
+          defaultActivitiesCount: number;
         }
-      });
+      > = {};
+
+      await Promise.all(
+        maybeAccounts.map(async (account, index) => {
+          const addressKey = moduleAddresses[index];
+          if (account && "exists" in account && account.exists) {
+            next[addressKey] = account.data;
+            nextRich[addressKey] = {
+              rawContent: "",
+              content: "",
+              guidance: account.data.name,
+              materials: [],
+              materialsRich: "",
+              defaultActivitiesCount: 0,
+            };
+
+            const dTag = getOptionString(account.data.nostrDTag as unknown);
+            const authorHex = bytesToHex(account.data.nostrAuthorPubkey);
+            if (dTag && authorHex.length === 64) {
+              try {
+                const event = await fetchResourceEvent(authorHex, dTag);
+                if (event?.content) {
+                  const parsed = parseModuleRichData(event.content);
+                  nextRich[addressKey] = {
+                    rawContent: event.content,
+                    content: parsed.content,
+                    guidance: parsed.guidance || account.data.name,
+                    materials: parsed.materials,
+                    materialsRich: parsed.materialsRich,
+                    defaultActivitiesCount: parsed.defaultActivities.length,
+                  };
+                }
+              } catch {
+                // best-effort
+              }
+            }
+          } else {
+            next[addressKey] = null;
+          }
+        }),
+      );
       setModuleResourceMap(next);
+      setModuleRichByResource(nextRich);
     } catch (e) {
       console.error("Failed to load module resources:", e);
       setModuleResourcesError(e instanceof Error ? e.message : String(e));
@@ -212,16 +256,6 @@ export function CourseModulesEditor({
   useEffect(() => {
     loadModuleResources();
   }, [loadModuleResources]);
-
-  useEffect(() => {
-    const next: Record<string, DefaultActivityTemplateKind[]> = {};
-    for (const module of course.modules) {
-      const resourceAddress = String(module.resource);
-      const resource = moduleResourceMap[resourceAddress];
-      next[resourceAddress] = getModuleDefaultActivityKindsFromResource(resource);
-    }
-    setDefaultKindsByResource(next);
-  }, [course.modules, moduleResourceMap]);
 
   const resourceLookup = useMemo(() => {
     const map = new Map<string, Resource>();
@@ -272,129 +306,6 @@ export function CourseModulesEditor({
       return addressMatch || nameMatch || tagMatch || kindMatch || statusMatch;
     });
   }, [existingSearch, searchableResources, moduleResourceSet]);
-
-  const selectedExistingResource = useMemo(() => {
-    if (!addingResourceAddress) return null;
-    return resourceLookup.get(addingResourceAddress) ?? null;
-  }, [addingResourceAddress, resourceLookup]);
-
-  const toggleDefaultKind = useCallback(
-    (
-      resourceAddress: string,
-      kind: DefaultActivityTemplateKind,
-      checked: boolean,
-    ) => {
-      setDefaultKindsByResource((prev) => {
-        const current = prev[resourceAddress] ?? [];
-        const nextKinds = checked
-          ? Array.from(new Set([...current, kind]))
-          : current.filter((entry) => entry !== kind);
-        const ordered = DEFAULT_ACTIVITY_TEMPLATE_OPTIONS.filter((entry) =>
-          nextKinds.includes(entry),
-        );
-        return {
-          ...prev,
-          [resourceAddress]: ordered,
-        };
-      });
-    },
-    [],
-  );
-
-  const saveDefaultKinds = useCallback(
-    async (resourceAddress: string) => {
-      if (!walletAddress || !isConnected || !isProvider) {
-        toast({
-          title: "Provider wallet required",
-          description: "Only the course provider can save default activities.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const resource = moduleResourceMap[resourceAddress];
-      if (!resource) {
-        toast({
-          title: "Resource unavailable",
-          description: "Reload modules and try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const selectedKinds = defaultKindsByResource[resourceAddress] ?? [];
-      const nextTags = applyDefaultActivityKindsToTags(resource.tags, selectedKinds);
-      if (JSON.stringify(nextTags) === JSON.stringify(resource.tags)) {
-        toast({
-          title: "No changes",
-          description: "Default activity setup is already up to date.",
-        });
-        return;
-      }
-
-      setSavingDefaultFor(resourceAddress);
-      try {
-        const ix = getUpdateResourceDataInstruction({
-          resource: address(resourceAddress),
-          authority: createPlaceholderSigner(walletAddress),
-          name: null,
-          workload: null,
-          tags: nextTags,
-        });
-        await sendTransaction([ix]);
-
-        setModuleResourceMap((prev) => {
-          const current = prev[resourceAddress];
-          if (!current) return prev;
-          return {
-            ...prev,
-            [resourceAddress]: {
-              ...current,
-              tags: nextTags,
-            },
-          };
-        });
-
-        toast({
-          title: "Defaults saved",
-          description:
-            "New enrollments will initialize activities from this module setup.",
-        });
-      } catch (error) {
-        toast({
-          title: "Failed to save defaults",
-          description:
-            error instanceof Error ? error.message : "Unknown error occurred",
-          variant: "destructive",
-        });
-      } finally {
-        setSavingDefaultFor(null);
-      }
-    },
-    [
-      defaultKindsByResource,
-      isConnected,
-      isProvider,
-      moduleResourceMap,
-      sendTransaction,
-      toast,
-      walletAddress,
-    ],
-  );
-
-  const fillCreateTestData = () => {
-    // This function is no longer used as the "Create New Resource" form has been removed.
-    // Keeping it as an empty function for now, in case it's referenced elsewhere.
-  };
-
-  const fillExistingTestData = () => {
-    setAddingResourceModuleWeight("15");
-    if (resources.length > 0) {
-      const first = String(resources[0].address);
-      setAddingResourceAddress(first);
-      setExistingSearch(resources[0].resource.name);
-    }
-  };
 
   const handleAddModule = useCallback(async () => {
     if (!courseAddress) return;
@@ -590,41 +501,59 @@ export function CourseModulesEditor({
                 resource.workload.__option === "Some"
                   ? resource.workload.value
                   : null;
+              const rich = moduleRichByResource[resourceAddress];
+              const richContent = rich?.content?.trim() || "";
+              const visibleTags = resource.tags.filter(
+                (tag) => !tag.startsWith("default_activity:"),
+              );
+              const materials =
+                rich?.materials?.length && rich.materials.length > 0
+                  ? rich.materials
+                  : visibleTags;
+              const guidanceText =
+                rich?.guidance?.trim() || summarizeText(resource.name, 220);
+              const materialsRich = rich?.materialsRich?.trim() || "";
+
               return (
                 <div
                   key={`${resourceAddress}-${index}`}
-                  className="rounded-md border p-3 space-y-3"
+                  className="rounded-md border border-l-4 border-l-primary/50 bg-background p-3 space-y-4 shadow-sm"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex-1 min-w-[200px]">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{resource.name}</p>
-                      <Badge variant="secondary">{module.percentage}%</Badge>
-                    </div>
-                    <div className="mt-1 text-xs font-mono text-muted-foreground break-all">
-                      {resourceAddress}
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                      <Badge variant="outline">
-                        {formatEnumLabel(ResourceKind[resource.kind])}
-                      </Badge>
-                      <Badge variant="outline">
-                        {formatEnumLabel(ResourceStatus[resource.status])}
-                      </Badge>
-                      {workloadValue != null && (
-                        <Badge variant="outline">{workloadValue} min</Badge>
-                      )}
-                      {isExternal && resourceCourse && (
+                    <div className="flex-1 min-w-[220px] space-y-2">
+                      <div className="flex items-center gap-2">
+                        <p className="text-base font-semibold">{resource.name}</p>
+                      </div>
+                      <div className="text-xs font-mono text-muted-foreground break-all">
+                        {resourceAddress}
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs">
                         <Badge variant="outline">
-                          From {formatAddress(resourceCourse)}
+                          {formatEnumLabel(ResourceKind[resource.kind])}
                         </Badge>
-                      )}
-                      {resource.tags.map((tag) => (
-                        <Badge key={tag} variant="outline">
-                          {tag}
+                        <Badge variant="outline">
+                          {formatEnumLabel(ResourceStatus[resource.status])}
                         </Badge>
-                      ))}
+                        {workloadValue != null && (
+                          <Badge variant="outline">{workloadValue} min</Badge>
+                        )}
+                        {isExternal && resourceCourse && (
+                          <Badge variant="outline">
+                            From {formatAddress(resourceCourse)}
+                          </Badge>
+                        )}
+                        {visibleTags.map((tag) => (
+                          <Badge key={tag} variant="outline">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
+                    <div className="rounded-md border bg-amber-50 px-3 py-2 text-right dark:bg-amber-950/30">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        Module Weight
+                      </p>
+                      <p className="text-lg font-semibold">{module.percentage}%</p>
                     </div>
                     {canEdit && (
                       <Button
@@ -642,7 +571,7 @@ export function CourseModulesEditor({
                                 : "",
                             workload: workloadValue?.toString() || "",
                             tags: resource.tags,
-                            content: "", // Content not loaded
+                            content: rich?.rawContent || "",
                             percentage: module.percentage,
                             isExternal: !!isExternal,
                             nostrDTag:
@@ -662,64 +591,95 @@ export function CourseModulesEditor({
                     )}
                   </div>
 
-                  <div className="rounded-md border bg-muted/20 p-3 space-y-3">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">
-                        Default activities on student enrollment
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Select which trackers are auto-created when a student enrolls.
-                      </p>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-3">
-                      {DEFAULT_ACTIVITY_TEMPLATE_OPTIONS.map((kind) => {
-                        const checked = (defaultKindsByResource[resourceAddress] ?? []).includes(
-                          kind,
-                        );
-                        return (
-                          <label
-                            key={`${resourceAddress}-${kind}`}
-                            className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-xs"
-                          >
-                            <Checkbox
-                              checked={checked}
-                              disabled={!canEdit || isExternal || savingDefaultFor === resourceAddress}
-                              onCheckedChange={(value) =>
-                                toggleDefaultKind(
-                                  resourceAddress,
-                                  kind,
-                                  value === true,
-                                )
-                              }
-                            />
-                            <span>{ACTIVITY_KIND_LABEL[kind]}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      {isExternal ? (
-                        <p className="text-xs text-muted-foreground">
-                          This module is external and cannot be edited from this course.
-                        </p>
+                  <details open className="rounded-md border bg-background p-3">
+                    <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                      Module Content
+                    </summary>
+                    <div className="pt-3">
+                      {richContent ? (
+                        looksLikeHtml(richContent) ? (
+                          <div
+                            className="prose prose-sm max-w-none [&_img]:max-h-64 [&_img]:rounded-md"
+                            dangerouslySetInnerHTML={{ __html: richContent }}
+                          />
+                        ) : (
+                          <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm">
+                            {richContent}
+                          </div>
+                        )
                       ) : (
-                        <p className="text-xs text-muted-foreground">
-                          Stored in module tags so all students use the same defaults.
+                        <p className="text-sm text-muted-foreground">
+                          No detailed module content published yet.
                         </p>
                       )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!canEdit || isExternal || savingDefaultFor === resourceAddress}
-                        onClick={() => saveDefaultKinds(resourceAddress)}
-                      >
-                        {savingDefaultFor === resourceAddress && (
-                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                        )}
-                        Save Defaults
-                      </Button>
+                    </div>
+                  </details>
+
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="rounded-md border bg-muted/20 p-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">
+                        Materials
+                      </p>
+                      {materialsRich ? (
+                        looksLikeHtml(materialsRich) ? (
+                          <div
+                            className="prose prose-sm max-w-none [&_img]:max-h-56 [&_img]:rounded-md"
+                            dangerouslySetInnerHTML={{ __html: materialsRich }}
+                          />
+                        ) : (
+                          <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm">
+                            {materialsRich}
+                          </div>
+                        )
+                      ) : materials.length > 0 ? (
+                        <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                          {materials.slice(0, 6).map((material) => (
+                            <li
+                              key={`${resourceAddress}-material-${material}`}
+                              className="break-words"
+                            >
+                              {material}
+                            </li>
+                          ))}
+                          {materials.length > 6 && (
+                            <li>{materials.length - 6} more material items</li>
+                          )}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No materials added yet.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Guidance
+                      </p>
+                      {looksLikeHtml(guidanceText) ? (
+                        <div
+                          className="prose prose-sm max-w-none [&_img]:max-h-56 [&_img]:rounded-md"
+                          dangerouslySetInnerHTML={{ __html: guidanceText }}
+                        />
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                          {guidanceText}
+                        </p>
+                      )}
                     </div>
                   </div>
+
+                  {rich?.defaultActivitiesCount ? (
+                    <div className="border-t pt-2">
+                      <p className="text-xs text-muted-foreground">
+                        {rich.defaultActivitiesCount} default enrollment
+                        {" "}
+                        {rich.defaultActivitiesCount === 1
+                          ? "activity template"
+                          : "activity templates"} configured in module editor.
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               );
             })
@@ -880,8 +840,15 @@ export function CourseModulesEditor({
                               {formatEnumLabel(ResourceStatus[resource.status])}{" "}
                               • {resourceAddress.slice(0, 4)}...
                               {resourceAddress.slice(-4)}
-                              {resource.tags.length > 0 &&
-                                ` • ${resource.tags.join(", ")}`}
+                              {resource.tags.filter(
+                                (tag) => !tag.startsWith("default_activity:"),
+                              ).length > 0 &&
+                                ` • ${resource.tags
+                                  .filter(
+                                    (tag) =>
+                                      !tag.startsWith("default_activity:"),
+                                  )
+                                  .join(", ")}`}
                             </div>
                           </div>
                         </button>

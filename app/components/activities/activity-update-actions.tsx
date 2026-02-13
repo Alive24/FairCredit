@@ -19,7 +19,6 @@ import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 import { getAddFeedbackInstruction } from "@/lib/solana/generated/instructions/addFeedback";
 import { getAddAttendanceInstruction } from "@/lib/solana/generated/instructions/addAttendance";
 import { getAddGradeInstruction } from "@/lib/solana/generated/instructions/addGrade";
-import { getArchiveActivityInstruction } from "@/lib/solana/generated/instructions/archiveActivity";
 import {
   canPerformActivityAction,
   ROLE_INTENT_NOTICE,
@@ -58,7 +57,6 @@ export function ActivityUpdateActions({
   const canAddFeedback = canPerformActivityAction(role, "add_feedback");
   const canAddAttendance = canPerformActivityAction(role, "add_attendance");
   const canAddGrade = canPerformActivityAction(role, "add_grade");
-  const canArchive = canPerformActivityAction(role, "archive");
 
   const showAttendanceAction = activityKind === "AttendMeeting";
   const showFeedbackAction = activityKind === "AddFeedback";
@@ -67,7 +65,6 @@ export function ActivityUpdateActions({
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [isSubmittingAttendance, setIsSubmittingAttendance] = useState(false);
   const [isSubmittingGrade, setIsSubmittingGrade] = useState(false);
-  const [isArchiving, setIsArchiving] = useState(false);
 
   const [feedbackContent, setFeedbackContent] = useState("");
   const [feedbackAssetIds, setFeedbackAssetIds] = useState("");
@@ -197,6 +194,7 @@ export function ActivityUpdateActions({
               : [];
 
         const nextPayload = {
+          ...parsedObject,
           kind: "AttendMeeting",
           timestamp,
           note:
@@ -204,10 +202,8 @@ export function ActivityUpdateActions({
               ? parsedObject.note
               : parsedData.description,
           modules,
-          attendanceRecords: [...previousRecords, timestamp],
+          attendanceRecords: [...previousRecords, epoch].slice(-120),
         };
-
-        nextPayload.attendanceRecords = [...previousRecords, epoch].slice(-120);
 
         const content = JSON.stringify(nextPayload);
 
@@ -309,49 +305,6 @@ export function ActivityUpdateActions({
       });
     } finally {
       setIsSubmittingGrade(false);
-    }
-  };
-
-  const archiveActivity = async () => {
-    if (!ensureWallet()) return;
-    if (!canArchive) {
-      toast({
-        title: "Action not allowed",
-        description: ROLE_INTENT_NOTICE.archive,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const confirmed = window.confirm(
-      "Archive this activity? This will set its status to Archived.",
-    );
-    if (!confirmed) return;
-
-    setIsArchiving(true);
-    try {
-      const ix = getArchiveActivityInstruction({
-        activity: activityAddressAsAddress,
-        user: createPlaceholderSigner(address!),
-      });
-
-      await sendTransaction([ix]);
-
-      toast({
-        title: "Activity archived",
-        description: "Activity status has been updated to archived.",
-      });
-
-      await runUpdated();
-    } catch (error) {
-      toast({
-        title: "Archive failed",
-        description:
-          error instanceof Error ? error.message : "Unknown error occurred",
-        variant: "destructive",
-      });
-    } finally {
-      setIsArchiving(false);
     }
   };
 
@@ -518,21 +471,6 @@ export function ActivityUpdateActions({
           </DialogContent>
         </Dialog>
         )}
-
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={archiveActivity}
-          disabled={!canArchive || isArchiving}
-        >
-          {isArchiving ? (
-            <>
-              <Loader2 className="mr-2 h-3 w-3 animate-spin" /> Archiving
-            </>
-          ) : (
-            "Archive"
-          )}
-        </Button>
       </div>
 
       {role === "student" && (
@@ -542,7 +480,7 @@ export function ActivityUpdateActions({
       )}
       {role === "supervisor" && (
         <p className="text-xs text-muted-foreground">
-          Supervisor role can add grades and archive activities.
+          Supervisor role can add grades.
         </p>
       )}
       {!role && (
