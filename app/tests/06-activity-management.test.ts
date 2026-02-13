@@ -8,6 +8,7 @@ import { getAddAttendanceInstruction } from "../lib/solana/generated/instruction
 import { getArchiveActivityInstruction } from "../lib/solana/generated/instructions/archiveActivity";
 import { ActivityKind } from "../lib/solana/generated/types/activityKind";
 import { ActivityStatus } from "../lib/solana/generated/types/activityStatus";
+import { ResourceKind } from "../lib/solana/generated/types/resourceKind";
 import { sendInstructions, getCoursePDA } from "./utils/test-helpers";
 import { getCreateCourseInstructionAsync } from "../lib/solana/generated/instructions/createCourse";
 
@@ -81,6 +82,53 @@ describe("Activity Management", () => {
     expect(activityAccount.data.kind).to.deep.equal(ActivityKind.AttendMeeting);
     expect(activityAccount.data.data).to.equal("Attended weekly sync");
     expect(activityAccount.data.status).to.deep.equal(ActivityStatus.Active);
+  });
+
+  it("Should create a consume-resource activity with resource linkage", async () => {
+    const creationTimestamp = BigInt(Math.floor(Date.now() / 1000) + 1);
+    const payload = {
+      kind: "ConsumeResource",
+      title: "Read module notes",
+      description: "Consumed module notes and captured reflection.",
+      resourceId: "resource-001",
+      resourceKind: "General",
+      progress: 75,
+      modules: [{ module_pubkey: "module-001" }],
+    };
+
+    const instruction = await getCreateActivityInstructionAsync({
+      activity: undefined,
+      student: ctx.studentWallet,
+      provider: ctx.providerPDA,
+      hub: ctx.hubPDA,
+      creationTimestamp,
+      kind: ActivityKind.ConsumeResource,
+      data: JSON.stringify(payload),
+      degreeId: null,
+      course: coursePDA,
+      resourceId: "resource-001",
+      resourceKind: ResourceKind.General,
+    });
+
+    const consumeActivityPDA = instruction.accounts[0].address;
+
+    await sendInstructions(ctx.rpcUrl, [instruction], ctx.studentWallet);
+    await sleep(1000);
+
+    const activityAccount = await fetchActivity(ctx.rpc, consumeActivityPDA);
+    expect(activityAccount.data.kind).to.deep.equal(ActivityKind.ConsumeResource);
+
+    const resourceIdOpt = activityAccount.data.resourceId as any;
+    expect(resourceIdOpt.__option).to.equal("Some");
+    expect(resourceIdOpt.value).to.equal("resource-001");
+
+    const resourceKindOpt = activityAccount.data.resourceKind as any;
+    expect(resourceKindOpt.__option).to.equal("Some");
+    expect(resourceKindOpt.value).to.equal(ResourceKind.General);
+
+    const storedData = JSON.parse(activityAccount.data.data);
+    expect(storedData.kind).to.equal("ConsumeResource");
+    expect(storedData.resourceId).to.equal("resource-001");
   });
 
   it("Should add attendance to activity", async () => {

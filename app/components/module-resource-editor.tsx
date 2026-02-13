@@ -4,13 +4,14 @@ import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MarkdownEditor } from "@/components/markdown-editor";
-import { Wand2, Loader2, Upload } from "lucide-react";
+import { Wand2, Loader2 } from "lucide-react";
 import {
   NostrPendingEvent,
   NostrStoragePanel,
 } from "@/components/nostr-storage-panel";
 import { ResourceFieldsEditor } from "@/components/resource-fields-editor";
+import { ModuleResourceRichContentSection } from "@/components/module-resource-rich-content-section";
+import { ModuleResourceDebugInfo } from "@/components/module-resource-debug-info";
 import { useToast } from "@/hooks/use-toast";
 import { address, some } from "@solana/kit";
 import type { Provider } from "@reown/appkit-adapter-solana/react";
@@ -29,6 +30,19 @@ import { getRemoveCourseModuleInstructionAsync } from "@/lib/solana/generated/in
 import { createPlaceholderSigner } from "@/lib/solana/placeholder-signer";
 import { ResourceKind } from "@/lib/solana/generated/types/resourceKind";
 import { nip19 } from "nostr-tools";
+import {
+  parseModuleRichData,
+  serializeModuleRichData,
+  type ModuleDefaultActivityTemplateKind,
+} from "@/lib/resource-nostr-content";
+import {
+  buildDefaultActivityDraftMap,
+  buildDefaultActivityTemplates,
+  buildModuleRichSignature,
+  hexToBytes,
+  type DefaultActivityTemplateDraft,
+  type DefaultActivityTemplateDraftMap,
+} from "@/components/module-resource-editor-helpers";
 
 export type ModuleResourceEditorProps = {
   courseAddress: string;
@@ -57,38 +71,6 @@ export type ModuleResourceEditorProps = {
   mode: "create" | "edit";
 };
 
-function hexToBytes(hex: string): Uint8Array {
-  const normalized = hex.trim().toLowerCase();
-  if (normalized.length % 2 !== 0) {
-    if (normalized.length === 64) {
-      // It's fine
-    } else {
-      console.warn("Invalid hex length", normalized.length);
-    }
-  }
-  if (normalized.length % 2 !== 0) throw new Error("Invalid hex string");
-
-  const bytes = new Uint8Array(normalized.length / 2);
-  for (let i = 0; i < normalized.length; i += 2) {
-    bytes[i / 2] = parseInt(normalized.substr(i, 2), 16);
-  }
-  return bytes;
-}
-
-function bytesToHex(bytes: Uint8Array | number[] | any): string {
-  if (!bytes) return "";
-  if (
-    bytes instanceof Uint8Array ||
-    Array.isArray(bytes) ||
-    (typeof bytes === "object" && bytes !== null && "length" in bytes)
-  ) {
-    return Array.from(bytes as ArrayLike<number>)
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
-  return "";
-}
-
 export function ModuleResourceEditor({
   courseAddress,
   walletAddress,
@@ -104,6 +86,7 @@ export function ModuleResourceEditor({
   mode,
 }: ModuleResourceEditorProps) {
   const { toast } = useToast();
+  const initialRich = parseModuleRichData(initialData?.content ?? "");
 
   // Resource fields
   const [resourceName, setResourceName] = useState(initialData?.name || "");
@@ -115,11 +98,33 @@ export function ModuleResourceEditor({
     initialData?.workload || "",
   );
   const [resourceTags, setResourceTags] = useState<string[]>(
-    initialData?.tags || [],
+    (initialData?.tags || []).filter(
+      (tag) => !tag.startsWith("default_activity:"),
+    ),
   );
   const [resourceTagInput, setResourceTagInput] = useState("");
   const [resourceContent, setResourceContent] = useState(
-    initialData?.content || "",
+    initialRich.content || "",
+  );
+  const [moduleGuidance, setModuleGuidance] = useState(
+    initialRich.guidance || "",
+  );
+  const [moduleMaterialsContent, setModuleMaterialsContent] = useState(
+    initialRich.materialsRich || "",
+  );
+  const [defaultActivityDrafts, setDefaultActivityDrafts] =
+    useState<DefaultActivityTemplateDraftMap>(
+      buildDefaultActivityDraftMap(initialRich.defaultActivities),
+    );
+  const [loadedModuleRichSignature, setLoadedModuleRichSignature] = useState(
+    buildModuleRichSignature({
+      content: initialRich.content || "",
+      guidance: initialRich.guidance || "",
+      materialsRich: initialRich.materialsRich || "",
+      defaultActivityDrafts: buildDefaultActivityDraftMap(
+        initialRich.defaultActivities,
+      ),
+    }),
   );
 
   // Module weight
@@ -143,7 +148,7 @@ export function ModuleResourceEditor({
       ? {
           dTag: initialData.nostrDTag,
           authorPubkey: initialData.nostrAuthorPubkey || "",
-          neventId: null, // We don't have event ID unless fetched
+          neventId: null,
           verifyUrl: null,
         }
       : null,
@@ -165,6 +170,56 @@ export function ModuleResourceEditor({
   const isExternal = initialData?.isExternal || false;
 
   useEffect(() => {
+    const parsed = parseModuleRichData(initialData?.content ?? "");
+    const nextDrafts = buildDefaultActivityDraftMap(parsed.defaultActivities);
+
+    setResourceName(initialData?.name || "");
+    setResourceKind(initialData?.kind || 0);
+    setResourceExternalId(initialData?.externalId || "");
+    setResourceWorkload(initialData?.workload || "");
+    setResourceTags(
+      (initialData?.tags || []).filter(
+        (tag) => !tag.startsWith("default_activity:"),
+      ),
+    );
+    setResourceTagInput("");
+    setResourceContent(parsed.content || "");
+    setModuleGuidance(parsed.guidance || "");
+    setModuleMaterialsContent(parsed.materialsRich || "");
+    setDefaultActivityDrafts(nextDrafts);
+    setLoadedModuleRichSignature(
+      buildModuleRichSignature({
+        content: parsed.content || "",
+        guidance: parsed.guidance || "",
+        materialsRich: parsed.materialsRich || "",
+        defaultActivityDrafts: nextDrafts,
+      }),
+    );
+    setModulePercentage(initialData?.percentage?.toString() || "10");
+    setNostrError(null);
+    setNostrPending(
+      initialData?.nostrDTag
+        ? {
+            dTag: initialData.nostrDTag,
+            authorPubkey: initialData.nostrAuthorPubkey || "",
+            neventId: null,
+            verifyUrl: null,
+          }
+        : null,
+    );
+    setNostrStatus(
+      initialData?.nostrDTag
+        ? initialData.content
+          ? "published"
+          : "idle"
+        : "idle",
+    );
+    setParsedNeventId(null);
+    setDraftAddress(initialData?.resourceAddress || null);
+    setDraftTimestamp(null);
+  }, [initialData, mode]);
+
+  useEffect(() => {
     if (
       mode === "edit" &&
       initialData?.nostrDTag &&
@@ -177,12 +232,26 @@ export function ModuleResourceEditor({
         fetchResourceEvent(initialData.nostrAuthorPubkey, initialData.nostrDTag)
           .then((event) => {
             if (event) {
-              setResourceContent(event.content);
+              const moduleRich = parseModuleRichData(event.content);
+              const nextDrafts = buildDefaultActivityDraftMap(
+                moduleRich.defaultActivities,
+              );
+              setResourceContent(moduleRich.content);
+              setModuleGuidance(moduleRich.guidance);
+              setModuleMaterialsContent(moduleRich.materialsRich || "");
+              setDefaultActivityDrafts(nextDrafts);
+              setLoadedModuleRichSignature(
+                buildModuleRichSignature({
+                  content: moduleRich.content,
+                  guidance: moduleRich.guidance,
+                  materialsRich: moduleRich.materialsRich || "",
+                  defaultActivityDrafts: nextDrafts,
+                }),
+              );
               setNostrStatus("published");
               setNostrPending((prev) =>
                 prev ? { ...prev, eventId: event.id } : null,
               );
-              // Also update parsed NEVENT if possible
               try {
                 const nevent = nip19.neventEncode({
                   id: event.id,
@@ -190,7 +259,9 @@ export function ModuleResourceEditor({
                   kind: event.kind,
                 });
                 setParsedNeventId(nevent);
-              } catch (e) {}
+              } catch {
+                // best effort only
+              }
             }
           })
           .catch((e) => {
@@ -198,7 +269,6 @@ export function ModuleResourceEditor({
           })
           .finally(() => setBusy(null));
       } else {
-        // Content provided (e.g. from parent?) - unlikely based on current parent logic
         setBusy(null);
       }
     }
@@ -220,12 +290,11 @@ export function ModuleResourceEditor({
 
   const publishEventHelper = async () => {
     if (!walletAddress || !isConnected) throw new Error("Wallet not connected");
-    if (!resourceContent.trim()) throw new Error("Content required");
+    const guidance = moduleGuidance.trim() || resourceName.trim();
 
     let targetAddress = draftAddress;
     let targetTimestamp = draftTimestamp;
 
-    // If create mode and no draft, derive address
     if (mode === "create" && (!targetAddress || !targetTimestamp)) {
       const creationTimestamp = Math.floor(Date.now() / 1000);
       const signer = createPlaceholderSigner(walletAddress);
@@ -260,14 +329,40 @@ export function ModuleResourceEditor({
           created: targetTimestamp,
         });
       } else {
-        // Fallback or edit mode without existing dTag (unlikely if published)
         dTag = `resource-${Date.now()}`;
       }
     }
 
+    if (!targetAddress) {
+      throw new Error("Resource address could not be resolved.");
+    }
+
+    const defaultActivities = buildDefaultActivityTemplates(defaultActivityDrafts);
+
+    const serialized = serializeModuleRichData({
+      resourceAddress: targetAddress,
+      created: targetTimestamp ?? Math.floor(Date.now() / 1000),
+      content: resourceContent.trim(),
+      guidance,
+      materials: [],
+      materialsRich: moduleMaterialsContent,
+      defaultActivities,
+      metadata: {
+        kind: ResourceKind[resourceKind],
+        name: resourceName,
+        externalId: resourceExternalId.trim() || null,
+        workload:
+          resourceWorkload.trim() === ""
+            ? null
+            : Number(resourceWorkload.trim()),
+        tags: resourceTags,
+        course: courseAddress,
+      },
+    });
+
     const published = await publishResourceEvent({
       dTag,
-      content: resourceContent,
+      content: serialized,
       walletAddress,
       signMessage: walletProvider?.signMessage
         ? async (message: Uint8Array) => {
@@ -275,11 +370,8 @@ export function ModuleResourceEditor({
               throw new Error("Sign message not available");
             const result = await walletProvider.signMessage(message);
 
-            console.log("signMessage result:", result);
-
             if (result instanceof Uint8Array) return result;
 
-            // Handle { signature: Uint8Array }
             if (
               typeof result === "object" &&
               result !== null &&
@@ -288,10 +380,7 @@ export function ModuleResourceEditor({
               const sig = (result as any).signature;
               if (sig instanceof Uint8Array) return sig;
               if (Array.isArray(sig)) return new Uint8Array(sig);
-              // If base58 string in signature?
               if (typeof sig === "string") {
-                // Import bs58 if needed or fail
-                // Assuming hex?
                 try {
                   return hexToBytes(sig);
                 } catch {
@@ -300,10 +389,10 @@ export function ModuleResourceEditor({
               }
             }
 
-            // Handle array-like
             if (Array.isArray(result)) return new Uint8Array(result);
-            if (typeof result === "object" && "length" in (result as any))
+            if (typeof result === "object" && "length" in (result as any)) {
               return new Uint8Array(result as any);
+            }
 
             throw new Error("Unknown signature format returned by wallet");
           }
@@ -326,7 +415,15 @@ export function ModuleResourceEditor({
         verifyUrl: result.verifyUrl,
       });
       setNostrStatus("published");
-      toast({ title: "Published to Nostr", description: `Event published.` });
+      setLoadedModuleRichSignature(
+        buildModuleRichSignature({
+          content: resourceContent,
+          guidance: moduleGuidance,
+          materialsRich: moduleMaterialsContent,
+          defaultActivityDrafts,
+        }),
+      );
+      toast({ title: "Published to Nostr", description: "Event published." });
     } catch (e) {
       console.error("Publish failed:", e);
       setNostrStatus("error");
@@ -339,7 +436,14 @@ export function ModuleResourceEditor({
     } finally {
       setBusy(null);
     }
-  }, [publishEventHelper, toast]);
+  }, [
+    defaultActivityDrafts,
+    moduleGuidance,
+    moduleMaterialsContent,
+    publishEventHelper,
+    resourceContent,
+    toast,
+  ]);
 
   const handleSave = useCallback(async () => {
     if (!isConnected || !walletAddress) {
@@ -351,40 +455,43 @@ export function ModuleResourceEditor({
     try {
       const signer = createPlaceholderSigner(walletAddress);
       const instructions = [];
+      let currentPending = nostrPending;
+      let nostrPublishedInSave = false;
+
+      const moduleRichSignature = buildModuleRichSignature({
+        content: resourceContent,
+        guidance: moduleGuidance,
+        materialsRich: moduleMaterialsContent,
+        defaultActivityDrafts,
+      });
+      const requiresNostrPublish =
+        !isExternal &&
+        (mode === "create" ||
+          moduleRichSignature !== loadedModuleRichSignature ||
+          !initialData?.nostrDTag ||
+          !initialData?.nostrAuthorPubkey);
+
+      if (requiresNostrPublish) {
+        toast({ title: "Publishing module content..." });
+        const result = await publishEventHelper();
+        currentPending = {
+          dTag: result.dTag,
+          authorPubkey: result.authorPubkey,
+          neventId: result.neventId,
+          verifyUrl: result.verifyUrl,
+        };
+        setNostrPending(currentPending);
+        setNostrStatus("published");
+        setLoadedModuleRichSignature(moduleRichSignature);
+        nostrPublishedInSave = true;
+      }
 
       if (mode === "create") {
-        // ... create logic ...
-        let currentPending = nostrPending;
-        let currentStatus = nostrStatus;
-
-        if (currentStatus !== "published") {
-          try {
-            toast({ title: "Auto-publishing..." });
-            const result = await publishEventHelper();
-            currentPending = {
-              dTag: result.dTag,
-              authorPubkey: result.authorPubkey,
-              neventId: result.neventId,
-              verifyUrl: result.verifyUrl,
-            };
-            setNostrPending(currentPending);
-            setNostrStatus("published");
-            currentStatus = "published";
-          } catch (e) {
-            toast({
-              title: "Auto-publish failed",
-              description: String(e),
-              variant: "destructive",
-            });
-            setBusy(null);
-            return;
-          }
+        if (!currentPending) {
+          throw new Error("Nostr event missing after publish.");
         }
 
-        if (!currentPending) throw new Error("Nostr event missing");
-
         const nostrAuthorBytes = hexToBytes(currentPending.authorPubkey);
-
         const workloadParsed =
           resourceWorkload.trim() === ""
             ? null
@@ -404,18 +511,18 @@ export function ModuleResourceEditor({
         });
 
         const createdAddress = String(createIx.accounts[0].address);
-
         const setRefIx = getSetResourceNostrRefInstruction({
           resource: address(createdAddress),
           authority: signer,
           nostrDTag: currentPending.dTag,
           nostrAuthorPubkey: nostrAuthorBytes,
-          force: true, // Force to ensure it sets even if logic thinks it is set (though it is not)
+          force: true,
         });
 
         const percentageParsed = Number(modulePercentage);
-        if (!Number.isFinite(percentageParsed) || percentageParsed <= 0)
+        if (!Number.isFinite(percentageParsed) || percentageParsed <= 0) {
           throw new Error("Invalid weight");
+        }
 
         const addModuleIx = await getAddCourseModuleInstructionAsync({
           course: address(courseAddress),
@@ -426,63 +533,70 @@ export function ModuleResourceEditor({
 
         instructions.push(createIx, setRefIx, addModuleIx);
       } else {
-        // Edit Mode
+        if (!initialData) {
+          throw new Error("Missing module data for edit mode.");
+        }
+
         if (!isExternal) {
           const workloadParsed =
             resourceWorkload.trim() === ""
               ? null
               : Number(resourceWorkload.trim());
+          const initialTags = (initialData.tags || []).filter(
+            (tag) => !tag.startsWith("default_activity:"),
+          );
 
           if (
-            resourceName !== initialData?.name ||
-            Number(resourceWorkload) !== Number(initialData?.workload) ||
-            JSON.stringify(resourceTags) !== JSON.stringify(initialData?.tags)
+            resourceName !== initialData.name ||
+            Number(resourceWorkload) !== Number(initialData.workload) ||
+            JSON.stringify(resourceTags) !== JSON.stringify(initialTags)
           ) {
             const ix = getUpdateResourceDataInstruction({
-              resource: address(initialData!.resourceAddress),
+              resource: address(initialData.resourceAddress),
               authority: signer,
-              name: resourceName !== initialData?.name ? resourceName : null,
+              name: resourceName !== initialData.name ? resourceName : null,
               workload:
-                Number(resourceWorkload) !== Number(initialData?.workload)
+                Number(resourceWorkload) !== Number(initialData.workload)
                   ? workloadParsed
                   : null,
               tags:
-                JSON.stringify(resourceTags) !==
-                JSON.stringify(initialData?.tags)
+                JSON.stringify(resourceTags) !== JSON.stringify(initialTags)
                   ? resourceTags
                   : null,
             });
             instructions.push(ix);
           }
 
-          if (
-            nostrPending &&
-            (nostrPending.neventId !== initialData?.nostrDTag /* loose */ ||
-              nostrStatus === "published")
-          ) {
-            if (nostrPending.dTag !== initialData?.nostrDTag) {
-              const nostrAuthorBytes = hexToBytes(nostrPending.authorPubkey);
+          if (currentPending) {
+            const currentAuthor = currentPending.authorPubkey.toLowerCase();
+            const initialAuthor = (
+              initialData.nostrAuthorPubkey || ""
+            ).toLowerCase();
+            if (
+              currentPending.dTag !== initialData.nostrDTag ||
+              currentAuthor !== initialAuthor
+            ) {
+              const nostrAuthorBytes = hexToBytes(currentPending.authorPubkey);
               const setRefIx = getSetResourceNostrRefInstruction({
-                resource: address(initialData!.resourceAddress),
+                resource: address(initialData.resourceAddress),
                 authority: signer,
-                nostrDTag: nostrPending.dTag,
+                nostrDTag: currentPending.dTag,
                 nostrAuthorPubkey: nostrAuthorBytes,
                 force: true,
               });
               instructions.push(setRefIx);
-            } else if (
-              nostrStatus === "published" &&
-              nostrPending.dTag === initialData?.nostrDTag
-            ) {
             }
           }
         }
 
         const newPercentage = Number(modulePercentage);
-        if (newPercentage !== initialData?.percentage) {
+        if (!Number.isFinite(newPercentage) || newPercentage < 0) {
+          throw new Error("Module weight must be a non-negative number.");
+        }
+        if (newPercentage !== initialData.percentage) {
           const updateModuleIx = await getUpdateCourseModuleInstructionAsync({
             course: address(courseAddress),
-            resource: address(initialData!.resourceAddress),
+            resource: address(initialData.resourceAddress),
             providerAuthority: signer,
             percentage: newPercentage,
           });
@@ -492,14 +606,18 @@ export function ModuleResourceEditor({
 
       if (instructions.length > 0) {
         await sendTransaction(instructions);
+      }
+
+      if (instructions.length > 0 || nostrPublishedInSave) {
         toast({
           title: mode === "create" ? "Module created" : "Module updated",
         });
         onSuccess?.();
         onCancel?.();
-      } else {
-        onCancel?.();
+        return;
       }
+
+      onCancel?.();
     } catch (e: any) {
       console.error(e);
       toast({
@@ -522,7 +640,6 @@ export function ModuleResourceEditor({
     resourceTags,
     modulePercentage,
     nostrPending,
-    nostrStatus,
     draftTimestamp,
     initialData,
     isExternal,
@@ -532,7 +649,27 @@ export function ModuleResourceEditor({
     onCancel,
     publishEventHelper,
     resourceContent,
+    moduleGuidance,
+    moduleMaterialsContent,
+    defaultActivityDrafts,
+    loadedModuleRichSignature,
   ]);
+
+  const updateDefaultActivityDraft = useCallback(
+    (
+      kind: ModuleDefaultActivityTemplateKind,
+      patch: Partial<DefaultActivityTemplateDraft>,
+    ) => {
+      setDefaultActivityDrafts((prev) => ({
+        ...prev,
+        [kind]: {
+          ...prev[kind],
+          ...patch,
+        },
+      }));
+    },
+    [],
+  );
 
   const fillTestData = () => {
     const now = new Date();
@@ -544,9 +681,41 @@ export function ModuleResourceEditor({
     setResourceExternalId(`vid-${Math.floor(Math.random() * 100000)}`);
     setResourceWorkload("60");
     setResourceTags(["test", "auto"]);
-    setResourceContent(
-      `# Test Content ${dateStr} ${timeStr}\n\nGenerated for testing.`,
+    setModuleMaterialsContent(
+      "<ul><li>React Hooks Guide</li><li>State Patterns Slides</li><li>Performance Checklist</li></ul>",
     );
+    setModuleGuidance(
+      "<p>Complete the module assignment with functional components and hooks. Focus on clarity and performance.</p>",
+    );
+    setResourceContent(
+      `# Module Detail ${dateStr} ${timeStr}\n\nUse this section for detailed module references and examples.`,
+    );
+    setDefaultActivityDrafts({
+      AttendMeeting: {
+        enabled: true,
+        title: "Attendance Tracker",
+        description: "Track attendance milestones for this module.",
+        requiredAttendance: "3",
+        requiredEvidenceCount: "",
+        requiredFeedbackEntries: "",
+      },
+      AddFeedback: {
+        enabled: true,
+        title: "Reflection Feedback",
+        description: "Add reflective feedback after each major checkpoint.",
+        requiredAttendance: "",
+        requiredEvidenceCount: "",
+        requiredFeedbackEntries: "2",
+      },
+      SubmitAssignment: {
+        enabled: true,
+        title: "Final Submission",
+        description: "Submit assignment evidence for the module outcome.",
+        requiredAttendance: "",
+        requiredEvidenceCount: "1",
+        requiredFeedbackEntries: "",
+      },
+    });
     setModulePercentage("10");
   };
 
@@ -565,20 +734,17 @@ export function ModuleResourceEditor({
     try {
       const signer = createPlaceholderSigner(walletAddress);
 
-      // 1. Close the resource account
       const closeIx = getCloseResourceInstruction({
         resource: address(initialData.resourceAddress),
         authority: signer,
       });
 
-      // 2. Remove the module from the course
       const removeModuleIx = await getRemoveCourseModuleInstructionAsync({
         course: address(courseAddress),
         providerAuthority: signer,
         resource: address(initialData.resourceAddress),
       });
 
-      // Send both in same transaction
       await sendTransaction([closeIx, removeModuleIx]);
       toast({
         title: "Resource deleted",
@@ -639,17 +805,18 @@ export function ModuleResourceEditor({
         disabled={formDisabled || isExternal || (mode === "edit" && isExternal)}
       />
 
-      {!isExternal && (
-        <div className="space-y-2">
-          <Label>Resource Content</Label>
-          <MarkdownEditor
-            value={resourceContent}
-            onChange={setResourceContent}
-            height={200}
-          />
-          <p className="text-xs text-muted-foreground">Stored on Nostr.</p>
-        </div>
-      )}
+      <ModuleResourceRichContentSection
+        formDisabled={formDisabled}
+        isExternal={isExternal}
+        moduleMaterialsContent={moduleMaterialsContent}
+        onModuleMaterialsContentChange={setModuleMaterialsContent}
+        moduleGuidance={moduleGuidance}
+        onModuleGuidanceChange={setModuleGuidance}
+        resourceContent={resourceContent}
+        onResourceContentChange={setResourceContent}
+        defaultActivityDrafts={defaultActivityDrafts}
+        onDefaultActivityDraftChange={updateDefaultActivityDraft}
+      />
 
       <div className="space-y-2">
         <Label>Module Weight (%)</Label>
@@ -674,10 +841,17 @@ export function ModuleResourceEditor({
           }
           error={nostrError}
           onPublish={handlePublishToNostr}
+          publishLabel="Publish now (optional)"
           publishDisabled={formDisabled}
+          footer={
+            <p className="text-xs text-muted-foreground">
+              Save Changes automatically publishes module rich content to Nostr.
+            </p>
+          }
           defaultOpen={nostrStatus !== "idle" && nostrStatus !== "published"}
         />
       )}
+
       {mode === "edit" && (
         <details className="mt-6 border-t pt-4 group">
           <summary className="text-destructive font-semibold cursor-pointer mb-4 select-none">
@@ -714,73 +888,17 @@ export function ModuleResourceEditor({
         </Button>
       </div>
 
-      <details className="mt-4 text-xs text-muted-foreground border-t pt-2">
-        <summary className="cursor-pointer font-medium mb-2">
-          Debugging Info
-        </summary>
-        <div className="space-y-1 overflow-x-auto">
-          <p>
-            <strong>Mode:</strong> {mode}
-          </p>
-          <p>
-            <strong>Nostr Status:</strong> {nostrStatus}
-          </p>
-          <p>
-            <strong>Pending dTag:</strong> {nostrPending?.dTag || "None"}
-          </p>
-          <p>
-            <strong>Pending Author:</strong>{" "}
-            {nostrPending?.authorPubkey || "None"}
-          </p>
-          <div className="bg-muted p-2 rounded whitespace-pre-wrap font-mono">
-            {JSON.stringify(
-              {
-                initialData: {
-                  ...initialData,
-                  nostrAuthorPubkey: initialData?.nostrAuthorPubkey
-                    ? `${initialData.nostrAuthorPubkey.substring(0, 10)}...`
-                    : undefined,
-                },
-                nostrPending,
-                debugResource: debugResource
-                  ? {
-                      ...debugResource,
-                      nostrAuthorPubkey: debugResource.nostrAuthorPubkey
-                        ? `[${debugResource.nostrAuthorPubkey.length} bytes]`
-                        : "undefined",
-                    }
-                  : "None",
-              },
-              (key, value) =>
-                typeof value === "bigint"
-                  ? value.toString()
-                  : value instanceof Uint8Array ||
-                    (value && value.type === "Buffer")
-                  ? `[Bytes ${value.length}]`
-                  : value,
-              2,
-            )}
-          </div>
-          {debugResource && (
-            <div className="mt-2">
-              <p className="font-semibold">Full Resource Account:</p>
-              <div className="bg-muted p-2 rounded whitespace-pre-wrap font-mono">
-                {JSON.stringify(
-                  debugResource,
-                  (key, value) =>
-                    typeof value === "bigint"
-                      ? value.toString()
-                      : value instanceof Uint8Array ||
-                        (value && value.type === "Buffer")
-                      ? `[Bytes ${value.length}]`
-                      : value,
-                  2,
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </details>
+      <ModuleResourceDebugInfo
+        mode={mode}
+        nostrStatus={nostrStatus}
+        nostrPending={nostrPending}
+        initialData={initialData}
+        moduleGuidance={moduleGuidance}
+        moduleMaterialsContent={moduleMaterialsContent}
+        defaultActivityDrafts={defaultActivityDrafts}
+        loadedModuleRichSignature={loadedModuleRichSignature}
+        debugResource={debugResource}
+      />
     </div>
   );
 }

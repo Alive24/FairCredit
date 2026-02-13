@@ -13,7 +13,7 @@ const ACTION_POLICY: Record<ActivityAction, ReadonlyArray<UserRole>> = {
   add_feedback: ["student"],
   add_attendance: ["student"],
   add_grade: ["supervisor"],
-  archive: ["supervisor"],
+  archive: ["student"],
 };
 
 export function canPerformActivityAction(
@@ -49,5 +49,6 @@ export const ROLE_INTENT_NOTICE: Record<ActivityAction, string> = {
   add_attendance:
     "Only students can mark attendance in this frontend flow.",
   add_grade: "Only supervisors can add grades in this frontend flow.",
-  archive: "Only supervisors can archive activities in this frontend flow.",
+  archive:
+    "Only students can control visibility (archive/unarchive) in this frontend flow.",
 };

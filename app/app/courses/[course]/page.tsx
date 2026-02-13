@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { CourseProfileEditor } from "@/components/courses/course-profile-editor";
 import { StudentCoursePanel } from "@/components/courses/student-course-panel";
+import { CourseModulesShowcase } from "@/components/courses/course-modules-showcase";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useFairCredit } from "@/hooks/use-fair-credit";
 import { useAppKitAccount } from "@reown/appkit/react";
@@ -50,6 +51,7 @@ import {
 import { nip19 } from "nostr-tools";
 import { useTransactionQueue } from "@/hooks/use-transaction-queue";
 import { getCloseCourseInstructionAsync } from "@/lib/solana/generated/instructions/closeCourse";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function formatTimestamp(value: bigint | number) {
   const date = new Date(Number(value) * 1000);
@@ -628,202 +630,213 @@ export default function CourseDetailPage() {
                 closeSubmitting={closeSubmitting}
               />
             ) : (
-              <>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                    Description
-                  </h3>
-                  <p className="text-sm">
-                    {displayProfile.description ||
-                      course.description ||
-                      "No description provided."}
-                  </p>
-                </div>
+              <Tabs defaultValue="basic" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="basic">Basic Information</TabsTrigger>
+                  <TabsTrigger value="modules">Course Modules</TabsTrigger>
+                </TabsList>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <TabsContent value="basic" className="space-y-6">
                   <div>
-                    <p className="text-xs text-muted-foreground">Workload</p>
-                    <p className="font-medium">{course.workloadRequired}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Modules</p>
-                    <p className="font-medium">{course.modules?.length ?? 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Approved Credentials
-                    </p>
-                    <p className="font-medium">
-                      {course.approvedCredentials?.length ?? 0}
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                      Description
+                    </h3>
+                    <p className="text-sm">
+                      {displayProfile.description ||
+                        course.description ||
+                        "No description provided."}
                     </p>
                   </div>
-                  {unwrapOption<string>(course.degreeId) && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Degree</p>
-                      <p className="font-medium text-sm">
-                        {unwrapOption<string>(course.degreeId)}
-                      </p>
-                    </div>
-                  )}
-                </div>
 
-                <div className="border-t pt-6 space-y-4">
-                  <h3 className="font-medium">Course Profile</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <p className="text-xs text-muted-foreground">Category</p>
+                      <p className="text-xs text-muted-foreground">Workload</p>
+                      <p className="font-medium">{course.workloadRequired}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Modules</p>
+                      <p className="font-medium">{course.modules?.length ?? 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Approved Credentials
+                      </p>
                       <p className="font-medium">
-                        {displayProfile.category || "—"}
+                        {course.approvedCredentials?.length ?? 0}
+                      </p>
+                    </div>
+                    {unwrapOption<string>(course.degreeId) && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Degree</p>
+                        <p className="font-medium text-sm">
+                          {unwrapOption<string>(course.degreeId)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t pt-6 space-y-4">
+                    <h3 className="font-medium">Course Profile</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Category</p>
+                        <p className="font-medium">
+                          {displayProfile.category || "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Duration</p>
+                        <p className="font-medium">
+                          {displayProfile.durationValue
+                            ? `${displayProfile.durationValue} ${displayProfile.durationUnit}`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          Supervisor
+                        </p>
+                        <p className="font-medium">
+                          {displayProfile.supervisorName || "—"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {displayProfile.supervisorInstitution || ""}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Contact</p>
+                        <p className="font-medium">
+                          {displayProfile.supervisorEmail || "—"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Learning Objectives
+                      </p>
+                      <p className="text-sm mt-1">
+                        {displayProfile.learningObjectives || "Not provided."}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Duration</p>
-                      <p className="font-medium">
-                        {displayProfile.durationValue
-                          ? `${displayProfile.durationValue} ${displayProfile.durationUnit}`
-                          : "—"}
+                      <p className="text-xs text-muted-foreground">Methodology</p>
+                      <p className="text-sm mt-1">
+                        {displayProfile.methodology || "Not provided."}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">
-                        Supervisor
+                        Assessment Criteria
                       </p>
-                      <p className="font-medium">
-                        {displayProfile.supervisorName || "—"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {displayProfile.supervisorInstitution || ""}
+                      <p className="text-sm mt-1">
+                        {displayProfile.assessmentCriteria || "Not provided."}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Contact</p>
-                      <p className="font-medium">
-                        {displayProfile.supervisorEmail || "—"}
+                      <p className="text-xs text-muted-foreground">
+                        Deliverables
+                      </p>
+                      <p className="text-sm mt-1">
+                        {displayProfile.deliverables || "Not provided."}
                       </p>
                     </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Learning Objectives
-                    </p>
-                    <p className="text-sm mt-1">
-                      {displayProfile.learningObjectives || "Not provided."}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Methodology</p>
-                    <p className="text-sm mt-1">
-                      {displayProfile.methodology || "Not provided."}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Assessment Criteria
-                    </p>
-                    <p className="text-sm mt-1">
-                      {displayProfile.assessmentCriteria || "Not provided."}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Deliverables
-                    </p>
-                    <p className="text-sm mt-1">
-                      {displayProfile.deliverables || "Not provided."}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Prerequisites
-                    </p>
-                    <p className="text-sm mt-1">
-                      {displayProfile.prerequisites || "Not provided."}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-muted-foreground">Skills</p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {displayProfile.skills.length > 0 ? (
-                        displayProfile.skills.map((skill) => (
-                          <Badge key={skill} variant="secondary">
-                            {skill}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          No skills added.
-                        </span>
-                      )}
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Prerequisites
+                      </p>
+                      <p className="text-sm mt-1">
+                        {displayProfile.prerequisites || "Not provided."}
+                      </p>
                     </div>
-                  </div>
 
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Requirements
-                    </p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {displayProfile.requirements.length > 0 ? (
-                        displayProfile.requirements.map((req) => (
-                          <Badge key={req} variant="secondary">
-                            {req}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          No requirements added.
-                        </span>
-                      )}
+                    <div>
+                      <p className="text-xs text-muted-foreground">Skills</p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {displayProfile.skills.length > 0 ? (
+                          displayProfile.skills.map((skill) => (
+                            <Badge key={skill} variant="secondary">
+                              {skill}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            No skills added.
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <p className="text-xs text-muted-foreground">Tags</p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {displayProfile.tags.length > 0 ? (
-                        displayProfile.tags.map((tag) => (
-                          <Badge key={tag} variant="outline">
-                            {tag}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          No tags added.
-                        </span>
-                      )}
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Requirements
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {displayProfile.requirements.length > 0 ? (
+                          displayProfile.requirements.map((req) => (
+                            <Badge key={req} variant="secondary">
+                              {req}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            No requirements added.
+                          </span>
+                        )}
+                      </div>
                     </div>
+
+                    <div>
+                      <p className="text-xs text-muted-foreground">Tags</p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {displayProfile.tags.length > 0 ? (
+                          displayProfile.tags.map((tag) => (
+                            <Badge key={tag} variant="outline">
+                              {tag}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            No tags added.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {displayProfile.updatedAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Last updated{" "}
+                        {new Date(displayProfile.updatedAt).toLocaleString()}
+                      </p>
+                    )}
                   </div>
 
-                  {displayProfile.updatedAt && (
-                    <p className="text-xs text-muted-foreground">
-                      Last updated{" "}
-                      {new Date(displayProfile.updatedAt).toLocaleString()}
-                    </p>
+                  {isProvider && (
+                    <div className="border-t pt-6 space-y-6">
+                      <div className="space-y-4">
+                        <h3 className="font-medium">Provider Actions</h3>
+                        {course.status === CourseStatus.Draft && (
+                          <Button
+                            onClick={handleSubmitForHubReview}
+                            disabled={isSending || submittingForReview}
+                          >
+                            {submittingForReview ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : (
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                            )}
+                            Submit for Hub Review
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   )}
-                </div>
+                </TabsContent>
 
-                {isProvider && (
-                  <div className="border-t pt-6 space-y-6">
-                    <div className="space-y-4">
-                      <h3 className="font-medium">Provider Actions</h3>
-                      {course.status === CourseStatus.Draft && (
-                        <Button
-                          onClick={handleSubmitForHubReview}
-                          disabled={isSending || submittingForReview}
-                        >
-                          {submittingForReview ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : (
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                          )}
-                          Submit for Hub Review
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </>
+                <TabsContent value="modules" className="space-y-6">
+                  <CourseModulesShowcase course={course} />
+                </TabsContent>
+              </Tabs>
             )}
           </CardContent>
         </Card>
