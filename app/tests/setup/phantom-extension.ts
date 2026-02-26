@@ -206,7 +206,7 @@ export async function connectPhantomToSite(page: Page, context: BrowserContext):
  */
 export function getTestWalletAddress(): string {
   // This is the public key for the test mnemonic
-  // "uniform utility suffer dirt object turtle digital false tail lion elegant sword"
+  // Example mnemonic omitted intentionally; derive and hardcode your local test wallet pubkey instead.
   // You would need to calculate this once and hardcode it
   return 'YOUR_TEST_WALLET_PUBLIC_KEY'
 }

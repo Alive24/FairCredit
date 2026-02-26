@@ -19,10 +19,11 @@ The development environment includes:
 
 ### 2. Development Wallet
 
-The development wallet is configured with a test mnemonic for consistent testing:
+The development wallet is configured with a test mnemonic for consistent testing.
+Set `DEV_MNEMONIC` in your local `.env` (do not commit it):
 
 ```
-uniform utility suffer dirt object turtle digital false tail lion elegant sword
+<your-devnet-test-mnemonic-here>
 ```
 
 **⚠️ IMPORTANT**: This wallet is for DEVELOPMENT/TESTING ONLY. Never use on mainnet!
@@ -113,7 +114,7 @@ For full wallet integration testing, you'll need to:
 1. Install Phantom browser extension
 2. Create new wallet using the development mnemonic:
    ```
-   uniform utility suffer dirt object turtle digital false tail lion elegant sword
+   <your-devnet-test-mnemonic-here>
    ```
 3. Switch network to Devnet in Phantom settings
 4. Run tests that require wallet connection
