@@ -25,6 +25,7 @@ import { fetchResourceEvent } from "@/lib/nostr/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,7 @@ import {
 import { format } from "date-fns";
 import { CreateActivityForm } from "@/components/activities/create-activity-form";
 import { ActivityUpdateActions } from "@/components/activities/activity-update-actions";
+import { AttendanceCalendar } from "@/components/activities/attendance-calendar";
 import { ActivityStatus } from "@/lib/solana/generated/types/activityStatus";
 import {
   type ActivityModuleRef,
@@ -74,6 +76,144 @@ function getOptionString(value: unknown): string | null {
   return null;
 }
 
+function parsePositiveInt(input: unknown): number | null {
+  if (typeof input !== "number" || !Number.isFinite(input)) return null;
+  const normalized = Math.floor(input);
+  return normalized > 0 ? normalized : null;
+}
+
+function parseAttendanceTimestamp(input: unknown): Date | null {
+  if (input && typeof input === "object") {
+    const value = input as Record<string, unknown>;
+    return parseAttendanceTimestamp(
+      value.timestamp ?? value.date ?? value.time,
+    );
+  }
+  if (typeof input === "string") {
+    const numeric = Number(input);
+    if (Number.isFinite(numeric)) {
+      const fromUnix = new Date(numeric * 1000);
+      if (!Number.isNaN(fromUnix.getTime())) return fromUnix;
+    }
+    const fromIso = new Date(input);
+    if (!Number.isNaN(fromIso.getTime())) return fromIso;
+    return null;
+  }
+  if (typeof input === "number" && Number.isFinite(input)) {
+    const fromUnix = new Date(input * 1000);
+    if (!Number.isNaN(fromUnix.getTime())) return fromUnix;
+  }
+  return null;
+}
+
+type AttendanceStatusValue = "present" | "absent" | "late";
+
+function parseAttendanceStatus(input: unknown): AttendanceStatusValue {
+  if (typeof input !== "string") return "present";
+  const lowered = input.toLowerCase();
+  if (lowered === "late") return "late";
+  if (lowered === "absent") return "absent";
+  return "present";
+}
+
+function extractAttendanceDates(payload: unknown): Date[] {
+  if (!payload || typeof payload !== "object") return [];
+  const value = payload as Record<string, unknown>;
+  const dates: Date[] = [];
+
+  const timestamp = parseAttendanceTimestamp(value.timestamp);
+  if (timestamp) dates.push(timestamp);
+
+  if (Array.isArray(value.attendanceRecords)) {
+    value.attendanceRecords.forEach((entry) => {
+      const parsed = parseAttendanceTimestamp(entry);
+      if (parsed) dates.push(parsed);
+    });
+  }
+
+  const unique = new Map<number, Date>();
+  dates.forEach((entry) => unique.set(entry.getTime(), entry));
+  return Array.from(unique.values()).sort((a, b) => a.getTime() - b.getTime());
+}
+
+function extractAttendanceCalendarRecords(params: {
+  payload: unknown;
+  activityKey: string;
+}): Array<{
+  id: string;
+  timestamp: Date;
+  status: AttendanceStatusValue;
+  note?: string;
+  isQuestioned?: boolean;
+  questionedBy?: string;
+  questionedReason?: string;
+}> {
+  const { payload, activityKey } = params;
+  if (!payload || typeof payload !== "object") return [];
+
+  const value = payload as Record<string, unknown>;
+  const byTimestamp = new Map<
+    number,
+    {
+      id: string;
+      timestamp: Date;
+      status: AttendanceStatusValue;
+      note?: string;
+      isQuestioned?: boolean;
+      questionedBy?: string;
+      questionedReason?: string;
+    }
+  >();
+
+  const detailedRecords = Array.isArray(value.attendanceDetailRecords)
+    ? value.attendanceDetailRecords
+    : [];
+
+  detailedRecords.forEach((entry, idx) => {
+    if (!entry || typeof entry !== "object") return;
+    const detail = entry as Record<string, unknown>;
+    const timestamp = parseAttendanceTimestamp(
+      detail.timestamp ?? detail.date ?? detail.time,
+    );
+    if (!timestamp) return;
+
+    const key = timestamp.getTime();
+    byTimestamp.set(key, {
+      id: `${activityKey}-${key}-${idx}`,
+      timestamp,
+      status: parseAttendanceStatus(detail.status),
+      note: typeof detail.note === "string" ? detail.note : undefined,
+      isQuestioned:
+        typeof detail.isQuestioned === "boolean"
+          ? detail.isQuestioned
+          : undefined,
+      questionedBy:
+        typeof detail.questionedBy === "string"
+          ? detail.questionedBy
+          : undefined,
+      questionedReason:
+        typeof detail.questionedReason === "string"
+          ? detail.questionedReason
+          : undefined,
+    });
+  });
+
+  if (byTimestamp.size === 0) {
+    extractAttendanceDates(payload).forEach((timestamp, idx) => {
+      const key = timestamp.getTime();
+      byTimestamp.set(key, {
+        id: `${activityKey}-${key}-${idx}`,
+        timestamp,
+        status: "present",
+      });
+    });
+  }
+
+  return Array.from(byTimestamp.values()).sort(
+    (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+  );
+}
+
 export function ActivityList({ courseAddress }: { courseAddress: string }) {
   const { address, isConnected } = useAppKitAccount();
   const { connection } = useAppKitConnection();
@@ -84,7 +224,9 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
   const [isLoading, setIsLoading] = useState(false);
   const { rpc } = useFairCredit();
   const [course, setCourse] = useState<Course | null>(null);
-  const [moduleResources, setModuleResources] = useState<Record<string, Resource | null>>({});
+  const [moduleResources, setModuleResources] = useState<
+    Record<string, Resource | null>
+  >({});
   const [moduleResourceContent, setModuleResourceContent] = useState<
     Record<
       string,
@@ -96,7 +238,9 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
       }
     >
   >({});
-  const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
+  const [expandedModules, setExpandedModules] = useState<
+    Record<string, boolean>
+  >({});
   const [isVisibilityUpdatingByActivity, setIsVisibilityUpdatingByActivity] =
     useState<Record<string, boolean>>({});
 
@@ -114,7 +258,9 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
         new PublicKey(courseAddress),
       );
 
-      data.sort((a, b) => Number(b.account.created) - Number(a.account.created));
+      data.sort(
+        (a, b) => Number(b.account.created) - Number(a.account.created),
+      );
       setActivities(data);
     } catch (error) {
       console.error("Failed to load activities:", error);
@@ -220,13 +366,17 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
   const parsedActivities = useMemo(() => {
     return activities.map((activity) => {
       const parsed = parseActivityData(activity.account.data);
-      const kindFromAccount = activityKindKeyFromEnum(activity.account.kind as number);
+      const kindFromAccount = activityKindKeyFromEnum(
+        activity.account.kind as number,
+      );
       const resolvedKind = parsed.kind ?? kindFromAccount;
 
       return {
         activity,
         parsed,
-        kindLabel: resolvedKind ? ACTIVITY_KIND_LABEL[resolvedKind] : "Unknown Kind",
+        kindLabel: resolvedKind
+          ? ACTIVITY_KIND_LABEL[resolvedKind]
+          : "Unknown Kind",
         hiddenFromSupervisor: isHiddenFromSupervisor(parsed.raw),
       };
     });
@@ -238,11 +388,14 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
   }, [parsedActivities, role]);
 
   const toggleVisibility = useCallback(
-    async (entry: {
-      activity: EnrolledActivity;
-      parsed: ReturnType<typeof parseActivityData>;
-      hiddenFromSupervisor: boolean;
-    }) => {
+    async (
+      entry: {
+        activity: EnrolledActivity;
+        parsed: ReturnType<typeof parseActivityData>;
+        hiddenFromSupervisor: boolean;
+      },
+      nextVisible?: boolean,
+    ) => {
       if (!address || !isConnected) {
         toast({
           title: "Wallet not connected",
@@ -263,7 +416,10 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
 
       const nextRaw = toggleHiddenFromSupervisorTag({
         raw: entry.parsed.raw,
-        hidden: !entry.hiddenFromSupervisor,
+        hidden:
+          typeof nextVisible === "boolean"
+            ? !nextVisible
+            : !entry.hiddenFromSupervisor,
       });
 
       if (!nextRaw) {
@@ -307,6 +463,133 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
           ...prev,
           [key]: false,
         }));
+      }
+    },
+    [address, isConnected, loadActivities, role, sendTransaction, toast],
+  );
+
+  const markAttendanceFromCalendar = useCallback(
+    async (params: {
+      entry: {
+        activity: EnrolledActivity;
+        parsed: ReturnType<typeof parseActivityData>;
+      };
+      date: Date;
+      status: AttendanceStatusValue;
+      note?: string;
+      moduleId?: string;
+    }) => {
+      const { entry, date, status, note, moduleId } = params;
+
+      if (!address || !isConnected) {
+        toast({
+          title: "Wallet not connected",
+          description: "Connect your wallet to record attendance.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (role !== "student") {
+        toast({
+          title: "Action not allowed",
+          description: "Only students can record attendance.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const key = entry.activity.publicKey.toBase58();
+      const epoch = String(Math.floor(date.getTime() / 1000));
+      const rawObject = (() => {
+        try {
+          return JSON.parse(entry.parsed.raw) as Record<string, unknown>;
+        } catch {
+          return {} as Record<string, unknown>;
+        }
+      })();
+
+      const previousEpochs = Array.isArray(rawObject.attendanceRecords)
+        ? rawObject.attendanceRecords
+            .map((item) => parseAttendanceTimestamp(item))
+            .filter((item): item is Date => item !== null)
+            .map((item) => String(Math.floor(item.getTime() / 1000)))
+        : [];
+
+      const mergedEpochs = Array.from(new Set([...previousEpochs, epoch]))
+        .sort((a, b) => Number(a) - Number(b))
+        .slice(-120);
+
+      const previousDetails = extractAttendanceCalendarRecords({
+        payload: rawObject,
+        activityKey: key,
+      }).map((record) => ({
+        timestamp: String(Math.floor(record.timestamp.getTime() / 1000)),
+        status: record.status,
+        note: record.note,
+        isQuestioned: record.isQuestioned,
+        questionedBy: record.questionedBy,
+        questionedReason: record.questionedReason,
+      }));
+
+      const detailByEpoch = new Map<string, (typeof previousDetails)[number]>();
+      previousDetails.forEach((detail) => {
+        detailByEpoch.set(detail.timestamp, detail);
+      });
+      detailByEpoch.set(epoch, {
+        timestamp: epoch,
+        status,
+        note: note?.trim() || undefined,
+        isQuestioned: undefined,
+        questionedBy: undefined,
+        questionedReason: undefined,
+      });
+      const mergedDetails = Array.from(detailByEpoch.values())
+        .sort((a, b) => Number(a.timestamp) - Number(b.timestamp))
+        .slice(-120);
+
+      const modules =
+        entry.parsed.modules.length > 0
+          ? entry.parsed.modules
+          : moduleId
+          ? [{ module_pubkey: moduleId }]
+          : [];
+
+      const nextPayload = {
+        ...rawObject,
+        kind: "AttendMeeting",
+        timestamp: date.toISOString(),
+        note:
+          note?.trim() ||
+          (typeof rawObject.note === "string"
+            ? rawObject.note
+            : entry.parsed.description),
+        modules,
+        attendanceRecords: mergedEpochs,
+        attendanceDetailRecords: mergedDetails,
+      };
+
+      try {
+        const ix = getAddFeedbackInstruction({
+          activity: toAddress(key),
+          studentAuthority: createPlaceholderSigner(address),
+          content: JSON.stringify(nextPayload),
+          assetIds: [],
+          evidenceAssetIds: [],
+        });
+
+        await sendTransaction([ix]);
+        toast({
+          title: "Attendance recorded",
+          description: "Attendance log was updated successfully.",
+        });
+        await loadActivities();
+      } catch (error) {
+        toast({
+          title: "Attendance failed",
+          description:
+            error instanceof Error ? error.message : "Unknown error occurred",
+          variant: "destructive",
+        });
       }
     },
     [address, isConnected, loadActivities, role, sendTransaction, toast],
@@ -410,6 +693,101 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
     };
   }, [visibleParsedActivities]);
 
+  const finalReviewStatus = useMemo(() => {
+    const issues: string[] = [];
+    const allEntries = parsedActivities;
+
+    if (allEntries.length === 0) {
+      issues.push("Log at least one activity.");
+    }
+
+    const courseModuleAddresses = (course?.modules ?? []).map((mod) =>
+      String(mod.resource),
+    );
+    if (courseModuleAddresses.length > 0) {
+      const linkedCounts = new Map<string, number>();
+      courseModuleAddresses.forEach((id) => linkedCounts.set(id, 0));
+
+      allEntries.forEach((entry) => {
+        entry.parsed.modules.forEach((moduleRef) => {
+          const moduleId = moduleRef.module_pubkey;
+          if (!linkedCounts.has(moduleId)) return;
+          linkedCounts.set(moduleId, (linkedCounts.get(moduleId) ?? 0) + 1);
+        });
+      });
+
+      const missingModuleLogs = courseModuleAddresses.filter(
+        (moduleId) => (linkedCounts.get(moduleId) ?? 0) === 0,
+      );
+
+      if (missingModuleLogs.length > 0) {
+        const sampleLabels = missingModuleLogs
+          .slice(0, 2)
+          .map(
+            (moduleId) =>
+              moduleResources[moduleId]?.name ||
+              `Module ${moduleId.slice(0, 6)}...`,
+          );
+        const suffix =
+          missingModuleLogs.length > sampleLabels.length ? ", ..." : "";
+        issues.push(
+          `No activity logged for ${
+            missingModuleLogs.length
+          } module(s): ${sampleLabels.join(", ")}${suffix}`,
+        );
+      }
+    }
+
+    let missingAttendance = 0;
+    let missingEvidence = 0;
+
+    allEntries.forEach((entry) => {
+      const payload =
+        entry.parsed.parsed && typeof entry.parsed.parsed === "object"
+          ? (entry.parsed.parsed as unknown as Record<string, unknown>)
+          : null;
+      if (!payload) return;
+
+      if (entry.parsed.kind === "AttendMeeting") {
+        const requiredAttendance = parsePositiveInt(payload.requiredAttendance);
+        if (!requiredAttendance) return;
+        const attendanceCount = extractAttendanceDates(payload).length;
+        if (attendanceCount < requiredAttendance) {
+          missingAttendance += requiredAttendance - attendanceCount;
+        }
+      }
+
+      if (entry.parsed.kind === "SubmitAssignment") {
+        const requiredEvidence = parsePositiveInt(
+          payload.requiredEvidenceCount,
+        );
+        if (!requiredEvidence) return;
+        const evidenceCount = Array.isArray(payload.evidenceLinks)
+          ? payload.evidenceLinks.filter(
+              (value) => typeof value === "string" && value.trim().length > 0,
+            ).length
+          : entry.parsed.evidenceLinks.length;
+        if (evidenceCount < requiredEvidence) {
+          missingEvidence += requiredEvidence - evidenceCount;
+        }
+      }
+    });
+
+    if (missingAttendance > 0) {
+      issues.push(
+        `${missingAttendance} attendance check-in(s) still required.`,
+      );
+    }
+    if (missingEvidence > 0) {
+      issues.push(`${missingEvidence} evidence link(s) still required.`);
+    }
+
+    return {
+      issues,
+      ready: issues.length === 0 && allEntries.length > 0,
+    };
+  }, [course?.modules, moduleResources, parsedActivities]);
+
   const moduleIdKey = moduleGroups.map((mod) => mod.id).join("|");
 
   useEffect(() => {
@@ -466,8 +844,12 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
 
       {moduleGroups.map((mod) => {
         const entries = activitiesByModule[mod.id] ?? [];
-        const resourceAddress = mod.resourceAddress ? String(mod.resourceAddress) : null;
-        const resource = resourceAddress ? moduleResources[resourceAddress] : null;
+        const resourceAddress = mod.resourceAddress
+          ? String(mod.resourceAddress)
+          : null;
+        const resource = resourceAddress
+          ? moduleResources[resourceAddress]
+          : null;
         const moduleRich =
           resourceAddress && moduleResourceContent[resourceAddress]
             ? moduleResourceContent[resourceAddress]
@@ -477,13 +859,13 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
         const guidanceText = moduleRich?.guidance?.trim()
           ? moduleRich.guidance.trim()
           : resource?.name
-            ? resource.name
-            : "No module guidance has been published yet.";
+          ? resource.name
+          : "No module guidance has been published yet.";
         const allMaterialTags = moduleRich?.materials?.length
           ? moduleRich.materials
           : resource
-            ? resource.tags.filter((tag) => !tag.startsWith("default_activity:"))
-            : [];
+          ? resource.tags.filter((tag) => !tag.startsWith("default_activity:"))
+          : [];
         const materialsRich = moduleRich?.materialsRich?.trim() || "";
         const materialSource = allMaterialTags;
         const materials = materialSource.slice(0, 3);
@@ -499,7 +881,9 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
-                    <CardTitle className="text-base">{resource?.name ?? mod.label}</CardTitle>
+                    <CardTitle className="text-base">
+                      {resource?.name ?? mod.label}
+                    </CardTitle>
                     <p className="text-xs text-muted-foreground">
                       Module materials and guidance
                     </p>
@@ -509,7 +893,9 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
                       Module Weight
                     </p>
                     <p className="text-lg font-semibold">
-                      {typeof mod.percentage === "number" ? `${mod.percentage}%` : "N/A"}
+                      {typeof mod.percentage === "number"
+                        ? `${mod.percentage}%`
+                        : "N/A"}
                     </p>
                   </div>
                 </div>
@@ -558,7 +944,10 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
                     ) : materials.length > 0 ? (
                       <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                         {materials.map((item) => (
-                          <li key={`${mod.id}-material-${item}`} className="break-words">
+                          <li
+                            key={`${mod.id}-material-${item}`}
+                            className="break-words"
+                          >
                             {item}
                           </li>
                         ))}
@@ -626,8 +1015,8 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
                           Log Activity in {resource?.name ?? mod.label}
                         </DialogTitle>
                         <DialogDescription>
-                          Record what you did for this module and attach relevant
-                          evidence.
+                          Record what you did for this module and attach
+                          relevant evidence.
                         </DialogDescription>
                       </DialogHeader>
                       <CreateActivityForm
@@ -649,7 +1038,7 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
               <div className="ml-4 rounded-lg border border-dashed border-l-4 border-l-blue-200 bg-muted/10 p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
-                    Activity Timeline
+                    Activity
                   </p>
                   <Badge variant="secondary">{entries.length} items</Badge>
                 </div>
@@ -661,163 +1050,301 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
                 )}
 
                 {entries.map((entry) => {
-                  const { activity, parsed, kindLabel, hiddenFromSupervisor } = entry;
+                  const { activity, parsed, hiddenFromSupervisor } = entry;
                   const activityKey = activity.publicKey.toBase58();
                   const isUpdatingVisibility =
                     isVisibilityUpdatingByActivity[activityKey] === true;
+                  const payload =
+                    parsed.parsed && typeof parsed.parsed === "object"
+                      ? (parsed.parsed as unknown as Record<string, unknown>)
+                      : null;
+                  const showAttendanceCalendar =
+                    parsed.kind === "AttendMeeting";
+                  const attendanceRecords = showAttendanceCalendar
+                    ? extractAttendanceCalendarRecords({
+                        payload,
+                        activityKey,
+                      })
+                    : [];
+                  const requiredAttendance = showAttendanceCalendar
+                    ? parsePositiveInt(payload?.requiredAttendance) ?? undefined
+                    : undefined;
+                  const attendanceDates = attendanceRecords.map(
+                    (record) => record.timestamp,
+                  );
+                  const attendanceRequirement = showAttendanceCalendar
+                    ? {
+                        frequency: "weekly" as const,
+                        totalRequired:
+                          requiredAttendance ??
+                          Math.max(attendanceRecords.length, 1),
+                        startDate:
+                          parseAttendanceTimestamp(
+                            payload?.attendanceStartDate,
+                          ) ??
+                          parseAttendanceTimestamp(payload?.timestamp) ??
+                          new Date(Number(activity.account.created) * 1000),
+                      }
+                    : undefined;
 
                   return (
-                  <Card
-                    key={activityKey}
-                    className="ml-2 border-l-4 border-l-blue-300 bg-background/95"
-                  >
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">Activity</Badge>
-                            <Badge variant="secondary">{kindLabel}</Badge>
-                          </div>
-                          <CardTitle className="text-base font-semibold">
-                            {parsed.title || "Activity"}
-                          </CardTitle>
-                          <p className="text-xs text-muted-foreground">
-                            Created{" "}
-                            {format(
-                              new Date(Number(activity.account.created) * 1000),
-                              "PPP p",
-                            )}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Updated{" "}
-                            {format(
-                              new Date(Number(activity.account.updated) * 1000),
-                              "PPP p",
-                            )}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {role === "student" && (
-                            <Button
-                              size="sm"
-                              variant={hiddenFromSupervisor ? "outline" : "destructive"}
-                              disabled={isUpdatingVisibility}
-                              onClick={() => toggleVisibility(entry)}
-                            >
-                              {isUpdatingVisibility ? (
+                    <Card
+                      key={activityKey}
+                      className="ml-2 border-l-4 border-l-blue-300 bg-background/95"
+                    >
+                      {!showAttendanceCalendar && (
+                        <CardHeader className="pb-2">
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="space-y-1">
+                              <CardTitle className="text-base font-semibold">
+                                {parsed.title || "Activity"}
+                              </CardTitle>
+                              {parsed.kind !== "AttendMeeting" && (
                                 <>
-                                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                  Saving
+                                  <p className="text-xs text-muted-foreground">
+                                    Created{" "}
+                                    {format(
+                                      new Date(
+                                        Number(activity.account.created) * 1000,
+                                      ),
+                                      "PPP p",
+                                    )}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Updated{" "}
+                                    {format(
+                                      new Date(
+                                        Number(activity.account.updated) * 1000,
+                                      ),
+                                      "PPP p",
+                                    )}
+                                  </p>
                                 </>
-                              ) : hiddenFromSupervisor ? (
-                                "Show"
-                              ) : (
-                                "Archive"
                               )}
-                            </Button>
-                          )}
-                          <StatusBadge status={activity.account.status as any} />
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-sm space-y-3">
-                        <p className="text-muted-foreground">{parsed.description}</p>
-                        {hiddenFromSupervisor && role === "student" && (
-                          <Badge variant="outline">Hidden from supervisor</Badge>
-                        )}
-
-                        {parsed.modules.length > 0 && (
-                          <div className="flex gap-2 flex-wrap">
-                            {parsed.modules.map((moduleRef, idx) => (
-                              <Badge
-                                key={`${moduleRef.module_pubkey}-${idx}`}
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                Module: {moduleRef.module_pubkey.slice(0, 8)}...
-                              </Badge>
-                            ))}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {!showAttendanceCalendar && (
+                                <StatusBadge
+                                  status={activity.account.status as any}
+                                />
+                              )}
+                            </div>
                           </div>
-                        )}
-
-                        {parsed.kind === "AttendMeeting" &&
-                          (() => {
-                            const payload = parsed.parsed as any;
-                            const records = Array.isArray(payload?.attendanceRecords)
-                              ? payload.attendanceRecords.filter(
-                                  (entry: unknown) => typeof entry === "string",
-                                )
-                              : [];
-                            if (!records.length) return null;
-
-                            return (
-                              <div className="space-y-1">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                  Attendance Records: {records.length}
+                        </CardHeader>
+                      )}
+                      <CardContent
+                        className={showAttendanceCalendar ? "pt-6" : undefined}
+                      >
+                        {showAttendanceCalendar ? (
+                          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_440px]">
+                            <div className="flex h-full flex-col text-sm">
+                              <div className="space-y-3">
+                                <CardTitle className="text-base font-semibold">
+                                  {parsed.title || "Activity"}
+                                </CardTitle>
+                                <p className="text-muted-foreground">
+                                  {parsed.description}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Latest: {(() => {
-                                    const latest = records[records.length - 1];
-                                    const asNumber = Number(latest);
-                                    const latestDate = Number.isFinite(asNumber)
-                                      ? new Date(asNumber * 1000)
-                                      : new Date(latest);
-                                    return format(latestDate, "PPP p");
-                                  })()}
-                                </p>
+                                {hiddenFromSupervisor && role === "student" && (
+                                  <Badge variant="outline">
+                                    Hidden from supervisor
+                                  </Badge>
+                                )}
+
+                                {parsed.evidenceLinks.length > 0 && (
+                                  <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                      Evidence Links
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {parsed.evidenceLinks.map((link, idx) => (
+                                        <a
+                                          key={`${link}-${idx}`}
+                                          href={link}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-xs underline text-blue-600"
+                                        >
+                                          Link {idx + 1}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {(() => {
+                                  const gradeOpt = activity.account
+                                    .grade as Option<number>;
+                                  const gradeValue =
+                                    gradeOpt && gradeOpt.__option === "Some"
+                                      ? gradeOpt.value ?? null
+                                      : null;
+                                  if (gradeValue === null) return null;
+                                  return (
+                                    <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md w-fit">
+                                      <CheckCircle className="h-4 w-4 text-green-500" />
+                                      <span className="font-medium">
+                                        Grade: {Number(gradeValue).toFixed(2)}%
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
+
+                                <ActivityUpdateActions
+                                  activityAddress={activityKey}
+                                  activityKind={parsed.kind}
+                                  parsedData={parsed}
+                                  moduleId={mod.id}
+                                  onUpdated={loadActivities}
+                                />
                               </div>
-                            );
-                          })()}
 
-                        {parsed.evidenceLinks.length > 0 && (
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground">
-                              Evidence Links
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {parsed.evidenceLinks.map((link, idx) => (
-                                <a
-                                  key={`${link}-${idx}`}
-                                  href={link}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-xs underline text-blue-600"
+                              <div className="mt-auto pt-3 border-t flex items-end justify-start gap-2">
+                                {role === "student" && (
+                                  <div className="flex items-center gap-2 rounded-md border px-2 py-1">
+                                    <span className="text-xs text-muted-foreground">
+                                      Visible to others
+                                    </span>
+                                    <Switch
+                                      checked={!hiddenFromSupervisor}
+                                      aria-label="Toggle activity visibility"
+                                      disabled={isUpdatingVisibility}
+                                      onCheckedChange={(checked) =>
+                                        toggleVisibility(entry, checked)
+                                      }
+                                    />
+                                  </div>
+                                )}
+                                {role !== "student" && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {hiddenFromSupervisor
+                                      ? "Hidden from others"
+                                      : "Visible to others"}
+                                  </Badge>
+                                )}
+                                {isUpdatingVisibility && (
+                                  <Badge
+                                    variant="outline"
+                                    className="gap-1 text-xs text-muted-foreground"
+                                  >
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    Saving
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <AttendanceCalendar
+                              records={attendanceRecords}
+                              requirement={attendanceRequirement}
+                              userRole={role}
+                              onMarkAttendance={(date, status, note) =>
+                                markAttendanceFromCalendar({
+                                  entry,
+                                  date,
+                                  status,
+                                  note,
+                                  moduleId: mod.id,
+                                })
+                              }
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex h-full flex-col text-sm">
+                            <div className="space-y-3">
+                              <p className="text-muted-foreground">
+                                {parsed.description}
+                              </p>
+                              {hiddenFromSupervisor && role === "student" && (
+                                <Badge variant="outline">
+                                  Hidden from supervisor
+                                </Badge>
+                              )}
+
+                              {parsed.evidenceLinks.length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    Evidence Links
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {parsed.evidenceLinks.map((link, idx) => (
+                                      <a
+                                        key={`${link}-${idx}`}
+                                        href={link}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-xs underline text-blue-600"
+                                      >
+                                        Link {idx + 1}
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {(() => {
+                                const gradeOpt = activity.account
+                                  .grade as Option<number>;
+                                const gradeValue =
+                                  gradeOpt && gradeOpt.__option === "Some"
+                                    ? gradeOpt.value ?? null
+                                    : null;
+                                if (gradeValue === null) return null;
+                                return (
+                                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md w-fit">
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                    <span className="font-medium">
+                                      Grade: {Number(gradeValue).toFixed(2)}%
+                                    </span>
+                                  </div>
+                                );
+                              })()}
+
+                              <ActivityUpdateActions
+                                activityAddress={activityKey}
+                                activityKind={parsed.kind}
+                                parsedData={parsed}
+                                moduleId={mod.id}
+                                onUpdated={loadActivities}
+                              />
+                            </div>
+
+                            <div className="mt-auto pt-3 border-t flex items-end justify-start gap-2">
+                              {role === "student" && (
+                                <div className="flex items-center gap-2 rounded-md border px-2 py-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    Visible to others
+                                  </span>
+                                  <Switch
+                                    checked={!hiddenFromSupervisor}
+                                    aria-label="Toggle activity visibility"
+                                    disabled={isUpdatingVisibility}
+                                    onCheckedChange={(checked) =>
+                                      toggleVisibility(entry, checked)
+                                    }
+                                  />
+                                </div>
+                              )}
+                              {role !== "student" && (
+                                <Badge variant="outline" className="text-xs">
+                                  {hiddenFromSupervisor
+                                    ? "Hidden from others"
+                                    : "Visible to others"}
+                                </Badge>
+                              )}
+                              {isUpdatingVisibility && (
+                                <Badge
+                                  variant="outline"
+                                  className="gap-1 text-xs text-muted-foreground"
                                 >
-                                  Link {idx + 1}
-                                </a>
-                              ))}
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  Saving
+                                </Badge>
+                              )}
                             </div>
                           </div>
                         )}
-
-                        {(() => {
-                          const gradeOpt = activity.account.grade as Option<number>;
-                          const gradeValue =
-                            gradeOpt && gradeOpt.__option === "Some"
-                              ? gradeOpt.value ?? null
-                              : null;
-                          if (gradeValue === null) return null;
-                          return (
-                            <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md w-fit">
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                              <span className="font-medium">
-                                Grade: {Number(gradeValue).toFixed(2)}%
-                              </span>
-                            </div>
-                          );
-                        })()}
-
-                        <ActivityUpdateActions
-                          activityAddress={activityKey}
-                          activityKind={parsed.kind}
-                          parsedData={parsed}
-                          moduleId={mod.id}
-                          onUpdated={loadActivities}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
                   );
                 })}
               </div>
@@ -831,66 +1358,198 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
           <h2 className="text-sm font-semibold">Unassigned Activities</h2>
           <div className="space-y-4">
             {unassignedActivities.map((entry) => {
-              const { activity, parsed, kindLabel, hiddenFromSupervisor } = entry;
+              const { activity, parsed, hiddenFromSupervisor } = entry;
               const activityKey = activity.publicKey.toBase58();
               const isUpdatingVisibility =
                 isVisibilityUpdatingByActivity[activityKey] === true;
+              const payload =
+                parsed.parsed && typeof parsed.parsed === "object"
+                  ? (parsed.parsed as unknown as Record<string, unknown>)
+                  : null;
+              const showAttendanceCalendar = parsed.kind === "AttendMeeting";
+              const attendanceRecords = showAttendanceCalendar
+                ? extractAttendanceCalendarRecords({
+                    payload,
+                    activityKey,
+                  })
+                : [];
+              const requiredAttendance = showAttendanceCalendar
+                ? parsePositiveInt(payload?.requiredAttendance) ?? undefined
+                : undefined;
+              const attendanceDates = attendanceRecords.map(
+                (record) => record.timestamp,
+              );
+              const attendanceRequirement = showAttendanceCalendar
+                ? {
+                    frequency: "weekly" as const,
+                    totalRequired:
+                      requiredAttendance ??
+                      Math.max(attendanceRecords.length, 1),
+                    startDate:
+                      parseAttendanceTimestamp(payload?.attendanceStartDate) ??
+                      parseAttendanceTimestamp(payload?.timestamp) ??
+                      new Date(Number(activity.account.created) * 1000),
+                  }
+                : undefined;
               return (
-              <Card key={activityKey}>
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start gap-4">
-                    <div>
-                      <CardTitle className="text-base font-semibold">
-                        {parsed.title || "Activity"}
-                      </CardTitle>
-                      <p className="text-xs text-muted-foreground">
-                        Submitted on{" "}
-                        {format(
-                          new Date(Number(activity.account.created) * 1000),
-                          "PPP",
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {role === "student" && (
-                        <Button
-                          size="sm"
-                          variant={hiddenFromSupervisor ? "outline" : "destructive"}
-                          disabled={isUpdatingVisibility}
-                          onClick={() => toggleVisibility(entry)}
-                        >
-                          {isUpdatingVisibility ? (
-                            <>
-                              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                              Saving
-                            </>
-                          ) : hiddenFromSupervisor ? (
-                            "Show"
-                          ) : (
-                            "Archive"
+                <Card key={activityKey}>
+                  {!showAttendanceCalendar && (
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <CardTitle className="text-base font-semibold">
+                            {parsed.title || "Activity"}
+                          </CardTitle>
+                          {parsed.kind !== "AttendMeeting" && (
+                            <p className="text-xs text-muted-foreground">
+                              Submitted on{" "}
+                              {format(
+                                new Date(
+                                  Number(activity.account.created) * 1000,
+                                ),
+                                "PPP",
+                              )}
+                            </p>
                           )}
-                        </Button>
-                      )}
-                      <Badge variant="secondary">{kindLabel}</Badge>
-                      <StatusBadge status={activity.account.status as any} />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-sm space-y-3">
-                    <p className="text-muted-foreground">{parsed.description}</p>
-                    {hiddenFromSupervisor && role === "student" && (
-                      <Badge variant="outline">Hidden from supervisor</Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!showAttendanceCalendar && (
+                            <StatusBadge
+                              status={activity.account.status as any}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                  )}
+                  <CardContent
+                    className={showAttendanceCalendar ? "pt-6" : undefined}
+                  >
+                    {showAttendanceCalendar ? (
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_440px]">
+                        <div className="flex h-full flex-col text-sm">
+                          <div className="space-y-3">
+                            <CardTitle className="text-base font-semibold">
+                              {parsed.title || "Activity"}
+                            </CardTitle>
+                            <p className="text-muted-foreground">
+                              {parsed.description}
+                            </p>
+                            {hiddenFromSupervisor && role === "student" && (
+                              <Badge variant="outline">
+                                Hidden from supervisor
+                              </Badge>
+                            )}
+                            <ActivityUpdateActions
+                              activityAddress={activityKey}
+                              activityKind={parsed.kind}
+                              parsedData={parsed}
+                              onUpdated={loadActivities}
+                            />
+                          </div>
+                          <div className="mt-auto pt-3 border-t flex items-end justify-start gap-2">
+                            {role === "student" && (
+                              <div className="flex items-center gap-2 rounded-md border px-2 py-1">
+                                <span className="text-xs text-muted-foreground">
+                                  Visible to others
+                                </span>
+                                <Switch
+                                  checked={!hiddenFromSupervisor}
+                                  aria-label="Toggle activity visibility"
+                                  disabled={isUpdatingVisibility}
+                                  onCheckedChange={(checked) =>
+                                    toggleVisibility(entry, checked)
+                                  }
+                                />
+                              </div>
+                            )}
+                            {role !== "student" && (
+                              <Badge variant="outline" className="text-xs">
+                                {hiddenFromSupervisor
+                                  ? "Hidden from others"
+                                  : "Visible to others"}
+                              </Badge>
+                            )}
+                            {isUpdatingVisibility && (
+                              <Badge
+                                variant="outline"
+                                className="gap-1 text-xs text-muted-foreground"
+                              >
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Saving
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <AttendanceCalendar
+                          records={attendanceRecords}
+                          requirement={attendanceRequirement}
+                          userRole={role}
+                          onMarkAttendance={(date, status, note) =>
+                            markAttendanceFromCalendar({
+                              entry,
+                              date,
+                              status,
+                              note,
+                            })
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-full flex-col text-sm">
+                        <div className="space-y-3">
+                          <p className="text-muted-foreground">
+                            {parsed.description}
+                          </p>
+                          {hiddenFromSupervisor && role === "student" && (
+                            <Badge variant="outline">
+                              Hidden from supervisor
+                            </Badge>
+                          )}
+                          <ActivityUpdateActions
+                            activityAddress={activityKey}
+                            activityKind={parsed.kind}
+                            parsedData={parsed}
+                            onUpdated={loadActivities}
+                          />
+                        </div>
+                        <div className="mt-auto pt-3 border-t flex items-end justify-start gap-2">
+                          {role === "student" && (
+                            <div className="flex items-center gap-2 rounded-md border px-2 py-1">
+                              <span className="text-xs text-muted-foreground">
+                                Visible to others
+                              </span>
+                              <Switch
+                                checked={!hiddenFromSupervisor}
+                                aria-label="Toggle activity visibility"
+                                disabled={isUpdatingVisibility}
+                                onCheckedChange={(checked) =>
+                                  toggleVisibility(entry, checked)
+                                }
+                              />
+                            </div>
+                          )}
+                          {role !== "student" && (
+                            <Badge variant="outline" className="text-xs">
+                              {hiddenFromSupervisor
+                                ? "Hidden from others"
+                                : "Visible to others"}
+                            </Badge>
+                          )}
+                          {isUpdatingVisibility && (
+                            <Badge
+                              variant="outline"
+                              className="gap-1 text-xs text-muted-foreground"
+                            >
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Saving
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
                     )}
-                    <ActivityUpdateActions
-                      activityAddress={activityKey}
-                      activityKind={parsed.kind}
-                      parsedData={parsed}
-                      onUpdated={loadActivities}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
@@ -905,20 +1564,32 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-4">
               <div className="rounded-md border bg-background p-3">
-                <p className="text-xs text-muted-foreground">Total Activities</p>
-                <p className="text-xl font-semibold">{summary.totalActivities}</p>
+                <p className="text-xs text-muted-foreground">
+                  Total Activities
+                </p>
+                <p className="text-xl font-semibold">
+                  {summary.totalActivities}
+                </p>
               </div>
               <div className="rounded-md border bg-background p-3">
                 <p className="text-xs text-muted-foreground">Completed</p>
-                <p className="text-xl font-semibold">{summary.completedActivities}</p>
+                <p className="text-xl font-semibold">
+                  {summary.completedActivities}
+                </p>
               </div>
               <div className="rounded-md border bg-background p-3">
                 <p className="text-xs text-muted-foreground">Active</p>
-                <p className="text-xl font-semibold">{summary.activeActivities}</p>
+                <p className="text-xl font-semibold">
+                  {summary.activeActivities}
+                </p>
               </div>
               <div className="rounded-md border bg-background p-3">
-                <p className="text-xs text-muted-foreground">Overall Progress</p>
-                <p className="text-xl font-semibold">{summary.overallProgress}%</p>
+                <p className="text-xs text-muted-foreground">
+                  Overall Progress
+                </p>
+                <p className="text-xl font-semibold">
+                  {summary.overallProgress}%
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -927,10 +1598,28 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Final Review</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">
                 Submit your portfolio for final credential review.
               </p>
+              {finalReviewStatus.issues.length > 0 ? (
+                <div className="rounded-md border bg-muted/20 p-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
+                    What's missing
+                  </p>
+                  <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+                    {finalReviewStatus.issues.map((issue, index) => (
+                      <li key={`${index}-${issue}`}>{issue}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="rounded-md border border-emerald-300/40 bg-emerald-50/60 p-2 dark:bg-emerald-900/10">
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                    No blockers detected. You can submit for final review.
+                  </p>
+                </div>
+              )}
               <Button className="w-full" disabled>
                 Submit for Final Review
               </Button>
@@ -942,11 +1631,7 @@ export function ActivityList({ courseAddress }: { courseAddress: string }) {
   );
 }
 
-function StatusBadge({
-  status,
-}: {
-  status: ActivityStatus | string;
-}) {
+function StatusBadge({ status }: { status: ActivityStatus | string }) {
   let label = "Unknown";
   let variant: "default" | "secondary" | "destructive" | "outline" = "outline";
 
